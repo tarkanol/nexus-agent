@@ -1,41 +1,44 @@
 <!DOCTYPE html>
-title><html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NEXUS Agent</title>
 
 <style>
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont;
-  background:#0a0d12;
+  background:#0b0f17;
   color:#e8eef7;
-  padding:20px;
+  padding:18px;
 }
 
 h1{
   text-align:center;
   letter-spacing:2px;
-  margin-bottom:6px;
+  margin-bottom:4px;
 }
-
 .sub{
   text-align:center;
-  font-size:14px;
-  color:#9fb0c8;
-  margin-bottom:20px;
+  font-size:13px;
+  color:#8fa0b8;
+  margin-bottom:16px;
 }
 
 .card{
   background:#121724;
   border:1px solid #1f2a40;
   border-radius:14px;
-  padding:16px;
+  padding:14px;
   margin-bottom:14px;
 }
 
 .row{
   display:flex;
   justify-content:space-between;
-  font-size:14px;
+  align-items:center;
   margin:6px 0;
+  font-size:14px;
 }
 
 .label{ color:#8fa0b8 }
@@ -46,21 +49,65 @@ h1{
   border-radius:10px;
   font-size:12px;
 }
-
 .paper{ background:#223a5e; color:#9ec6ff }
 .running{ background:#0f5132; color:#5cffb0 }
 .stopped{ background:#5c1d24; color:#ff7a8a }
+
+.pairs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+}
+.pair{
+  padding:8px 14px;
+  border-radius:12px;
+  border:1px solid #2a3550;
+  font-size:13px;
+  color:#9fb0c8;
+}
+.pair.active{
+  background:#1c3d6e;
+  color:#9ec6ff;
+  border-color:#3b78c4;
+}
+
+.leverages{
+  display:flex;
+  gap:6px;
+  margin-top:6px;
+}
+.lev{
+  flex:1;
+  padding:10px 0;
+  text-align:center;
+  border-radius:12px;
+  border:1px solid #2a3550;
+  font-size:14px;
+  color:#9fb0c8;
+}
+.lev.active{
+  background:#205c3b;
+  color:#5cffb0;
+  border-color:#2ea76d;
+}
+
+.sliderBlock{
+  margin-top:10px;
+}
+input[type=range]{
+  width:100%;
+}
 
 button{
   width:100%;
   padding:16px;
   border-radius:14px;
+  border:none;
   font-size:16px;
   font-weight:600;
-  border:none;
   margin-top:10px;
 }
-
 .start{ background:#00e676; color:#000 }
 .stop{ background:#ff3b5c; color:#fff }
 
@@ -68,7 +115,7 @@ button{
   text-align:center;
   font-size:12px;
   color:#6f8099;
-  margin-top:10px;
+  margin-top:12px;
 }
 </style>
 </head>
@@ -78,6 +125,7 @@ button{
 <h1>NEXUS</h1>
 <div class="sub">Automated Futures Agent</div>
 
+<!-- STATUS -->
 <div class="card">
   <div class="row">
     <span class="label">MODE</span>
@@ -89,54 +137,111 @@ button{
   </div>
 </div>
 
+<!-- LIVE PRICE -->
 <div class="card">
-  <div class="row"><span class="label">Strategy</span><span class="value">EMA 9 / 21</span></div>
-  <div class="row"><span class="label">Timeframe</span><span class="value">5m</span></div>
-  <div class="row"><span class="label">Pairs</span><span class="value">BTC, ETH, SOL</span></div>
+  <div class="row">
+    <span class="label">Selected Pair</span>
+    <span class="value" id="livePair">BTCUSDT</span>
+  </div>
+  <div class="row">
+    <span class="label">Live Price</span>
+    <span class="value" id="livePrice">--</span>
+  </div>
 </div>
 
+<!-- PAIRS -->
 <div class="card">
-  <div class="row"><span class="label">Paper Balance</span><span class="value">1000 USDT</span></div>
-  <div class="row"><span class="label">Today PnL</span><span class="value">0.00 USDT</span></div>
-  <div class="row"><span class="label">Daily Loss Limit</span><span class="value">-20 USDT</span></div>
+  <div class="label">Trading Pairs</div>
+  <div class="pairs">
+    <div class="pair active" onclick="togglePair(this)">BTCUSDT</div>
+    <div class="pair" onclick="togglePair(this)">ETHUSDT</div>
+    <div class="pair" onclick="togglePair(this)">SOLUSDT</div>
+    <div class="pair" onclick="togglePair(this)">XRPUSDT</div>
+  </div>
+</div>
+
+<!-- LEVERAGE -->
+<div class="card">
+  <div class="label">Leverage</div>
+  <div class="leverages">
+    <div class="lev active" onclick="setLev(this)">x1</div>
+    <div class="lev" onclick="setLev(this)">x2</div>
+    <div class="lev" onclick="setLev(this)">x3</div>
+    <div class="lev" onclick="setLev(this)">x4</div>
+    <div class="lev" onclick="setLev(this)">x5</div>
+  </div>
+</div>
+
+<!-- TP / SL -->
+<div class="card">
+  <div class="sliderBlock">
+    <div class="row">
+      <span class="label">Take Profit</span>
+      <span class="value" id="tpVal">0.6%</span>
+    </div>
+    <input type="range" min="1" max="10" value="6" id="tp">
+  </div>
+
+  <div class="sliderBlock">
+    <div class="row">
+      <span class="label">Stop Loss</span>
+      <span class="value" id="slVal">0.3%</span>
+    </div>
+    <input type="range" min="1" max="10" value="3" id="sl">
+  </div>
 </div>
 
 <button class="start" onclick="start()">START AGENT</button>
 <button class="stop" onclick="stop()">STOP & CLOSE</button>
 
 <div class="footer">
-  No real orders • Simulation only
+  Live market data • No real orders
 </div>
 
 <script>
-const BACKEND = "https://nexus-agent-backend.tarkanol.workers.dev";
-let timer=null;
+  const BACKEND_URL = "https://nexus-agent-backend.tarkanol.workers.dev";
+let selectedPair = "BTCUSDT";
 
-function start(){
-  document.getElementById("state").innerText="RUNNING";
-  document.getElementById("state").className="badge running";
+// SL / TP
+tp.oninput = ()=> tpVal.innerText = (tp.value/10).toFixed(1)+"%";
+sl.oninput = ()=> slVal.innerText = (sl.value/10).toFixed(1)+"%";
 
-  fetch(`${BACKEND}/agent/auto`,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ on:true })
-  });
-
-  timer=setInterval(()=>{
-    fetch(`${BACKEND}/agent/tick`,{ method:"POST" });
-  },15000);
+// PAIRS
+function togglePair(el){
+  document.querySelectorAll('.pair').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  selectedPair = el.innerText;
+  livePair.innerText = selectedPair;
+  fetchPrice();
 }
 
-function stop(){
-  document.getElementById("state").innerText="STOPPED";
-  document.getElementById("state").className="badge stopped";
+// LEVERAGE
+function setLev(el){
+  document.querySelectorAll('.lev').forEach(l=>l.classList.remove('active'));
+  el.classList.add('active');
+}
 
-  fetch(`${BACKEND}/agent/stop`,{ method:"POST" });
-  clearInterval(timer);
+// LIVE PRICE
+async function fetchPrice(){
+  const res = await fetch(
+    `https://fapi.binance.com/fapi/v1/ticker/price?symbol=${selectedPair}`
+  );
+  const data = await res.json();
+  livePrice.innerText = Number(data.price).toLocaleString();
+}
+setInterval(fetchPrice, 5000);
+fetchPrice();
+
+// START / STOP
+function start(){
+  state.innerText="RUNNING";
+  state.className="badge running";
+}
+function stop(){
+  state.innerText="STOPPED";
+  state.className="badge stopped";
 }
 </script>
 
 </body>
 </html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
