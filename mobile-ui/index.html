@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>NEXUS</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS — Agent Control Panel</title>
 
 <style>
 body{
-  margin:0;
   background:#0b0f17;
   color:#e8eef7;
   padding:18px;
-  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
 }
 
 h1{
@@ -41,6 +41,24 @@ h1{
   margin:6px 0;
 }
 
+button{
+  padding:14px;
+  border-radius:12px;
+  border:none;
+  font-size:15px;
+  font-weight:600;
+}
+
+.start{
+  background:#00e676;
+  color:#000;
+}
+
+.stop{
+  background:#ff3b5c;
+  color:#fff;
+}
+
 .badge{
   padding:4px 10px;
   border-radius:10px;
@@ -49,29 +67,6 @@ h1{
 
 .RUNNING{background:#0f5132;color:#5cffb0;}
 .STOPPED{background:#5c1d24;color:#ff7a8a;}
-
-.signal{
-  text-align:center;
-  font-size:32px;
-  margin:10px 0;
-}
-
-.LONG{color:#00ff88;}
-.SHORT{color:#ff4466;}
-.WAIT{color:#8899aa;}
-
-button{
-  width:100%;
-  padding:14px;
-  border-radius:12px;
-  border:none;
-  font-size:16px;
-  font-weight:600;
-  margin-top:8px;
-}
-
-.start{background:#00e676;color:#000;}
-.stop{background:#ff4466;color:#fff;}
 
 .log{
   font-size:12px;
@@ -87,41 +82,35 @@ button{
 <h1>NEXUS</h1>
 <div class="sub">Agent Control Panel</div>
 
+<!-- MODE / STATE -->
 <div class="card">
+  <div class="row"><span>Mode</span><span id="mode">PAPER</span></div>
   <div class="row">
-    <span>STATE</span>
+    <span>State</span>
     <span id="state" class="badge STOPPED">STOPPED</span>
   </div>
-  <div class="row">
-    <span>MODE</span>
-    <span id="mode">PAPER</span>
-  </div>
 </div>
 
+<!-- BALANCE -->
 <div class="card">
-  <div id="signal" class="signal WAIT">WAIT</div>
-  <div class="row"><span>Confidence</span><span id="confidence">—</span></div>
-  <div id="reason" style="font-size:12px;color:#8fa0b8;text-align:center;"></div>
+  <div class="row"><span>Paper Balance</span><span id="balance">—</span></div>
+  <div class="row"><span>PnL</span><span id="pnl">—</span></div>
 </div>
 
+<!-- CONTROLS -->
 <div class="card">
-  <div class="row"><span>RSI</span><span id="iRsi">—</span></div>
-  <div class="row"><span>EMA9</span><span id="iEma9">—</span></div>
-  <div class="row"><span>EMA21</span><span id="iEma21">—</span></div>
-  <div class="row"><span>MACD</span><span id="iMacd">—</span></div>
-  <div class="row"><span>VOL</span><span id="iVol">—</span></div>
+  <button class="start" onclick="startAgent()">START</button>
+  <button class="stop" onclick="stopAgent()">STOP</button>
 </div>
 
-<button class="start" onclick="startAgent()">START</button>
-<button class="stop" onclick="stopAgent()">STOP</button>
-
+<!-- LOGS -->
 <div class="card">
   <strong>Trade Logs</strong>
   <div id="logs"></div>
 </div>
 
 <script>
-const BACKEND_URL = "https://SENIN-WORKER.workers.dev";
+const BACKEND_URL = "https://nexus-agent-backend.tarkanol.workers.dev";
 let tickTimer = null;
 
 async function startAgent(){
@@ -130,7 +119,6 @@ async function startAgent(){
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({ on:true })
   });
-
   state.textContent="RUNNING";
   state.className="badge RUNNING";
 
@@ -151,26 +139,15 @@ async function refresh(){
   const d = await r.json();
 
   mode.textContent = d.mode;
-
-  if (d.signal){
-    signal.textContent = d.signal.name;
-    signal.className = "signal " + d.signal.name;
-    confidence.textContent = d.signal.confidence + "%";
-    reason.textContent = d.signal.reasons.join(" · ");
-
-    iRsi.textContent = d.signal.indicators.rsi;
-    iEma9.textContent = d.signal.indicators.ema9;
-    iEma21.textContent = d.signal.indicators.ema21;
-    iMacd.textContent = d.signal.indicators.macd;
-    iVol.textContent = d.signal.indicators.vol;
-  }
+  balance.textContent = d.paper.balance.toFixed(2) + " USDT";
+  pnl.textContent = d.paper.pnl.toFixed(2) + " USDT";
 
   logs.innerHTML = (d.logs || []).map(l => `<div class="log">${l}</div>`).join("");
 }
 
 setInterval(refresh,4000);
+refresh();
 </script>
 
 </body>
 </html>
-``
