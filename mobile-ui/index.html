@@ -1,47 +1,142 @@
 <!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NEXUS</title>
+title><html>
+
 <style>
-body{background:#05070a;color:#e0eaf5;font-family:-apple-system;padding:20px}
-button{width:100%;padding:18px;border-radius:14px;font-size:18px;margin:10px 0}
-.start{background:#00ff88;border:none}
-.stop{background:#ff3355;border:none;color:#fff}
-.status{margin:20px 0;font-size:20px;text-align:center}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:#0a0d12;
+  color:#e8eef7;
+  padding:20px;
+}
+
+h1{
+  text-align:center;
+  letter-spacing:2px;
+  margin-bottom:6px;
+}
+
+.sub{
+  text-align:center;
+  font-size:14px;
+  color:#9fb0c8;
+  margin-bottom:20px;
+}
+
+.card{
+  background:#121724;
+  border:1px solid #1f2a40;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:14px;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  font-size:14px;
+  margin:6px 0;
+}
+
+.label{ color:#8fa0b8 }
+.value{ font-weight:600 }
+
+.badge{
+  padding:4px 10px;
+  border-radius:10px;
+  font-size:12px;
+}
+
+.paper{ background:#223a5e; color:#9ec6ff }
+.running{ background:#0f5132; color:#5cffb0 }
+.stopped{ background:#5c1d24; color:#ff7a8a }
+
+button{
+  width:100%;
+  padding:16px;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:600;
+  border:none;
+  margin-top:10px;
+}
+
+.start{ background:#00e676; color:#000 }
+.stop{ background:#ff3b5c; color:#fff }
+
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#6f8099;
+  margin-top:10px;
+}
 </style>
 </head>
+
 <body>
 
-<h2 style="text-align:center">NEXUS AGENT</h2>
-<div id="status" class="status">STOPPED</div>
+<h1>NEXUS</h1>
+<div class="sub">Automated Futures Agent</div>
 
-<button class="start" onclick="start()">START AUTO</button>
-<button class="stop" onclick="stop()">STOP AUTO</button>
+<div class="card">
+  <div class="row">
+    <span class="label">MODE</span>
+    <span class="badge paper">PAPER • Live Data</span>
+  </div>
+  <div class="row">
+    <span class="label">STATE</span>
+    <span id="state" class="badge stopped">STOPPED</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row"><span class="label">Strategy</span><span class="value">EMA 9 / 21</span></div>
+  <div class="row"><span class="label">Timeframe</span><span class="value">5m</span></div>
+  <div class="row"><span class="label">Pairs</span><span class="value">BTC, ETH, SOL</span></div>
+</div>
+
+<div class="card">
+  <div class="row"><span class="label">Paper Balance</span><span class="value">1000 USDT</span></div>
+  <div class="row"><span class="label">Today PnL</span><span class="value">0.00 USDT</span></div>
+  <div class="row"><span class="label">Daily Loss Limit</span><span class="value">-20 USDT</span></div>
+</div>
+
+<button class="start" onclick="start()">START AGENT</button>
+<button class="stop" onclick="stop()">STOP & CLOSE</button>
+
+<div class="footer">
+  No real orders • Simulation only
+</div>
 
 <script>
-const BACKEND = "https://nexus-agent-backend.tarkanol.workers.dev/";
-let timer = null;
+const BACKEND = "https://SENIN-WORKER-URL-IN";
+let timer=null;
 
 function start(){
-  document.getElementById("status").innerText="RUNNING";
+  document.getElementById("state").innerText="RUNNING";
+  document.getElementById("state").className="badge running";
+
   fetch(`${BACKEND}/agent/auto`,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ on:true })
   });
 
-  timer = setInterval(()=>{
+  timer=setInterval(()=>{
     fetch(`${BACKEND}/agent/tick`,{ method:"POST" });
-  }, 15000);
+  },15000);
 }
+
 function stop(){
-  document.getElementById("status").innerText="STOPPED";
+  document.getElementById("state").innerText="STOPPED";
+  document.getElementById("state").className="badge stopped";
+
   fetch(`${BACKEND}/agent/stop`,{ method:"POST" });
   clearInterval(timer);
 }
-
 </script>
 
 </body>
 </html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
