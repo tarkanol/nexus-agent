@@ -2,233 +2,130 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
   <title>NEXUS Control</title>
-
   <style>
-    :root {
-      --bg: #05070a;
-      --panel: #0b111a;
-      --border: #1c2736;
-      --accent: #00d4ff;
-      --green: #00ff88;
-      --red: #ff3355;
-      --yellow: #ffcc00;
-      --text: #e0eaf5;
-      --text-dim: #7f8fa6;
+    :root{
+      --bg:#05070a;--panel:#0b111a;--border:#1c2736;--accent:#00d4ff;
+      --green:#00ff88;--red:#ff3355;--yellow:#ffcc00;--text:#e0eaf5;--dim:#7f8fa6;
     }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, "San Francisco", sans-serif;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 20px 16px;
-    }
-
-    h1 {
-      font-size: 22px;
-      text-align: center;
-      margin-bottom: 20px;
-      letter-spacing: 2px;
-      color: var(--accent);
-    }
-
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .label {
-      color: var(--text-dim);
-    }
-
-    .value {
-      font-weight: 600;
-    }
-
-    .status {
-      color: var(--green);
-    }
-
-    .btn {
-      width: 100%;
-      padding: 16px;
-      font-size: 16px;
-      font-weight: 600;
-      border-radius: 14px;
-      border: none;
-      margin-top: 10px;
-    }
-
-    .btn-start {
-      background: var(--green);
-      color: #000;
-    }
-
-    .btn-stop {
-      background: var(--red);
-      color: #fff;
-    }
-
-    .section-title {
-      font-size: 13px;
-      margin-bottom: 12px;
-      color: var(--accent);
-      letter-spacing: 1px;
-    }
-
-    .pairs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .pair {
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      text-align: center;
-      font-size: 14px;
-      background: #070c14;
-      color: var(--text-dim);
-    }
-
-    .pair.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(0,212,255,0.08);
-    }
-
-    .selector {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .option {
-      flex: 1;
-      padding: 10px;
-      text-align: center;
-      font-size: 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-    }
-
-    .option.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(0,212,255,0.08);
-    }
-
-    .slider-wrap {
-      margin-top: 10px;
-    }
-
-    input[type=range] {
-      width: 100%;
-    }
-
-    .slider-value {
-      text-align: right;
-      font-size: 14px;
-      margin-top: 4px;
-      color: var(--text-dim);
-    }
-
-    .warning {
-      background: rgba(255, 204, 0, 0.1);
-      border: 1px solid var(--yellow);
-      border-radius: 12px;
-      padding: 12px;
-      font-size: 13px;
-      color: var(--yellow);
-      margin-top: 10px;
-    }
+    *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro',sans-serif}
+    body{margin:0;background:var(--bg);color:var(--text);padding:18px}
+    h1{text-align:center;color:var(--accent);letter-spacing:2px;margin:8px 0 18px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px}
+    .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0;font-size:14px}
+    .label{color:var(--dim)} .value{font-weight:600}
+    .status.on{color:var(--green)} .status.off{color:var(--red)}
+    .btn{width:100%;padding:14px;border-radius:14px;border:none;font-weight:700;font-size:16px;margin-top:8px}
+    .start{background:var(--green);color:#000} .stop{background:var(--red);color:#fff}
+    .section{color:var(--accent);margin-bottom:10px;font-size:13px;letter-spacing:1px}
+    .pairs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .pair{padding:12px;border:1px solid var(--border);border-radius:12px;text-align:center;color:var(--dim);background:#070c14}
+    .pair.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08)}
+    .select{display:flex;gap:8px}
+    .opt{flex:1;padding:10px;border:1px solid var(--border);border-radius:12px;text-align:center;color:var(--dim)}
+    .opt.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08)}
+    .slider{margin-top:10px}
+    input[type=range]{width:100%}
+    .warn{border:1px solid var(--yellow);border-radius:12px;padding:12px;color:var(--yellow);background:rgba(255,204,0,.1);font-size:13px}
   </style>
 </head>
-
 <body>
 
-  <h1>NEXUS</h1>
+<h1>NEXUS</h1>
 
-  <!-- STATUS -->
-  <div class="card">
-    <div class="row">
-      <span class="label">STATUS</span>
-      <span class="value status">RUNNING</span>
-    </div>
-    <div class="row">
-      <span class="label">MODE</span>
-      <span class="value">AUTO</span>
-    </div>
-    <div class="row">
-      <span class="label">ACCOUNT</span>
-      <span class="value">TESTNET</span>
-    </div>
+<div class="card">
+  <div class="row"><span class="label">STATUS</span><span id="status" class="value status off">STOPPED</span></div>
+  <div class="row"><span class="label">MODE</span><span class="value">AUTO</span></div>
+  <div class="row"><span class="label">ACCOUNT</span><span class="value">TESTNET</span></div>
+  <button class="btn start" onclick="startAgent()">START AGENT</button>
+  <button class="btn stop" onclick="stopAgent()">STOP AGENT</button>
+</div>
 
-    <button class="btn btn-start">START AGENT</button>
-    <button class="btn btn-stop">STOP AGENT</button>
+<div class="card">
+  <div class="section">PAIRS</div>
+  <div class="pairs">
+    <div class="pair active" onclick="togglePair(this)">BTCUSDT</div>
+    <div class="pair active" onclick="togglePair(this)">ETHUSDT</div>
+    <div class="pair" onclick="togglePair(this)">SOLUSDT</div>
+    <div class="pair" onclick="togglePair(this)">XRPUSDT</div>
   </div>
+</div>
 
-  <!-- PAIRS -->
-  <div class="card">
-    <div class="section-title">PAIRS</div>
-    <div class="pairs">
-      <div class="pair active">BTCUSDT</div>
-      <div class="pair active">ETHUSDT</div>
-      <div class="pair">SOLUSDT</div>
-      <div class="pair">XRPUSDT</div>
-    </div>
+<div class="card">
+  <div class="section">RISK</div>
+  <div class="label">LEVERAGE</div>
+  <div class="select">
+    <div class="opt" onclick="setLev(this)">x1</div>
+    <div class="opt active" onclick="setLev(this)">x3</div>
+    <div class="opt" onclick="setLev(this)">x5</div>
   </div>
-
-  <!-- RISK -->
-  <div class="card">
-    <div class="section-title">RISK SETUP</div>
-
-    <div class="label">LEVERAGE</div>
-    <div class="selector">
-      <div class="option">x1</div>
-      <div class="option active">x3</div>
-      <div class="option">x5</div>
-    </div>
-
-    <div class="slider-wrap">
-      <div class="label">TAKE PROFIT</div>
-      <input type="range" min="1" max="10" value="6" />
-      <div class="slider-value">0.6 %</div>
-    </div>
-
-    <div class="slider-wrap">
-      <div class="label">STOP LOSS</div>
-      <input type="range" min="1" max="10" value="3" />
-      <div class="slider-value">0.3 %</div>
-    </div>
+  <div class="slider">
+    <div class="label">TAKE PROFIT</div>
+    <input id="tp" type="range" min="1" max="10" value="6" />
+    <div class="label" id="tpv">0.6%</div>
   </div>
-
-  <!-- WARNING -->
-  <div class="warning">
-    AUTO mode enabled.<br />
-    Agent will trade automatically within defined limits.
+  <div class="slider">
+    <div class="label">STOP LOSS</div>
+    <input id="sl" type="range" min="1" max="10" value="3" />
+    <div class="label" id="slv">0.3%</div>
   </div>
+</div>
 
+<div class="warn">AUTO mode trades automatically within limits.</div>
+
+<script>
+  // ⬇⬇⬇ BACKEND URL'İNİ BURAYA YAZ ⬇⬇⬇
+  const BACKEND_URL = "https://SENIN-WORKER-URL-IN";
+
+  const state = {
+    auto:false,
+    leverage:3
+  };
+
+  const tp = document.getElementById('tp');
+  const sl = document.getElementById('sl');
+  tp.oninput = ()=> document.getElementById('tpv').innerText = (tp.value/10).toFixed(1)+"%";
+  sl.oninput = ()=> document.getElementById('slv').innerText = (sl.value/10).toFixed(1)+"%";
+
+  function togglePair(el){ el.classList.toggle('active'); }
+  function setLev(el){
+    document.querySelectorAll('.opt').forEach(o=>o.classList.remove('active'));
+    el.classList.add('active');
+    state.leverage = Number(el.innerText.replace('x',''));
+  }
+
+  function getPairs(){
+    return [...document.querySelectorAll('.pair.active')].map(p=>p.innerText);
+  }
+
+  async function startAgent(){
+    state.auto = true;
+    document.getElementById('status').innerText="RUNNING";
+    document.getElementById('status').className="value status on";
+
+    // örnek manuel test çağrısı (BTC için)
+    await fetch(`${BACKEND_URL}/trade`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        symbol:getPairs()[0]||"BTCUSDT",
+        side:"BUY",
+        usdt:50,
+        leverage:state.leverage,
+        tp: tp.value/10,
+        sl: sl.value/10
+      })
+    });
+    alert("START sent to backend");
+  }
+
+  function stopAgent(){
+    state.auto = false;
+    document.getElementById('status').innerText="STOPPED";
+    document.getElementById('status').className="value status off";
+    alert("STOP (AUTO OFF)");
+  }
+</script>
 </body>
 </html>
