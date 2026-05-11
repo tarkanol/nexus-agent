@@ -35,16 +35,12 @@ function start(){
     fetch(`${BACKEND}/agent/tick`,{ method:"POST" });
   }, 15000);
 }
-
 function stop(){
   document.getElementById("status").innerText="STOPPED";
-  fetch(`${BACKEND}/agent/auto`,{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ on:false })
-  });
+  fetch(`${BACKEND}/agent/stop`,{ method:"POST" });
   clearInterval(timer);
 }
+
 </script>
 
 </body>
