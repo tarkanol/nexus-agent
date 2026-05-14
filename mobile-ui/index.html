@@ -167,7 +167,7 @@
   <div class="ph"><div class="ph-title"><div class="dot"></div>API CONFIGURATION</div></div>
   <div class="pb">
     <div class="cfg-grid">
-      <div class="field"><label>Worker URL</label><input type="text" id="workerUrl" placeholder="https://nexus-agent-backend.tarkanol.workers.dev"/></div>
+      <div class="field"><label>Worker URL</label><input type="text" id="workerUrl" placeholder="https://your-worker.workers.dev"/></div>
       <div class="field"><label>Mode</label>
         <select id="tradeMode" onchange="onModeChange()">
           <option value="sim">Simulation (Paper)</option>
@@ -331,7 +331,7 @@
     <button onclick="document.getElementById('logBox').innerHTML=''" style="font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'Space Mono';letter-spacing:1px;">CLEAR</button>
   </div>
   <div class="log-box" id="logBox">
-    <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX Futures Scalping Agent v3.0 — Cloudflare + GitHub</span></div>
+    <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX Futures Scalping Agent v3.1 — Fixed quantity calculation</span></div>
     <div class="le"><span class="lt">00:00:00</span><span class="lINFO">Worker URL'ini gir ve CONNECT'e bas</span></div>
   </div>
 </div>
@@ -372,7 +372,6 @@ function drawChart() {
   const mn=Math.min(...prices)*0.9998, mx=Math.max(...prices)*1.0002, rng=mx-mn;
   const pad={l:6,r:6,t:10,b:20}, cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
   const px=i=>pad.l+(i/(n-1))*cW, py=p=>pad.t+cH-((p-mn)/rng)*cH;
-
   for(let i=0;i<=3;i++){
     const y=pad.t+(i/3)*cH;
     ctx.strokeStyle='rgba(15,30,48,0.8)';ctx.lineWidth=1;
@@ -390,7 +389,6 @@ function drawChart() {
   ctx.beginPath();ctx.moveTo(px(0),py(prices[0]));
   for(let i=1;i<n;i++)ctx.lineTo(px(i),py(prices[i]));
   ctx.strokeStyle=isUp?'#00ff88':'#ff4466';ctx.lineWidth=1.5;ctx.stroke();
-
   [['ema9','rgba(255,221,0,0.7)',[3,3]],['ema21','rgba(170,102,255,0.7)',[2,4]]].forEach(([key,color,dash])=>{
     const arr=S.chartData[key];
     if(arr.length!==n)return;
@@ -554,25 +552,45 @@ async function openTrade(side,auto=false){
   const now=Date.now();
   if(auto&&now-S.lastTradeTime<30000)return;
   if(S.positions.find(p=>p.pair===S.pair)){if(auto)return;addLog('WARN','Position already open');return;}
+
   const tp=parseFloat(document.getElementById('tpRange').value)/100;
   const sl=parseFloat(document.getElementById('slRange').value)/100;
   const pct=parseFloat(document.getElementById('perTrade').value)/100;
-  const tradeSize=S.balance*pct, qty=tradeSize/S.price;
+
+  // ── FIX: usdAmount hesapla, qty sadece lokal takip için ──
+  const usdAmount=parseFloat((S.balance*pct).toFixed(2));
+  const qty=usdAmount/S.price; // lokal P&L hesabı için
+
   const tpPrice=side==='LONG'?S.price*(1+tp):S.price*(1-tp);
   const slPrice=side==='LONG'?S.price*(1-sl):S.price*(1+sl);
-  const pos={id:now,pair:S.pair,side,entry:S.price,qty,lev:S.leverage,size:tradeSize,tp:tpPrice,sl:slPrice,auto};
+  const pos={id:now,pair:S.pair,side,entry:S.price,qty,lev:S.leverage,size:usdAmount,tp:tpPrice,sl:slPrice,auto};
   S.positions.push(pos);S.lastTradeTime=now;
-  addLog(side,`${auto?'[AUTO] ':''}${side} ${S.pair} @ $${S.price.toFixed(2)} | TP:$${tpPrice.toFixed(2)} SL:$${slPrice.toFixed(2)} | $${tradeSize.toFixed(2)} ${S.leverage}×`);
+
+  addLog(side,`${auto?'[AUTO] ':''}${side} ${S.pair} @ $${S.price.toFixed(2)} | TP:$${tpPrice.toFixed(2)} SL:$${slPrice.toFixed(2)} | $${usdAmount.toFixed(2)} ${S.leverage}×`);
   updatePositions();
+
   if(S.mode==='live'){
     try{
-      const res=await fetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:S.pair,side,quantity:qty.toFixed(3),leverage:S.leverage,tp:parseFloat(tpPrice.toFixed(4)),sl:parseFloat(slPrice.toFixed(4))})});
+      // ── FIX: quantity değil usdAmount gönder — worker hesaplar ──
+      const res=await fetch(WORKER+'/order',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          symbol:S.pair,
+          side,
+          usdAmount,          // <-- DÜZELTİLDİ: quantity yerine usdAmount
+          leverage:S.leverage,
+          tp:parseFloat(tpPrice.toFixed(4)),
+          sl:parseFloat(slPrice.toFixed(4))
+        })
+      });
       const data=await res.json();
-      if(data.success)addLog('SYS','✅ Gerçek emir gönderildi');
+      if(data.success)addLog('SYS',`✅ Emir gönderildi | qty:${data.quantity} @ $${data.price}`);
       else addLog('WARN','❌ Emir hatası: '+data.error);
     }catch(e){addLog('WARN','❌ Worker hatası: '+e.message);}
   }
 }
+
 async function closeTrade(id,reason='MANUAL'){
   const pos=S.positions.find(p=>p.id===id);if(!pos)return;
   const pnl=(S.price-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty*pos.lev;
@@ -580,18 +598,31 @@ async function closeTrade(id,reason='MANUAL'){
   S.balance+=pnl;S.dayPnl+=pnl;S.totalPnl+=pnl;
   S.trades.push({id,pair:pos.pair,side:pos.side,entry:pos.entry,exit:S.price,pnl,pct,size:pos.size,lev:pos.lev,reason,tradeNum:S.trades.length+1,balanceAfter:S.balance,today:true});
   S.positions=S.positions.filter(p=>p.id!==id);
+
   addLog(reason==='TP'?'TP':reason==='SL'?'SL':'INFO',`${reason} ${pos.side} ${pos.pair} | P&L: ${pnl>=0?'+':''}$${pnl.toFixed(3)} (${pct>=0?'+':''}${pct.toFixed(2)}%) | Bal: $${S.balance.toFixed(2)}`);
+
   if(S.mode==='live'){
     try{
-      const res=await fetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side,quantity:pos.qty.toFixed(3)})});
+      // ── FIX: quantity gönderme — worker pozisyonu Binance'tan çeker ──
+      const res=await fetch(WORKER+'/close',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          symbol:pos.pair,
+          side:pos.side
+          // quantity YOK — worker Binance'tan çekiyor
+        })
+      });
       const data=await res.json();
-      if(data.success)addLog('SYS','✅ Pozisyon kapatıldı');
+      if(data.success)addLog('SYS','✅ Pozisyon kapatıldı | qty:'+data.closedQty);
       else addLog('WARN','❌ Kapatma hatası: '+data.error);
     }catch(e){addLog('WARN','❌ Worker hatası: '+e.message);}
   }
   updatePositions();updateHistory();updateStats();updateCompound();
 }
+
 function manualTrade(side){openTrade(side,false);}
+
 function checkSLTP(){
   S.positions.forEach(p=>{
     if(!S.price)return;
