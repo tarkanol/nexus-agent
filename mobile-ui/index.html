@@ -443,28 +443,179 @@ function volR(klines,p=20){
   return avg?v[v.length-1]/avg:1;
 }
 function calcAll(closes,klines){
-  const e9=ema(closes,9),e21=ema(closes,21);
+  const e5=ema(closes,5), e9=ema(closes,9);
+  const e13=ema(closes,13), e21=ema(closes,21);
+  const le5=e5[e5.length-1], le9=e9[e9.length-1];
+  const le13=e13[e13.length-1], le21=e21[e21.length-1];
+  const prevE5=e5[e5.length-2], prevE13=e13[e13.length-2];
+  const ema5CrossUp=prevE5<=prevE13&&le5>le13;
+  const ema5CrossDown=prevE5>=prevE13&&le5<le13;
+  const price=closes[closes.length-1];
+  const emaSep=price>0?Math.abs(le5-le13)/price:0;
   const r=rsi(closes),m=macd(closes),st=stoch(klines),vr=volR(klines);
-  const last=closes[closes.length-1];
-  const le9=e9[e9.length-1],le21=e21[e21.length-1];
+  const srsi=stochRSI(closes);
+  const atr14=calcATR(klines);
+  const atrPct=atr14&&price>0?atr14/price:null;
+  const vwapVal=calcVWAP(klines);
+  const volPct=calcVolPct(klines);
+  const volSpk=calcVolSpike(klines);
+  const bb=calcBB(closes);
   const p9=e9[e9.length-2],p21=e21[e21.length-2];
   const cross=le9&&le21&&p9&&p21?(p9<=p21&&le9>le21?'GOLDEN':p9>=p21&&le9<le21?'DEATH':null):null;
-  return{r,m,e9:le9,e21:le21,st,vr,last,cross};
+  const rPrev=rsi(closes.slice(0,-1));
+  const rMom=(r!=null&&rPrev!=null)?r-rPrev:0;
+  return{r,rMom,m,srsi,e5:le5,e9:le9,e13:le13,e21:le21,ema5CrossUp,ema5CrossDown,emaSep,cross,bb,atrPct,vwap:vwapVal,volPct,volSpk,vr,last:price,st};
 }
+
+function stochRSI(prices,rsiP=14,stochP=14,kP=3,dP=3){
+  const rsiSeries=[];
+  for(let i=rsiP;i<=prices.length;i++) rsiSeries.push(rsi(prices.slice(0,i),rsiP));
+  if(rsiSeries.length<stochP) return null;
+  const kRaw=[];
+  for(let i=stochP-1;i<rsiSeries.length;i++){
+    const sl=rsiSeries.slice(i-stochP+1,i+1);
+    const mn=Math.min(...sl),mx=Math.max(...sl);
+    kRaw.push(mx===mn?50:((rsiSeries[i]-mn)/(mx-mn))*100);
+  }
+  if(kRaw.length<kP) return null;
+  const kS=[];
+  for(let i=kP-1;i<kRaw.length;i++) kS.push(kRaw.slice(i-kP+1,i+1).reduce((a,b)=>a+b,0)/kP);
+  if(kS.length<dP) return null;
+  const dS=[];
+  for(let i=dP-1;i<kS.length;i++) dS.push(kS.slice(i-dP+1,i+1).reduce((a,b)=>a+b,0)/dP);
+  const n=dS.length;
+  if(n<2) return null;
+  return{k:kS[kS.length-1],d:dS[n-1],prevK:kS[kS.length-2],prevD:dS[n-2]};
+}
+
+function calcATR(klines,period=14){
+  if(!klines||klines.length<period+1) return null;
+  const trs=klines.slice(1).map((k,i)=>{
+    const h=parseFloat(k[2]),l=parseFloat(k[3]),pc=parseFloat(klines[i][4]);
+    return Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc));
+  });
+  return trs.slice(-period).reduce((a,b)=>a+b,0)/period;
+}
+
+function calcVWAP(klines){
+  if(!klines||klines.length<2) return null;
+  let cumTPV=0,cumVol=0;
+  for(const k of klines){
+    const h=parseFloat(k[2]),l=parseFloat(k[3]),c=parseFloat(k[4]),v=parseFloat(k[5]);
+    cumTPV+=(h+l+c)/3*v; cumVol+=v;
+  }
+  return cumVol>0?cumTPV/cumVol:null;
+}
+
+function calcVolPct(klines,period=50){
+  if(!klines||klines.length<period) return 0;
+  const vols=klines.slice(-period).map(k=>parseFloat(k[5]));
+  const lastVol=vols[vols.length-1];
+  const sorted=[...vols].sort((a,b)=>a-b);
+  return(sorted.filter(v=>v<=lastVol).length/sorted.length)*100;
+}
+
+function calcVolSpike(klines,mult=2.0,period=5){
+  if(!klines||klines.length<period+1) return false;
+  const recent=klines.slice(-(period+1));
+  const avg=recent.slice(0,-1).map(k=>parseFloat(k[5])).reduce((a,b)=>a+b,0)/period;
+  return parseFloat(recent[recent.length-1][5])>mult*avg;
+}
+
+function calcBB(closes,p=20,k=2){
+  if(closes.length<p) return null;
+  const sl=closes.slice(-p),mean=sl.reduce((a,b)=>a+b,0)/p;
+  const std=Math.sqrt(sl.reduce((a,b)=>a+(b-mean)**2,0)/p);
+  return{upper:mean+k*std,mid:mean,lower:mean-k*std,width:(2*k*std)/mean};
+}
+
 function scoreSignal(ind){
+  const{r,rMom,m,srsi,e5,e9,e13,e21,ema5CrossUp,ema5CrossDown,emaSep,cross,bb,atrPct,vwap:vwapVal,volPct,volSpk,vr,last,st}=ind;
+
+  // ── GATES ──
+  if(bb&&bb.width<0.004) return{bull:0,bear:0,neut:1,conf:0,signal:'WAIT'};
+  if(volPct<60) return{bull:0,bear:0,neut:1,conf:0,signal:'WAIT'};
+  if(vr<0.6) return{bull:0,bear:0,neut:1,conf:0,signal:'WAIT'};
+  if(atrPct!==null){
+    if(atrPct<0.0003||atrPct>0.025) return{bull:0,bear:0,neut:1,conf:0,signal:'WAIT'};
+  }
+  if(emaSep<0.0002) return{bull:0,bear:0,neut:1,conf:0,signal:'WAIT'};
+
   let bull=0,bear=0,neut=0;
-  const{r,m,e9,e21,st,vr,last,cross}=ind;
-  if(r!=null){if(r<40)bull+=2;else if(r<48)bull++;else if(r>60)bear+=2;else if(r>52)bear++;else neut++;}
-  if(m){if(m.hist>0&&m.macd>0)bull+=2;else if(m.hist>0)bull++;else if(m.hist<0&&m.macd<0)bear+=2;else if(m.hist<0)bear++;else neut++;}
-  if(e9&&e21){if(e9>e21&&last>e9)bull+=3;else if(e9>e21)bull+=2;else if(e9<e21&&last<e9)bear+=3;else if(e9<e21)bear+=2;else neut++;}
-  if(cross==='GOLDEN')bull+=3;else if(cross==='DEATH')bear+=3;
-  if(st!=null){if(st<20)bull+=2;else if(st<35)bull++;else if(st>80)bear+=2;else if(st>65)bear++;else neut++;}
-  if(vr>1.4){bull>bear?bull++:bear++;}else if(vr<0.7)neut++;
+
+  // EMA5/13 cross
+  if(ema5CrossUp) bull+=4;
+  if(ema5CrossDown) bear+=4;
+
+  // EMA hizalaması
+  if(e5&&e13&&e21){
+    if(e5>e13&&e13>e21&&last>e5) bull+=4;
+    else if(e5>e13&&e13>e21) bull+=2;
+    else if(e5<e13&&e13<e21&&last<e5) bear+=4;
+    else if(e5<e13&&e13<e21) bear+=2;
+    else neut+=2;
+  } else if(e9&&e21){
+    if(e9>e21&&last>e9) bull+=3;
+    else if(e9>e21) bull+=2;
+    else if(e9<e21&&last<e9) bear+=3;
+    else if(e9<e21) bear+=2;
+    else neut++;
+  }
+
+  if(cross==='GOLDEN') bull+=2; else if(cross==='DEATH') bear+=2;
+
+  // MACD
+  if(m){
+    if(m.hist>0&&m.macd>0) bull+=3; else if(m.hist>0) bull++;
+    else if(m.hist<0&&m.macd<0) bear+=3; else if(m.hist<0) bear++;
+    else neut++;
+  }
+
+  // RSI
+  if(r!=null){
+    if(r>=45&&r<70&&rMom>0) bull+=2; else if(r>=40&&r<75) bull++;
+    else if(r<=55&&r>30&&rMom<0) bear+=2; else if(r<=60&&r>25) bear++;
+    else neut++;
+  }
+
+  // StochRSI
+  if(srsi){
+    const scUp=srsi.prevK<=srsi.prevD&&srsi.k>srsi.d&&srsi.k<40;
+    const scDn=srsi.prevK>=srsi.prevD&&srsi.k<srsi.d&&srsi.k>60;
+    if(scUp) bull+=3; if(scDn) bear+=3;
+    if(!scUp&&!scDn){
+      if(srsi.k<25) bull+=2; else if(srsi.k<45) bull++;
+      else if(srsi.k>75) bear+=2; else if(srsi.k>55) bear++;
+      else neut++;
+    }
+  }
+
+  // VWAP
+  if(vwapVal&&last){
+    if(last>vwapVal*1.001) bull+=2; else if(last>vwapVal) bull++;
+    else if(last<vwapVal*0.999) bear+=2; else if(last<vwapVal) bear++;
+    else neut++;
+  }
+
+  // BB
+  if(bb){
+    if(last>bb.mid&&last<bb.upper) bull++;
+    else if(last<bb.mid&&last>bb.lower) bear++;
+    else neut++;
+  }
+
+  // Volume
+  if(volSpk){bull>bear?bull+=2:bear+=2;}
+  else if(vr>1.5){bull>bear?bull++:bear++;}
+
   const total=bull+bear+neut||1;
   const conf=Math.round(Math.max(bull,bear)/total*100);
+  const hasCross=ema5CrossUp||ema5CrossDown;
+  const thr=hasCross?5:7;
+  const cThr=hasCross?60:65;
   let signal='WAIT';
-  if(bull>bear&&bull>=5&&conf>=60)signal='LONG';
-  else if(bear>bull&&bear>=5&&conf>=60)signal='SHORT';
+  if(bull>bear&&bull>=thr&&conf>=cThr) signal='LONG';
+  else if(bear>bull&&bear>=thr&&conf>=cThr) signal='SHORT';
   return{bull,bear,neut,total,conf,signal};
 }
 function sigReason(score,ind){
@@ -496,8 +647,7 @@ function updateIndicators(ind,score){
   document.getElementById('iMacd').textContent=ind.m?(ind.m.hist>=0?'▲ BULL':'▼ BEAR'):'—';document.getElementById('iMacd').className='ind-val '+(ind.m?(ind.m.hist>=0?'bull':'bear'):'neut');
   document.getElementById('iEma9').textContent=ind.e9?'$'+ind.e9.toFixed(0):'—';document.getElementById('iEma9').className='ind-val '+(ind.e9&&ind.last>ind.e9?'bull':'bear');
   document.getElementById('iEma21').textContent=ind.e21?'$'+ind.e21.toFixed(0):'—';document.getElementById('iEma21').className='ind-val '+(ind.e21&&ind.last>ind.e21?'bull':'bear');
-  document.getElementById('iStoch').textContent=fmt(ind.st,1);document.getElementById('iStoch').className='ind-val '+cls(ind.st,25,75);
-  document.getElementById('iVol').textContent=ind.vr?(ind.vr*100).toFixed(0)+'%':'—';document.getElementById('iVol').className='ind-val '+(ind.vr>1.3?'bull':ind.vr<0.8?'bear':'neut');
+  document.getElementById('iStoch').textContent=ind.srsi?fmt(ind.srsi.k,1):'—';document.getElementById('iStoch').className='ind-val '+(ind.srsi?(ind.srsi.k<25?'bull':ind.srsi.k>75?'bear':'neut'):'neut');document.getElementById('iVol').textContent=ind.vr?(ind.vr*100).toFixed(0)+'%':'—';document.getElementById('iVol').className='ind-val '+(ind.vr>1.3?'bull':ind.vr<0.8?'bear':'neut');
   document.getElementById('smBull').style.flex=score.bull;document.getElementById('smBear').style.flex=score.bear;document.getElementById('smNeut').style.flex=score.neut;
   document.getElementById('smBullN').textContent='BULL '+score.bull;document.getElementById('smBearN').textContent='BEAR '+score.bear;document.getElementById('smNeutN').textContent='NEUT '+score.neut;
 }
