@@ -1872,7 +1872,7 @@ async function runScan() {
   document.getElementById('scanSpinner').style.display='block';
   addLog('SCAN', `Taranıyor: ${pairs.length} pair...`);
   try {
-    const res  = await fetch(`${WORKER}/scan?pairs=${pairs.join(',')}`);
+    const res  = await fetch(`${WORKER}/scan?pairs=${pairs.join(',')}&mode=${S.signalMode}`);
     const data = await res.json();
     if(!data.success) throw new Error(data.error);
     S.scanResults = data.results || [];
