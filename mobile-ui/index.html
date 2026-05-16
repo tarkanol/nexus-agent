@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>APEX — Scalping Agent v5</title>
+  <title>APEX — Scalping Agent v5.1</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root{
@@ -11,7 +11,7 @@
       --border:#0f1e30;--border2:#162840;
       --accent:#00ffcc;--accent2:#00cc99;
       --long:#00ff88;--short:#ff4466;
-      --yellow:#ffdd00;--purple:#aa66ff;--blue:#44aaff;
+      --yellow:#ffdd00;--purple:#aa66ff;--blue:#44aaff;--orange:#ff9944;
       --fib382:#ff9944;--fib500:#ffdd00;--fib618:#aa66ff;--fib786:#44aaff;--fib236:#00ffcc;
       --text:#ddeeff;--text2:#6688aa;--text3:#2a4060;
       --safe-top:env(safe-area-inset-top,0px);
@@ -32,7 +32,22 @@
     .hbadge.sim{color:var(--yellow);border-color:var(--yellow);}
     .hbadge.off{color:var(--text3);border-color:var(--text3);}
     .hbadge.scanning{color:var(--blue);border-color:var(--blue);animation:pulse 1.5s infinite;}
+    .hbadge.scalp{color:var(--orange);border-color:var(--orange);animation:pulse 0.8s infinite;}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+    /* ── AGENT STATUS BAR ── */
+    .agent-status-bar{background:rgba(0,0,0,.5);border-bottom:1px solid var(--border2);padding:5px 14px;display:flex;gap:12px;align-items:center;font-family:'Space Mono';font-size:9px;overflow-x:auto;white-space:nowrap;}
+    .asb-item{display:flex;gap:5px;align-items:center;}
+    .asb-label{color:var(--text3);}
+    .asb-val{color:var(--text2);}
+    .asb-val.ok{color:var(--long);}
+    .asb-val.warn{color:var(--yellow);}
+    .asb-val.err{color:var(--short);}
+    .asb-sep{color:var(--text3);opacity:0.3;}
+    .worker-ping{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s;}
+    .worker-ping.ok{background:var(--long);box-shadow:0 0 4px var(--long);}
+    .worker-ping.err{background:var(--short);}
+    .worker-ping.warn{background:var(--yellow);}
 
     .tab-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border2);padding-bottom:var(--safe-bot);}
     .tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border:none;background:transparent;color:var(--text3);font-family:'Space Mono';font-size:8px;letter-spacing:.5px;cursor:pointer;transition:color .2s;}
@@ -45,7 +60,16 @@
     .ph-title{font-family:'Space Mono';font-size:8px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;display:flex;align-items:center;gap:6px;}
     .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
     .dot.scan{background:var(--blue);animation:pulse 1.5s infinite;}
+    .dot.scalp{background:var(--orange);animation:pulse .8s infinite;}
     .pb{padding:12px;}
+
+    /* ── SCALP MODE SELECTOR ── */
+    .signal-mode-row{display:flex;gap:6px;padding:8px 13px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
+    .smode-btn{flex:1;padding:7px 4px;font-family:'Space Mono';font-size:9px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;text-align:center;letter-spacing:.5px;transition:all .2s;}
+    .smode-btn.active-standard{border-color:var(--accent);color:var(--accent);background:rgba(0,255,204,.07);}
+    .smode-btn.active-scalp{border-color:var(--orange);color:var(--orange);background:rgba(255,153,68,.07);}
+    .smode-btn.active-aggressive{border-color:var(--short);color:var(--short);background:rgba(255,68,102,.07);}
+    .smode-info{padding:5px 13px;font-family:'Space Mono';font-size:9px;color:var(--text3);border-bottom:1px solid var(--border);background:rgba(0,0,0,.3);}
 
     /* ── 3-SLOT PORTFOLIO ── */
     .slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 13px;}
@@ -53,6 +77,7 @@
     .slot-card.empty{border-style:dashed;opacity:.5;}
     .slot-card.long{border-color:var(--long);}
     .slot-card.short{border-color:var(--short);}
+    .slot-card.scalp-pos{box-shadow:0 0 8px rgba(255,153,68,.2);}
     .slot-num{position:absolute;top:5px;right:8px;font-family:'Space Mono';font-size:8px;color:var(--text3);}
     .slot-pair{font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;}
     .slot-pair.long{color:var(--long);}
@@ -64,6 +89,7 @@
     .slot-close{position:absolute;bottom:6px;right:6px;background:rgba(255,68,102,.2);border:1px solid var(--short);color:var(--short);font-size:9px;padding:3px 7px;cursor:pointer;font-family:'Space Mono';}
     .slot-close:hover{background:rgba(255,68,102,.4);}
     .slot-atr{font-family:'Space Mono';font-size:8px;color:var(--text3);margin-top:2px;}
+    .slot-mode-badge{display:inline-block;font-family:'Space Mono';font-size:7px;padding:1px 4px;border:1px solid var(--orange);color:var(--orange);margin-top:2px;}
     .slots-summary{display:flex;align-items:center;gap:12px;padding:0 13px 10px;font-family:'Space Mono';font-size:10px;}
     .slots-used{color:var(--accent);}
     .slots-avail{color:var(--text2);}
@@ -76,7 +102,22 @@
     .stat-sub{font-size:10px;color:var(--text2);margin-top:2px;font-family:'Space Mono';}
 
     .col-acc{color:var(--accent)}.col-long{color:var(--long)}.col-short{color:var(--short)}
-    .col-yellow{color:var(--yellow)}.col-blue{color:var(--blue)}.col-text{color:var(--text)}
+    .col-yellow{color:var(--yellow)}.col-blue{color:var(--blue)}.col-text{color:var(--text)}.col-orange{color:var(--orange)}
+
+    /* ── AGENT HEALTH PANEL ── */
+    .agent-health{border:1px solid var(--border2);margin-bottom:10px;overflow:hidden;}
+    .agent-health.healthy{border-color:rgba(0,255,136,.3);}
+    .agent-health.degraded{border-color:rgba(255,221,0,.3);}
+    .agent-health.down{border-color:rgba(255,68,102,.3);}
+    .ah-top{display:flex;align-items:center;justify-content:space-between;padding:8px 13px;background:rgba(0,0,0,.3);}
+    .ah-title{font-family:'Bebas Neue';font-size:15px;letter-spacing:2px;}
+    .ah-subtitle{font-family:'Space Mono';font-size:9px;color:var(--text3);padding:5px 13px 8px;}
+    .ah-grid{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border);}
+    .ah-cell{padding:8px 12px;border-right:1px solid var(--border);font-family:'Space Mono';}
+    .ah-cell:last-child{border-right:none;}
+    .ah-cell-label{font-size:8px;color:var(--text3);letter-spacing:1px;margin-bottom:3px;}
+    .ah-cell-val{font-size:10px;}
+    .ah-cron-note{padding:6px 13px;font-family:'Space Mono';font-size:9px;line-height:1.7;border-top:1px solid var(--border);background:rgba(0,0,0,.2);}
 
     .mode-bar{border:1px solid var(--border2);margin-bottom:10px;overflow:hidden;}
     .mode-bar-top{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(0,0,0,.2);}
@@ -100,21 +141,35 @@
     .signal-badge.LONG{color:var(--long);border-color:var(--long);}
     .signal-badge.SHORT{color:var(--short);border-color:var(--short);}
     .signal-badge.WAIT{color:var(--text2);border-color:var(--border2);}
+    .signal-badge.SCALP_LONG{color:var(--orange);border-color:var(--orange);animation:scalpPulse .6s infinite;}
+    .signal-badge.SCALP_SHORT{color:#ff6688;border-color:#ff6688;animation:scalpPulse .6s infinite;}
+    @keyframes scalpPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,153,68,.4)}50%{box-shadow:0 0 12px 4px rgba(255,153,68,.2)}}
     .signal-conf{font-family:'Space Mono';font-size:11px;color:var(--text3);margin-top:6px;}
     .signal-reason{font-family:'Space Mono';font-size:10px;color:var(--text2);margin-top:4px;}
+    /* Scalp signal urgency indicator */
+    .scalp-urgency{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;}
+    .urgency-bar{height:4px;width:80px;background:var(--border2);border-radius:2px;overflow:hidden;}
+    .urgency-fill{height:100%;border-radius:2px;transition:width .3s;}
+    .urgency-label{font-family:'Space Mono';font-size:9px;color:var(--text3);}
+
     .score-meter{display:flex;height:6px;border-radius:2px;overflow:hidden;margin:12px 0 4px;}
     .sm-bull{background:var(--long);transition:flex .5s;}
     .sm-neut{background:var(--yellow);transition:flex .5s;}
     .sm-bear{background:var(--short);transition:flex .5s;}
     .score-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:'Space Mono';}
 
-    /* ATR TP/SL indicator */
-    .atr-info{display:flex;gap:10px;padding:6px 13px;background:rgba(0,0,0,.3);border-top:1px solid var(--border);font-family:'Space Mono';font-size:9px;}
+    /* Scalp specific indicators */
+    .scalp-indicators{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0;padding:10px;background:rgba(255,153,68,.04);border:1px solid rgba(255,153,68,.2);}
+    .si-item{text-align:center;padding:6px 4px;}
+    .si-label{font-family:'Space Mono';font-size:8px;color:var(--text3);letter-spacing:1px;}
+    .si-val{font-family:'Bebas Neue';font-size:20px;letter-spacing:1px;margin-top:2px;}
+    .si-sub{font-family:'Space Mono';font-size:8px;color:var(--text3);margin-top:2px;}
+
+    .atr-info{display:flex;gap:10px;padding:6px 13px;background:rgba(0,0,0,.3);border-top:1px solid var(--border);font-family:'Space Mono';font-size:9px;flex-wrap:wrap;}
     .atr-item{display:flex;gap:5px;align-items:center;}
     .atr-item .al{color:var(--text3);}
     .atr-item .av{color:var(--accent);}
 
-    /* FIB LEVELS DISPLAY */
     .fib-panel{background:rgba(0,0,0,.3);border:1px solid var(--border);margin:8px 13px;padding:8px 10px;}
     .fib-title{font-family:'Space Mono';font-size:8px;letter-spacing:2px;color:var(--text3);margin-bottom:8px;}
     .fib-levels{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
@@ -143,14 +198,17 @@
     .price-chg{font-size:11px;font-family:'Space Mono';margin-top:2px;}
     .price-meta{text-align:right;font-family:'Space Mono';font-size:10px;color:var(--text2);}
     canvas{width:100%!important;display:block;}
-    .chart-controls{display:flex;align-items:center;gap:8px;padding:6px 13px 0;}
+    .chart-controls{display:flex;align-items:center;gap:8px;padding:6px 13px 0;flex-wrap:wrap;}
     .interval-btns{display:flex;gap:4px;}
     .iv-btn{padding:4px 10px;font-family:'Space Mono';font-size:9px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;}
     .iv-btn.active{border-color:var(--accent);color:var(--accent);}
+    .iv-btn.scalp-iv{border-color:rgba(255,153,68,.5);color:var(--orange);}
+    .iv-btn.scalp-iv.active{border-color:var(--orange);background:rgba(255,153,68,.1);}
     .fib-toggle{padding:4px 10px;font-family:'Space Mono';font-size:9px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;margin-left:auto;}
     .fib-toggle.active{border-color:var(--purple);color:var(--purple);}
     .spin{display:inline-block;width:10px;height:10px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
     .spin-b{border-top-color:var(--blue)!important;}
+    .spin-o{border-top-color:var(--orange)!important;}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     .ticker{background:var(--bg3);border-bottom:1px solid var(--border);overflow:hidden;padding:5px 0;}
@@ -164,6 +222,8 @@
     .pair-chip.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,204,.07);}
     .pair-chip.has-long{border-color:var(--long);color:var(--long);}
     .pair-chip.has-short{border-color:var(--short);color:var(--short);}
+    .pair-chip.has-scalp-long{border-color:var(--orange);color:var(--orange);}
+    .pair-chip.has-scalp-short{border-color:#ff6688;color:#ff6688;}
 
     .scan-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
     .scan-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'Space Mono';min-width:300px;}
@@ -173,13 +233,17 @@
     .scan-table tr.best-row{background:rgba(0,255,204,.04);}
     .scan-table tr.long-row{background:rgba(0,255,136,.03);}
     .scan-table tr.short-row{background:rgba(255,68,102,.03);}
+    .scan-table tr.scalp-row{background:rgba(255,153,68,.04);}
     .sig-pill{display:inline-block;padding:2px 7px;font-size:8px;font-weight:700;letter-spacing:1px;}
     .sig-pill.LONG{background:rgba(0,255,136,.15);color:var(--long);}
     .sig-pill.SHORT{background:rgba(255,68,102,.15);color:var(--short);}
     .sig-pill.WAIT{background:rgba(42,64,96,.3);color:var(--text3);}
+    .sig-pill.SCALP_LONG{background:rgba(255,153,68,.2);color:var(--orange);}
+    .sig-pill.SCALP_SHORT{background:rgba(255,100,100,.2);color:#ff6688;}
     .score-bar{display:flex;height:4px;width:50px;border-radius:1px;overflow:hidden;}
     .score-fill{height:100%;transition:width .5s;}
     .long-fill{background:var(--long);}.short-fill{background:var(--short);}
+    .scalp-fill{background:var(--orange);}
 
     .scan-countdown{display:flex;align-items:center;gap:8px;padding:6px 13px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
     .countdown-bar{flex:1;height:3px;background:var(--border);overflow:hidden;}
@@ -191,11 +255,12 @@
     .best-row-inner{display:flex;align-items:center;justify-content:space-between;}
     .best-name{font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;color:var(--accent);}
 
-    /* TOP 3 badges in scanner */
     .top3-badges{display:flex;gap:6px;padding:8px 13px;border-bottom:1px solid var(--border);}
     .top3-badge{flex:1;padding:7px 8px;border:1px solid var(--border2);text-align:center;}
     .top3-badge.long{border-color:var(--long);}
     .top3-badge.short{border-color:var(--short);}
+    .top3-badge.scalp-long{border-color:var(--orange);}
+    .top3-badge.scalp-short{border-color:#ff6688;}
     .top3-badge .t3-sym{font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;}
     .top3-badge .t3-sig{font-family:'Space Mono';font-size:8px;margin-top:2px;}
     .top3-badge .t3-sc{font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:2px;}
@@ -204,8 +269,14 @@
     .btn-long{background:var(--long);color:#000;font-family:'Space Mono';font-size:14px;font-weight:700;padding:16px;cursor:pointer;border:none;letter-spacing:1px;min-height:54px;}
     .btn-short{background:var(--short);color:#fff;font-family:'Space Mono';font-size:14px;font-weight:700;padding:16px;cursor:pointer;border:none;letter-spacing:1px;min-height:54px;}
     .btn-long:disabled,.btn-short:disabled{opacity:.3;cursor:not-allowed;}
+    /* Scalp trade buttons — smaller TP/SL, faster */
+    .scalp-trade-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+    .btn-scalp-long{background:rgba(255,153,68,.15);color:var(--orange);border:2px solid var(--orange);font-family:'Space Mono';font-size:12px;font-weight:700;padding:13px;cursor:pointer;letter-spacing:1px;min-height:48px;transition:all .2s;}
+    .btn-scalp-long:hover{background:rgba(255,153,68,.3);}
+    .btn-scalp-short{background:rgba(255,100,100,.12);color:#ff6688;border:2px solid #ff6688;font-family:'Space Mono';font-size:12px;font-weight:700;padding:13px;cursor:pointer;letter-spacing:1px;min-height:48px;transition:all .2s;}
+    .btn-scalp-short:hover{background:rgba(255,100,100,.25);}
+    .btn-scalp-long:disabled,.btn-scalp-short:disabled{opacity:.3;cursor:not-allowed;}
 
-    /* TP SUGGESTION */
     .tp-suggestion{background:rgba(0,255,204,.05);border:1px solid rgba(0,255,204,.2);padding:8px 12px;margin-top:8px;font-family:'Space Mono';font-size:10px;}
     .tp-suggestion .tps-title{color:var(--text3);font-size:8px;letter-spacing:1px;margin-bottom:4px;}
     .tp-suggestion .tps-levels{display:flex;gap:10px;flex-wrap:wrap;}
@@ -213,7 +284,6 @@
     .tps-lv span:first-child{font-size:8px;color:var(--text3);}
     .tps-lv span:last-child{color:var(--accent);}
 
-    /* ATR-based TP/SL toggle */
     .atr-toggle{display:flex;align-items:center;gap:8px;padding:8px 0;margin-bottom:8px;}
     .atr-toggle label{font-family:'Space Mono';font-size:10px;color:var(--text2);}
     .toggle-sw{width:36px;height:18px;background:var(--border2);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;}
@@ -238,15 +308,17 @@
     .lev-btn{padding:11px 4px;font-family:'Space Mono';font-size:11px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;text-align:center;transition:all .2s;}
     .lev-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,255,204,.07);}
 
-    /* position slots in trade tab same as header */
     .pos-slots-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
     .psm-item{padding:8px 10px;border:1px solid var(--border2);font-family:'Space Mono';font-size:9px;}
     .psm-item.long{border-color:rgba(0,255,136,.4);}
     .psm-item.short{border-color:rgba(255,68,102,.4);}
+    .psm-item.scalp-long{border-color:rgba(255,153,68,.5);}
+    .psm-item.scalp-short{border-color:rgba(255,100,100,.5);}
     .psm-pair{font-size:11px;font-weight:700;}
     .psm-pair.long{color:var(--long);}
     .psm-pair.short{color:var(--short);}
     .psm-pair.empty{color:var(--text3);}
+    .psm-pair.scalp{color:var(--orange);}
     .psm-pnl{font-size:10px;margin-top:3px;}
 
     .hist-item{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;border-bottom:1px solid var(--border);font-size:11px;font-family:'Space Mono';}
@@ -254,6 +326,8 @@
     .hist-side{padding:2px 8px;font-size:9px;font-weight:700;}
     .hist-side.L{background:rgba(0,255,136,.15);color:var(--long);}
     .hist-side.S{background:rgba(255,68,102,.15);color:var(--short);}
+    .hist-side.SL{background:rgba(255,153,68,.15);color:var(--orange);}
+    .hist-side.SS{background:rgba(255,100,100,.15);color:#ff6688;}
 
     .compound-nums{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;}
     .compound-val{font-family:'Bebas Neue';font-size:36px;letter-spacing:2px;color:var(--accent);}
@@ -277,6 +351,12 @@
     .lINFO{color:var(--text2)}.lLONG{color:var(--long)}.lSHORT{color:var(--short)}
     .lWARN{color:var(--yellow)}.lSYS{color:var(--accent)}.lTP{color:var(--purple)}.lSL{color:#cc2244}
     .lSCAN{color:var(--blue)}.lFIB{color:var(--fib618)}.lROTATE{color:#ff9944}
+    .lSCALP{color:var(--orange)}.lHB{color:rgba(0,255,204,.4)}
+
+    /* Worker cron config help */
+    .cron-help-box{background:rgba(255,221,0,.03);border:1px solid rgba(255,221,0,.2);padding:10px 13px;font-family:'Space Mono';font-size:9px;line-height:1.9;color:var(--text2);}
+    .cron-help-box .ch-title{color:var(--yellow);font-size:10px;margin-bottom:6px;font-weight:700;}
+    .cron-help-box code{color:var(--accent);background:rgba(0,255,204,.07);padding:1px 5px;}
 
     @media(min-width:700px){
       .tab-nav{display:none;}
@@ -292,14 +372,30 @@
 <div class="app">
 
 <header>
-  <div class="logo">APEX<small>// FUTURES AGENT v5 · MAX 3 POS</small></div>
+  <div class="logo">APEX<small>// FUTURES AGENT v5.1 · SCALP + SWING</small></div>
   <div class="hbadges">
     <div class="hbadge off" id="hbConn">OFFLINE</div>
     <div class="hbadge sim" id="hbMode">SIM</div>
     <div class="hbadge off" id="hbScan">OFF</div>
     <div class="hbadge off" id="hbSlots">0/3</div>
+    <div class="hbadge off" id="hbScalp" style="display:none">SCALP</div>
   </div>
 </header>
+
+<!-- Agent status bar: worker health, last heartbeat, cron status -->
+<div class="agent-status-bar" id="agentStatusBar">
+  <div class="asb-item"><div class="worker-ping" id="workerPing"></div><span class="asb-label">WORKER</span><span class="asb-val" id="asbWorker">disconnected</span></div>
+  <span class="asb-sep">|</span>
+  <div class="asb-item"><span class="asb-label">HB</span><span class="asb-val" id="asbHb">—</span></div>
+  <span class="asb-sep">|</span>
+  <div class="asb-item"><span class="asb-label">CRON</span><span class="asb-val" id="asbCron">—</span></div>
+  <span class="asb-sep">|</span>
+  <div class="asb-item"><span class="asb-label">LAST ORDER</span><span class="asb-val" id="asbOrder">—</span></div>
+  <span class="asb-sep">|</span>
+  <div class="asb-item"><span class="asb-label">REFRESH</span><span class="asb-val" id="asbRefresh">—</span></div>
+  <span class="asb-sep">|</span>
+  <div class="asb-item"><span class="asb-label">SIGNAL MODE</span><span class="asb-val" id="asbSigMode" style="color:var(--accent)">STANDARD</span></div>
+</div>
 
 <div class="ticker"><div class="ticker-inner" id="tickerInner">
   <div class="ti-item"><span class="ti-s">BTC/U</span><span class="ti-p">—</span></div>
@@ -377,12 +473,20 @@
 <div class="tab-pane active" id="tab0">
   <div class="panel">
     <div class="ph">
-      <div class="ph-title"><div class="dot"></div>SIGNAL — <span id="phPair" style="color:var(--accent)">BTCUSDT</span></div>
+      <div class="ph-title"><div class="dot" id="signalDot"></div>SIGNAL — <span id="phPair" style="color:var(--accent)">BTCUSDT</span></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div id="fibBadge" style="display:none;font-family:'Space Mono';font-size:9px;padding:2px 8px;border:1px solid var(--purple);color:var(--purple);">FIB NEAR</div>
         <div class="spin" id="priceSpinner" style="display:none;"></div>
       </div>
     </div>
+
+    <!-- Signal Mode Selector -->
+    <div class="signal-mode-row">
+      <button class="smode-btn active-standard" id="smodeStandard" onclick="setSignalMode('standard')">STANDARD<br><span style="font-size:8px;opacity:.6">5m·15m · swing</span></button>
+      <button class="smode-btn" id="smodeScalp"    onclick="setSignalMode('scalp')">⚡ SCALP<br><span style="font-size:8px;opacity:.6">1m·3m · EMA cross</span></button>
+      <button class="smode-btn" id="smodeAggressive" onclick="setSignalMode('aggressive')">🔥 AGGR<br><span style="font-size:8px;opacity:.6">3m · low threshold</span></button>
+    </div>
+    <div class="smode-info" id="smodeInfo">Standard: çok-timeframe konfirmasyonlu swing sinyali · Eşik: 11/72%</div>
 
     <div class="pair-chips" id="pairChips">
       <button class="pair-chip active" data-fixed data-sym="BTCUSDT" onclick="setPair(this,'BTCUSDT')">BTC</button>
@@ -405,18 +509,19 @@
       </div>
     </div>
 
-    <!-- ATR info bar -->
     <div class="atr-info" id="atrInfoBar">
       <div class="atr-item"><span class="al">ATR(14)</span><span class="av" id="atrVal">—</span></div>
       <div class="atr-item"><span class="al">ATR%</span><span class="av" id="atrPctVal">—</span></div>
       <div class="atr-item"><span class="al">TP(2×ATR)</span><span class="av col-long" id="atrTpVal">—</span></div>
       <div class="atr-item"><span class="al">SL(1×ATR)</span><span class="av col-short" id="atrSlVal">—</span></div>
+      <!-- Scalp extra -->
+      <div class="atr-item" id="scalpAtrExtra" style="display:none;"><span class="al" style="color:var(--orange)">SCALP TP</span><span class="av col-orange" id="scalpTpVal">—</span></div>
     </div>
 
     <div class="chart-controls">
-      <div class="interval-btns">
-        <button class="iv-btn" onclick="setInterval2(this,'1m')">1m</button>
-        <button class="iv-btn" onclick="setInterval2(this,'3m')">3m</button>
+      <div class="interval-btns" id="intervalBtns">
+        <button class="iv-btn scalp-iv" onclick="setInterval2(this,'1m')">1m</button>
+        <button class="iv-btn scalp-iv" onclick="setInterval2(this,'3m')">3m</button>
         <button class="iv-btn active" onclick="setInterval2(this,'5m')">5m</button>
         <button class="iv-btn" onclick="setInterval2(this,'15m')">15m</button>
       </div>
@@ -424,7 +529,25 @@
     </div>
     <div style="padding:8px 0;"><canvas id="chart" height="160"></canvas></div>
 
-    <!-- FIB LEVELS PANEL -->
+    <!-- Scalp-specific indicators (hidden in standard mode) -->
+    <div class="scalp-indicators" id="scalpIndicatorsPanel" style="display:none;">
+      <div class="si-item">
+        <div class="si-label">EMA CROSS</div>
+        <div class="si-val neut" id="scalpEmaCross">—</div>
+        <div class="si-sub">5/13 cross</div>
+      </div>
+      <div class="si-item">
+        <div class="si-label">MOMENTUM</div>
+        <div class="si-val neut" id="scalpMomentum">—</div>
+        <div class="si-sub">RSI Δ</div>
+      </div>
+      <div class="si-item">
+        <div class="si-label">VOL SPIKE</div>
+        <div class="si-val neut" id="scalpVolSpike">—</div>
+        <div class="si-sub">rel. volume</div>
+      </div>
+    </div>
+
     <div class="fib-panel" id="fibLevelsPanel">
       <div class="fib-title">📐 FIB RETRACEMENT — SWING (20 MUM)</div>
       <div class="fib-levels">
@@ -446,6 +569,12 @@
       <div class="signal-badge WAIT" id="sigBadge">WAIT</div>
       <div class="signal-conf" id="sigConf">Confidence: —</div>
       <div class="signal-reason" id="sigReason">Bağlan ve veri bekle</div>
+      <!-- Scalp urgency bar -->
+      <div class="scalp-urgency" id="scalpUrgency" style="display:none;">
+        <span class="urgency-label">URGENCY</span>
+        <div class="urgency-bar"><div class="urgency-fill" id="urgencyFill" style="width:0%;background:var(--orange)"></div></div>
+        <span class="urgency-label" id="urgencyLabel">—</span>
+      </div>
     </div>
 
     <div class="pb" style="padding-top:0;">
@@ -487,9 +616,8 @@
       <span class="countdown-txt" id="countdownTxt">60s</span>
     </div>
 
-    <!-- TOP 3 for auto-trade -->
     <div class="top3-badges" id="top3Badges">
-      <div class="top3-badge"><div class="t3-sym" style="color:var(--text3)">—</div><div class="t3-sig" style="color:var(--text3)">SLOT 1</div><div class="t3-sc" >—</div></div>
+      <div class="top3-badge"><div class="t3-sym" style="color:var(--text3)">—</div><div class="t3-sig" style="color:var(--text3)">SLOT 1</div><div class="t3-sc">—</div></div>
       <div class="top3-badge"><div class="t3-sym" style="color:var(--text3)">—</div><div class="t3-sig" style="color:var(--text3)">SLOT 2</div><div class="t3-sc">—</div></div>
       <div class="top3-badge"><div class="t3-sym" style="color:var(--text3)">—</div><div class="t3-sig" style="color:var(--text3)">SLOT 3</div><div class="t3-sc">—</div></div>
     </div>
@@ -521,7 +649,6 @@
 
 <!-- TAB: TRADE -->
 <div class="tab-pane" id="tab2">
-  <!-- Mini slot display -->
   <div class="pos-slots-mini" id="posMini">
     <div class="psm-item"><div class="psm-pair empty">#1 EMPTY</div></div>
     <div class="psm-item"><div class="psm-pair empty">#2 EMPTY</div></div>
@@ -546,7 +673,6 @@
         <div class="field"><label>Per Trade %</label><input type="number" id="perTrade" value="30" min="5" max="100" step="5"/></div>
       </div>
 
-      <!-- ATR-based TP/SL toggle -->
       <div class="atr-toggle">
         <div class="toggle-sw" id="atrToggleSw" onclick="toggleAtrMode()"></div>
         <label>ATR bazlı TP/SL (önerilen)</label>
@@ -575,15 +701,43 @@
         <div id="atrPreview" style="font-family:'Space Mono';font-size:9px;color:var(--text3);padding:6px 0;"></div>
       </div>
 
-      <!-- FIB TP suggestion -->
+      <!-- SCALP TP/SL (küçük, hızlı) — sadece scalp mode'da göster -->
+      <div id="scalpTpSlPanel" style="display:none;background:rgba(255,153,68,.04);border:1px solid rgba(255,153,68,.2);padding:10px;margin-bottom:10px;">
+        <div style="font-family:'Space Mono';font-size:8px;color:var(--orange);letter-spacing:1px;margin-bottom:8px;">⚡ SCALP TP/SL (ATR tabanlı)</div>
+        <div class="range-wrap">
+          <div class="range-label" style="color:var(--orange);">SCALP TP MULT <span id="scalpTpMult" style="color:var(--long)">1.0×</span></div>
+          <input type="range" id="scalpTpRange" min="0.5" max="3" step="0.25" value="1" oninput="updateScalpMult()" style="accent-color:var(--orange)"/>
+        </div>
+        <div class="range-wrap">
+          <div class="range-label" style="color:var(--orange);">SCALP SL MULT <span id="scalpSlMult" style="color:var(--short)">0.5×</span></div>
+          <input type="range" id="scalpSlRange" min="0.25" max="2" step="0.25" value="0.5" oninput="updateScalpMult()" style="accent-color:var(--orange)"/>
+        </div>
+        <div id="scalpTpSlPreview" style="font-family:'Space Mono';font-size:9px;color:var(--text3);padding:4px 0;"></div>
+      </div>
+
       <div class="tp-suggestion" id="tpSuggestion" style="display:none;">
         <div class="tps-title">📐 FIB EXTENSİON TP HEDEFLERİ</div>
         <div class="tps-levels" id="tpSuggestionLevels"></div>
       </div>
 
-      <div class="trade-btns">
-        <button class="btn-long"  id="btnLong"  onclick="manualTrade('LONG')"  disabled>▲ LONG</button>
-        <button class="btn-short" id="btnShort" onclick="manualTrade('SHORT')" disabled>▼ SHORT</button>
+      <!-- Normal trade buttons -->
+      <div id="normalTradeBtns">
+        <div class="trade-btns">
+          <button class="btn-long"  id="btnLong"  onclick="manualTrade('LONG')"  disabled>▲ LONG</button>
+          <button class="btn-short" id="btnShort" onclick="manualTrade('SHORT')" disabled>▼ SHORT</button>
+        </div>
+      </div>
+      <!-- Scalp trade buttons -->
+      <div id="scalpTradeBtns" style="display:none;">
+        <div style="font-family:'Space Mono';font-size:9px;color:var(--orange);letter-spacing:1px;margin-bottom:6px;text-align:center;">⚡ SCALP — KÜÇÜK TP/SL · HIZLI ÇIKIŞ</div>
+        <div class="scalp-trade-btns">
+          <button class="btn-scalp-long"  id="btnScalpLong"  onclick="manualTrade('LONG', true)"  disabled>⚡ SCALP LONG</button>
+          <button class="btn-scalp-short" id="btnScalpShort" onclick="manualTrade('SHORT', true)" disabled>⚡ SCALP SHORT</button>
+        </div>
+        <div class="trade-btns" style="margin-top:8px;">
+          <button class="btn-long"  id="btnLong2"  onclick="manualTrade('LONG')"  disabled style="font-size:11px;padding:11px;">▲ SWING LONG</button>
+          <button class="btn-short" id="btnShort2" onclick="manualTrade('SHORT')" disabled style="font-size:11px;padding:11px;">▼ SWING SHORT</button>
+        </div>
       </div>
       <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:8px;text-align:center" id="tradeCapNote">—</div>
     </div>
@@ -631,6 +785,41 @@
 
 <!-- TAB: SETTINGS -->
 <div class="tab-pane" id="tab4">
+
+  <!-- Agent Health -->
+  <div class="agent-health" id="agentHealthPanel">
+    <div class="ah-top">
+      <div class="ah-title" id="ahTitle" style="color:var(--text3)">AGENT HEALTH</div>
+      <button onclick="checkAgentHealth()" style="font-family:'Space Mono';font-size:9px;color:var(--text2);background:none;border:1px solid var(--border2);padding:4px 10px;cursor:pointer;">CHECK</button>
+    </div>
+    <div class="ah-subtitle" id="ahSubtitle">Worker bağlantısı ve cron durumu</div>
+    <div class="ah-grid">
+      <div class="ah-cell">
+        <div class="ah-cell-label">WORKER PING</div>
+        <div class="ah-cell-val" id="ahPing" style="color:var(--text3)">—</div>
+      </div>
+      <div class="ah-cell">
+        <div class="ah-cell-label">LAST CRON</div>
+        <div class="ah-cell-val" id="ahCron" style="color:var(--text3)">—</div>
+      </div>
+      <div class="ah-cell">
+        <div class="ah-cell-label">AUTO TRADE</div>
+        <div class="ah-cell-val" id="ahAutoTrade" style="color:var(--text3)">—</div>
+      </div>
+    </div>
+    <div class="ah-cron-note" id="ahCronNote" style="color:var(--text3);">Worker bağlanınca health check otomatik yapılır.</div>
+  </div>
+
+  <!-- Cron setup help -->
+  <div class="cron-help-box" id="cronHelpBox">
+    <div class="ch-title">⚠️ AGENT ARKA PLANDA ÇALIŞMIYOR? — CRON KURULUMU</div>
+    <div>Worker kendi kendine order açmak için Cloudflare Cron Trigger gerektirir. <code>wrangler.toml</code> dosyana şunu ekle:</div>
+    <div style="margin-top:8px;padding:8px;background:rgba(0,0,0,.4);color:var(--accent);font-size:10px;line-height:2;">[triggers]<br>crons = ["*/1 * * * *"]  <span style="color:var(--text3)"># her 1 dakikada</span></div>
+    <div style="margin-top:8px;">Sonra <code>wrangler deploy</code> yap. Cloudflare dashboard → Workers → Triggers'dan da ekleyebilirsin.</div>
+    <div style="margin-top:6px;color:var(--yellow);">⚡ Frontend (bu sayfa) açıkken de 5s'de bir refresh yapar, ama sekme kapalıysa sadece Cron çalışır.</div>
+    <div style="margin-top:6px;color:var(--text3);">Cron yoksa: Scanner sinyallerini görürsün ama Worker otomatik order AÇMAZ. Manuel/auto mode ile frontend'den açabilirsin.</div>
+  </div>
+
   <div class="panel">
     <div class="ph"><div class="ph-title"><div class="dot"></div>API CONFIGURATION</div></div>
     <div class="pb">
@@ -641,6 +830,14 @@
           <option value="live">Live Futures ⚠️</option>
         </select>
       </div>
+      <div class="field"><label>Heartbeat Interval (sn)</label>
+        <select id="heartbeatInterval" onchange="updateHeartbeatInterval()">
+          <option value="5000">5 saniye (scalp önerilen)</option>
+          <option value="10000" selected>10 saniye (standart)</option>
+          <option value="30000">30 saniye</option>
+          <option value="60000">60 saniye (yavaş)</option>
+        </select>
+      </div>
       <button class="btn-accent" id="connBtn" onclick="connect()">CONNECT</button>
       <button class="btn-red"    id="stopBtn" onclick="stopAgent()" disabled>STOP AGENT</button>
       <div style="margin-top:12px;padding:10px;border:1px solid var(--border2);font-family:'Space Mono';font-size:9px;color:var(--text3);line-height:1.8;">
@@ -649,7 +846,7 @@
         <div>ATR_TP_MULT = 2.0 &nbsp; ATR_SL_MULT = 1.0</div>
         <div>LEVERAGE = 2 &nbsp; USD_AMOUNT = 15</div>
         <div>AUTO_TRADE = true | false</div>
-        <div>HEDGE_MODE = false (v5'te kaldırıldı)</div>
+        <div style="color:var(--yellow);">— Cron için wrangler.toml'a triggers ekle —</div>
       </div>
     </div>
   </div>
@@ -660,8 +857,9 @@
       <button onclick="document.getElementById('logBox2').innerHTML=''" style="font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'Space Mono'">CLEAR</button>
     </div>
     <div class="log-box" id="logBox2">
-      <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX v5.0 — Max 3 Pos · No Hedge · ATR TP/SL</span></div>
-      <div class="le"><span class="lt">00:00:00</span><span class="lINFO">Worker URL gir → CONNECT → Auto Mode seç</span></div>
+      <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX v5.1 — Scalp + Swing · Max 3 Pos · ATR TP/SL</span></div>
+      <div class="le"><span class="lt">00:00:00</span><span class="lINFO">Worker URL gir → CONNECT → Signal Mode seç</span></div>
+      <div class="le"><span class="lt">00:00:00</span><span class="lWARN">Arka plan için wrangler.toml cron gerekli — Settings tab'ına bak</span></div>
     </div>
   </div>
 </div>
@@ -687,13 +885,15 @@ let WORKER = '';
 let S = {
   connected:false, running:false,
   autoMode:'off',
+  signalMode:'standard', // 'standard' | 'scalp' | 'aggressive'
   pair:'BTCUSDT', interval:'5m', leverage:2,
   capital:50, startCapital:50, balance:50,
   dayPnl:0, totalPnl:0,
   trades:[], positions:[], klines:[], price:0,
   indicators:{}, signal:'WAIT', score:{},
   lastSignal:null, lastTradeTime:0,
-  refreshTimer:null, countdownTimer:null,
+  refreshTimer:null, heartbeatTimer:null, countdownTimer:null,
+  heartbeatInterval: 10000,
   chartData:{prices:[],ema9:[],ema21:[]},
   mode:'sim',
   scanResults:[], topSignals:[], bestPair:null,
@@ -701,8 +901,53 @@ let S = {
   scanCountdown:60, scanInterval:60,
   useAtrMode:false,
   atrTpMult:2.0, atrSlMult:1.0,
+  scalpTpMult:1.0, scalpSlMult:0.5,
+  lastRefreshTime: null,
+  workerConnected: false,
+  lastCronTime: null,
+  lastOrderTime: null,
   scanPairs:["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT","MATICUSDT","LTCUSDT","UNIUSDT","ATOMUSDT","NEARUSDT","APTUSDT","ARBUSDT","OPUSDT","SUIUSDT","SEIUSDT"],
   fixedPairs:["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT"]
+};
+
+// Signal mode configs
+const SIGNAL_MODES = {
+  standard: {
+    interval: '5m',
+    klineLimit: 100,
+    threshold: 11, confThreshold: 72,
+    hasCrossThreshold: 9, hasCrossConf: 68,
+    tpMult: 2.0, slMult: 1.0,
+    preFilters: true,  // BB squeeze, vol checks
+    mtfCheck: true,
+    label: 'STANDARD',
+    info: 'Standard: çok-timeframe konfirmasyonlu swing sinyali · Eşik: 11/72%',
+    color: 'var(--accent)'
+  },
+  scalp: {
+    interval: '1m',
+    klineLimit: 80,
+    threshold: 6, confThreshold: 58,
+    hasCrossThreshold: 5, hasCrossConf: 52,
+    tpMult: 1.0, slMult: 0.5,
+    preFilters: false,  // BB/vol filtreler devre dışı — daha sık sinyal
+    mtfCheck: false,
+    label: 'SCALP',
+    info: '⚡ Scalp: 1m EMA cross + momentum · Eşik: 6/58% · ATR 1×/0.5× · Hızlı giriş/çıkış',
+    color: 'var(--orange)'
+  },
+  aggressive: {
+    interval: '3m',
+    klineLimit: 80,
+    threshold: 8, confThreshold: 62,
+    hasCrossThreshold: 7, hasCrossConf: 55,
+    tpMult: 1.5, slMult: 0.75,
+    preFilters: false,
+    mtfCheck: false,
+    label: 'AGGR',
+    info: '🔥 Aggressive: 3m düşük eşik · EMA50 filtresi YOK · Eşik: 8/62% · Yüksek risk',
+    color: 'var(--short)'
+  }
 };
 
 // milestones init
@@ -720,6 +965,224 @@ function switchTab(n) {
   document.querySelectorAll('.tab-pane').forEach((p,i) => p.classList.toggle('active', i===n));
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
   if(n===0) setTimeout(drawChart, 50);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SIGNAL MODE
+// ══════════════════════════════════════════════════════════════════
+function setSignalMode(mode) {
+  S.signalMode = mode;
+  const cfg = SIGNAL_MODES[mode];
+
+  // Update buttons
+  ['Standard','Scalp','Aggressive'].forEach(m => {
+    const b = document.getElementById('smode'+m);
+    if(b) b.className = 'smode-btn';
+  });
+  const ab = document.getElementById('smode' + mode.charAt(0).toUpperCase() + mode.slice(1));
+  if(ab) ab.className = 'smode-btn active-' + mode;
+
+  document.getElementById('smodeInfo').textContent = cfg.info;
+  document.getElementById('smodeInfo').style.color = cfg.color;
+  document.getElementById('asbSigMode').textContent = cfg.label;
+  document.getElementById('asbSigMode').style.color = cfg.color;
+
+  // Scalp UI changes
+  const isScalp = mode !== 'standard';
+  document.getElementById('scalpIndicatorsPanel').style.display = isScalp ? 'grid' : 'none';
+  document.getElementById('scalpUrgency').style.display = isScalp ? 'flex' : 'none';
+  document.getElementById('scalpAtrExtra').style.display = isScalp ? 'flex' : 'none';
+  document.getElementById('scalpTpSlPanel').style.display = isScalp ? 'block' : 'none';
+  document.getElementById('scalpTradeBtns').style.display = isScalp ? 'block' : 'none';
+  document.getElementById('normalTradeBtns').style.display = isScalp ? 'none' : 'block';
+  document.getElementById('hbScalp').style.display = isScalp ? 'flex' : 'none';
+  document.getElementById('hbScalp').textContent = cfg.label;
+  document.getElementById('hbScalp').className = 'hbadge ' + (mode==='scalp'?'scalp':'sim');
+
+  // Scalp dot indicator on signal panel
+  const dot = document.getElementById('signalDot');
+  dot.className = 'dot ' + (mode==='scalp'?'scalp':'');
+
+  // Mark 1m/3m buttons as scalp intervals
+  document.querySelectorAll('.iv-btn').forEach(b => {
+    const iv = b.textContent.trim();
+    b.classList.toggle('scalp-iv', iv==='1m'||iv==='3m');
+  });
+
+  // Auto-switch interval for scalp
+  const ivBtn = [...document.querySelectorAll('.iv-btn')].find(b => b.textContent.trim() === cfg.interval);
+  if(ivBtn) setInterval2(ivBtn, cfg.interval);
+
+  // Refresh interval: scalp needs faster updates
+  if(S.connected) {
+    clearInterval(S.refreshTimer);
+    const refreshMs = mode==='scalp' ? 5000 : 10000;
+    S.refreshTimer = setInterval(refresh, refreshMs);
+    addLog('SCALP', `${cfg.label} mod · ${refreshMs/1000}s refresh · eşik ${cfg.threshold}/${cfg.confThreshold}%`);
+  }
+
+  if(S.running) refresh();
+}
+
+function updateScalpMult() {
+  S.scalpTpMult = parseFloat(document.getElementById('scalpTpRange').value);
+  S.scalpSlMult = parseFloat(document.getElementById('scalpSlRange').value);
+  document.getElementById('scalpTpMult').textContent = S.scalpTpMult.toFixed(2) + '×';
+  document.getElementById('scalpSlMult').textContent = S.scalpSlMult.toFixed(2) + '×';
+  updateScalpPreview();
+}
+
+function updateScalpPreview() {
+  const ind = S.indicators;
+  if(!ind?.atr14 || !S.price) return;
+  const atr = ind.atr14;
+  const pr = S.price;
+  const side = S.signal !== 'WAIT' ? S.signal : 'LONG';
+  const tp = side==='LONG' ? pr + atr*S.scalpTpMult : pr - atr*S.scalpTpMult;
+  const sl = side==='LONG' ? pr - atr*S.scalpSlMult : pr + atr*S.scalpSlMult;
+  document.getElementById('scalpTpSlPreview').textContent =
+    `TP: $${tp.toFixed(4)} (+${((atr*S.scalpTpMult/pr)*100).toFixed(3)}%)  SL: $${sl.toFixed(4)} (-${((atr*S.scalpSlMult/pr)*100).toFixed(3)}%)`;
+  document.getElementById('scalpTpVal').textContent = '$'+tp.toFixed(4);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AGENT STATUS BAR + HEALTH
+// ══════════════════════════════════════════════════════════════════
+function updateStatusBar() {
+  const ping = document.getElementById('workerPing');
+  const asbWorker = document.getElementById('asbWorker');
+  if(S.workerConnected) {
+    ping.className = 'worker-ping ok';
+    asbWorker.textContent = 'online';
+    asbWorker.className = 'asb-val ok';
+  } else {
+    ping.className = 'worker-ping err';
+    asbWorker.textContent = 'offline';
+    asbWorker.className = 'asb-val err';
+  }
+
+  // Heartbeat
+  const hbEl = document.getElementById('asbHb');
+  if(S.lastRefreshTime) {
+    const ago = Math.round((Date.now() - S.lastRefreshTime) / 1000);
+    hbEl.textContent = ago + 's ago';
+    hbEl.className = 'asb-val ' + (ago < 20 ? 'ok' : ago < 60 ? 'warn' : 'err');
+  }
+
+  // Cron
+  const cronEl = document.getElementById('asbCron');
+  if(S.lastCronTime) {
+    const ago = Math.round((Date.now() - new Date(S.lastCronTime)) / 1000);
+    const min = Math.floor(ago/60);
+    cronEl.textContent = min > 0 ? min+'m ago' : ago+'s ago';
+    cronEl.className = 'asb-val ' + (ago < 180 ? 'ok' : ago < 600 ? 'warn' : 'err');
+  } else {
+    cronEl.textContent = 'no cron';
+    cronEl.className = 'asb-val err';
+  }
+
+  // Last order
+  const orderEl = document.getElementById('asbOrder');
+  if(S.lastOrderTime) {
+    const ago = Math.round((Date.now() - new Date(S.lastOrderTime)) / 60000);
+    orderEl.textContent = ago + 'm ago';
+    orderEl.className = 'asb-val ok';
+  }
+
+  // Refresh rate
+  const rfEl = document.getElementById('asbRefresh');
+  rfEl.textContent = S.running ? (S.heartbeatInterval/1000)+'s' : 'stopped';
+  rfEl.className = 'asb-val ' + (S.running ? 'ok' : 'err');
+}
+
+async function checkAgentHealth() {
+  if(!WORKER) { addLog('WARN','Worker URL gerekli'); return; }
+  try {
+    const [pingRes, statusRes] = await Promise.all([
+      fetch(WORKER+'/ping').then(r=>r.json()).catch(()=>null),
+      fetch(WORKER+'/status').then(r=>r.json()).catch(()=>null)
+    ]);
+
+    const panel = document.getElementById('agentHealthPanel');
+    const ahPing = document.getElementById('ahPing');
+    const ahCron = document.getElementById('ahCron');
+    const ahAuto = document.getElementById('ahAutoTrade');
+    const ahNote = document.getElementById('ahCronNote');
+
+    if(pingRes?.success) {
+      ahPing.textContent = '✓ ' + (pingRes.status||'ok');
+      ahPing.style.color = 'var(--long)';
+      S.workerConnected = true;
+    } else {
+      ahPing.textContent = '✗ unreachable';
+      ahPing.style.color = 'var(--short)';
+      S.workerConnected = false;
+    }
+
+    if(pingRes?.autoMode) {
+      ahAuto.textContent = '✓ AUTO_TRADE=true';
+      ahAuto.style.color = 'var(--long)';
+    } else {
+      ahAuto.textContent = '✗ AUTO_TRADE=false';
+      ahAuto.style.color = 'var(--yellow)';
+    }
+
+    if(statusRes?.success) {
+      const lastCron = statusRes.lastCron;
+      S.lastCronTime = lastCron !== '—' ? lastCron : null;
+      S.lastOrderTime = statusRes.lastOrder !== '—' ? statusRes.lastOrder : null;
+
+      if(lastCron && lastCron !== '—') {
+        const ago = Math.round((Date.now() - new Date(lastCron)) / 1000);
+        const min = Math.floor(ago/60);
+        ahCron.textContent = '✓ ' + (min > 0 ? min+'m' : ago+'s') + ' önce';
+        ahCron.style.color = ago < 180 ? 'var(--long)' : 'var(--yellow)';
+        panel.className = 'agent-health healthy';
+
+        ahNote.innerHTML = `
+          ✓ Cron çalışıyor · Son trigger: ${new Date(lastCron).toLocaleTimeString()}<br>
+          ${statusRes.lastSignal ? 'Son sinyal: '+statusRes.lastSignal : 'Sinyal yok'}<br>
+          ${statusRes.openSlots ? 'Pozisyonlar: '+statusRes.openSlots : ''}<br>
+          ${statusRes.lastOrder && statusRes.lastOrder !== '—' ? 'Son order: '+statusRes.lastOrder : ''}
+        `;
+        ahNote.style.color = 'var(--text2)';
+        document.getElementById('asbCron').textContent = (min > 0 ? min+'m' : ago+'s') + ' ago';
+        document.getElementById('asbCron').className = 'asb-val ok';
+      } else {
+        ahCron.textContent = '✗ Cron hiç çalışmamış';
+        ahCron.style.color = 'var(--short)';
+        panel.className = 'agent-health down';
+        ahNote.innerHTML = `
+          ✗ Cron Trigger bulunamadı. Worker sadece fetch sorgularına cevap veriyor.<br>
+          Otomatik order açmak için wrangler.toml'a <code>[triggers] crons = ["*/1 * * * *"]</code> ekle.<br>
+          Cloudflare dashboard'dan da Triggers sekmesine ekleyebilirsin.
+        `;
+        ahNote.style.color = 'var(--yellow)';
+        document.getElementById('asbCron').textContent = 'no cron';
+        document.getElementById('asbCron').className = 'asb-val err';
+        document.getElementById('cronHelpBox').style.borderColor = 'rgba(255,68,102,.4)';
+      }
+    } else {
+      ahCron.textContent = 'KV bağlı değil';
+      ahCron.style.color = 'var(--yellow)';
+      ahNote.textContent = 'Worker KV binding eksik — wrangler.toml\'a KV namespace ekle veya /status endpoint\'i kontrol et.';
+      panel.className = 'agent-health degraded';
+    }
+
+    updateStatusBar();
+    addLog('SYS', `Health check: worker=${S.workerConnected?'OK':'ERR'} cron=${S.lastCronTime?'active':'NO CRON'} autoTrade=${pingRes?.autoMode||false}`);
+  } catch(e) {
+    addLog('WARN','Health check: '+e.message);
+  }
+}
+
+function updateHeartbeatInterval() {
+  S.heartbeatInterval = parseInt(document.getElementById('heartbeatInterval').value);
+  if(S.running) {
+    clearInterval(S.refreshTimer);
+    S.refreshTimer = setInterval(refresh, S.heartbeatInterval);
+    addLog('SYS', 'Refresh interval: '+S.heartbeatInterval/1000+'s');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -786,7 +1249,7 @@ function setAutoMode(mode) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// SCAN COUNTDOWN TIMER
+// SCAN COUNTDOWN
 // ══════════════════════════════════════════════════════════════════
 function startScanCountdown() {
   stopScanCountdown();
@@ -834,7 +1297,6 @@ function renderSlots() {
   document.getElementById('hbSlots').className = 'hbadge ' + (used===MAX_SLOTS?'sim':used>0?'live':'off');
   document.getElementById('tradeCapNote').textContent = `~$${((S.capital * parseFloat(document.getElementById('perTrade').value||30)/100)).toFixed(2)} per trade · ${MAX_SLOTS - used} slot boş`;
 
-  // Full slot cards
   let html = '';
   for(let i=0; i<MAX_SLOTS; i++) {
     const p = S.positions[i];
@@ -846,10 +1308,12 @@ function renderSlots() {
       const pnlPct = (pnl/p.size*100).toFixed(2);
       const pnlStr = (pnl>=0?'+':'') + '$' + pnl.toFixed(3);
       const cls = p.side.toLowerCase();
-      html += `<div class="slot-card ${cls}">
+      const scalpBadge = p.scalp ? '<div class="slot-mode-badge">SCALP</div>' : '';
+      html += `<div class="slot-card ${cls}${p.scalp?' scalp-pos':''}">
         <div class="slot-num">#${i+1}</div>
         <div class="slot-pair ${cls}">${p.pair.replace('USDT','')}</div>
         <div class="slot-side" style="color:${cls==='long'?'var(--long)':'var(--short)'}">${p.side} ${p.lev}×</div>
+        ${scalpBadge}
         <div class="slot-pnl" style="color:${pnl>=0?'var(--long)':'var(--short)'}">${pnlStr} (${pnlPct>=0?'+':''}${pnlPct}%)</div>
         <div class="slot-entry">@$${p.entry.toFixed(2)}</div>
         <div class="slot-atr">TP:$${p.tp.toFixed(2)} | SL:$${p.sl.toFixed(2)}</div>
@@ -859,7 +1323,6 @@ function renderSlots() {
   }
   grid.innerHTML = html;
 
-  // Mini for trade tab
   let miniHtml = '';
   for(let i=0; i<MAX_SLOTS; i++) {
     const p = S.positions[i];
@@ -868,8 +1331,9 @@ function renderSlots() {
     } else {
       const cp = getPairPrice(p.pair);
       const pnl = (cp - p.entry) * (p.side==='LONG'?1:-1) * p.qty * p.lev;
-      miniHtml += `<div class="psm-item ${p.side.toLowerCase()}">
-        <div class="psm-pair ${p.side.toLowerCase()}">${p.pair.replace('USDT','')} ${p.side}</div>
+      const scalpCls = p.scalp ? 'scalp' : p.side.toLowerCase();
+      miniHtml += `<div class="psm-item ${p.scalp?'scalp-'+p.side.toLowerCase():p.side.toLowerCase()}">
+        <div class="psm-pair ${scalpCls}">${p.pair.replace('USDT','')} ${p.scalp?'⚡':''}${p.side}</div>
         <div class="psm-pnl" style="color:${pnl>=0?'var(--long)':'var(--short)'}">${pnl>=0?'+':''}$${pnl.toFixed(3)}</div>
       </div>`;
     }
@@ -884,7 +1348,7 @@ function getPairPrice(sym) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// FIBONACCI CALCULATIONS
+// FIBONACCI
 // ══════════════════════════════════════════════════════════════════
 function calcFibonacci(klines, lookback=20) {
   if(!klines || klines.length < lookback) return null;
@@ -911,11 +1375,8 @@ function calcFibonacci(klines, lookback=20) {
 function getFibProximity(price, fib, threshold=0.003) {
   if(!fib) return null;
   const checks = [
-    {name:'0.236', price:fib.r236},
-    {name:'0.382', price:fib.r382},
-    {name:'0.500', price:fib.r500},
-    {name:'0.618', price:fib.r618},
-    {name:'0.786', price:fib.r786},
+    {name:'0.236', price:fib.r236},{name:'0.382', price:fib.r382},
+    {name:'0.500', price:fib.r500},{name:'0.618', price:fib.r618},{name:'0.786', price:fib.r786},
   ];
   let closest = null, minDist = Infinity;
   for(const c of checks) {
@@ -948,7 +1409,7 @@ function updateFibUI(price, fib) {
 
   const tpSug = document.getElementById('tpSuggestion');
   const tpLevels = document.getElementById('tpSuggestionLevels');
-  if(S.signal !== 'WAIT') {
+  if(S.signal !== 'WAIT' && S.signalMode === 'standard') {
     tpSug.style.display = 'block';
     const targets = S.signal === 'LONG'
       ? [{r:'1.272', p:fib.e1272},{r:'1.618', p:fib.e1618},{r:'2.618', p:fib.e2618}]
@@ -1017,27 +1478,22 @@ function drawChart() {
       ctx.fillStyle=fl.color; ctx.font='7px Space Mono'; ctx.textAlign='right';
       ctx.fillText(fl.label, W-pad.r-1, y-2);
     });
-    [{price:S.fib.e1272,color:'rgba(0,255,204,.3)',label:'1.272'},
-     {price:S.fib.e1618,color:'rgba(0,255,204,.4)',label:'1.618'}].forEach(fl => {
-      if(fl.price < mn || fl.price > mx) return;
-      const y = py(fl.price);
-      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y);
-      ctx.strokeStyle=fl.color; ctx.lineWidth=1; ctx.setLineDash([2,6]); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle=fl.color; ctx.font='7px Space Mono'; ctx.textAlign='right';
-      ctx.fillText('↑'+fl.label, W-pad.r-1, y-2);
-    });
   }
 
   const isUp = prices[n-1] >= prices[0], col = isUp ? '0,255,136' : '255,68,102';
+  // Scalp mode: use orange tint
+  const scalpMode = S.signalMode !== 'standard';
+  const lineCol = scalpMode ? (isUp?'255,153,68':'255,68,102') : (isUp?'0,255,136':'255,68,102');
   const grad = ctx.createLinearGradient(0,pad.t,0,H-pad.b);
-  grad.addColorStop(0, `rgba(${col},.12)`); grad.addColorStop(1, `rgba(${col},0)`);
+  grad.addColorStop(0, `rgba(${lineCol},.12)`); grad.addColorStop(1, `rgba(${lineCol},0)`);
   ctx.beginPath(); ctx.moveTo(px(0),py(prices[0]));
   for(let i=1;i<n;i++) ctx.lineTo(px(i),py(prices[i]));
   ctx.lineTo(px(n-1),H-pad.b); ctx.lineTo(px(0),H-pad.b);
   ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
   ctx.beginPath(); ctx.moveTo(px(0),py(prices[0]));
   for(let i=1;i<n;i++) ctx.lineTo(px(i),py(prices[i]));
-  ctx.strokeStyle=isUp?'#00ff88':'#ff4466'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.strokeStyle=scalpMode?(isUp?'#ff9944':'#ff4466'):(isUp?'#00ff88':'#ff4466');
+  ctx.lineWidth=scalpMode?2:1.5; ctx.stroke();
 
   [['ema9','rgba(255,221,0,.7)',[3,3]],['ema21','rgba(170,102,255,.7)',[2,4]]].forEach(([key,color,dash]) => {
     const arr = S.chartData[key];
@@ -1054,17 +1510,10 @@ function drawChart() {
   const ly = py(prices[n-1]);
   ctx.beginPath(); ctx.moveTo(pad.l,ly); ctx.lineTo(W-pad.r,ly);
   ctx.strokeStyle='rgba(0,255,204,.3)'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-
-  if(S.fib) {
-    const shY = py(S.fib.swingHigh), slY = py(S.fib.swingLow);
-    ctx.font='7px Space Mono'; ctx.textAlign='left';
-    if(shY>pad.t&&shY<H-pad.b){ctx.fillStyle='rgba(255,68,102,.5)';ctx.fillText('▼H',pad.l+2,shY-2);}
-    if(slY>pad.t&&slY<H-pad.b){ctx.fillStyle='rgba(0,255,136,.5)';ctx.fillText('▲L',pad.l+2,slY+8);}
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════
-// INDICATORS
+// INDICATORS (same as v5)
 // ══════════════════════════════════════════════════════════════════
 function ema(prices, period) {
   if(prices.length < period) return [];
@@ -1181,25 +1630,36 @@ function calcAll(closes, klines) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// SIGNAL SCORING v5
+// SIGNAL SCORING — mode-aware
 // ══════════════════════════════════════════════════════════════════
-function scoreSignal(ind) {
+function scoreSignal(ind, modeOverride) {
+  const mode = modeOverride || S.signalMode;
+  const cfg = SIGNAL_MODES[mode];
+
   const {r,rMom,m,srsi,e5,e9,e13,e21,e50,ema5CrossUp,ema5CrossDown,
          emaSep,cross,bb,atrPct,vwap:vwapVal,volPct,volSpk,vr,last,trendUp,trendDown} = ind;
 
-  if(bb && bb.width < 0.004)  return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB squeeze'};
-  if(volPct < 55)             return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol düşük'};
-  if(vr < 0.5)                return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayıf'};
-  if(atrPct !== null) {
-    if(atrPct < 0.0003)       return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR çok düşük'};
-    if(atrPct > 0.025)        return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR çok yüksek'};
+  // Pre-filters only in standard mode
+  if(cfg.preFilters) {
+    if(bb && bb.width < 0.004)  return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB squeeze'};
+    if(volPct < 55)             return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol düşük'};
+    if(vr < 0.5)                return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayıf'};
+    if(atrPct !== null) {
+      if(atrPct < 0.0003)       return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR çok düşük'};
+      if(atrPct > 0.025)        return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR çok yüksek'};
+    }
+    if(emaSep < 0.0002)         return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA tangle'};
+  } else {
+    // Scalp/aggressive: only hard ATR filter (extreme chop protection)
+    if(atrPct !== null && atrPct > 0.04) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR extreme'};
   }
-  if(emaSep < 0.0002)         return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA tangle'};
 
   let bull=0, bear=0, neut=0, reasons=[];
 
-  if(ema5CrossUp)   { bull+=4; reasons.push('EMA5✚UP'); }
-  if(ema5CrossDown) { bear+=4; reasons.push('EMA5✚DN'); }
+  // EMA Cross — boosted weight in scalp mode
+  const crossWeight = (mode === 'scalp') ? 5 : 4;
+  if(ema5CrossUp)   { bull += crossWeight; reasons.push('EMA5✚UP'); }
+  if(ema5CrossDown) { bear += crossWeight; reasons.push('EMA5✚DN'); }
 
   if(e5&&e13&&e21&&e50) {
     if(e5>e13&&e13>e21&&e21>e50&&last>e5)     { bull+=4; reasons.push('EMA ALIGN↑'); }
@@ -1234,6 +1694,12 @@ function scoreSignal(ind) {
     else if(r>=75)                 { bear+=2; reasons.push('RSI OB'); }
     else if(r<=25)                 { bull+=2; reasons.push('RSI OS'); }
     else neut++;
+  }
+
+  // Scalp: RSI momentum directional weight is higher
+  if(mode === 'scalp' && r != null) {
+    if(rMom > 3 && r < 70)  { bull += 2; reasons.push('RSI↑MOM'); }
+    if(rMom < -3 && r > 30) { bear += 2; reasons.push('RSI↓MOM'); }
   }
 
   if(srsi) {
@@ -1271,8 +1737,8 @@ function scoreSignal(ind) {
     if(bull>bear) bull++; else bear++;
   }
 
-  // EMA50 trend filter
-  if(e50) {
+  // EMA50 trend filter: only in standard mode
+  if(cfg.preFilters && e50) {
     if(trendUp===false && bull>bear)   { bull=Math.floor(bull*0.7); reasons.push('↓TREND'); }
     if(trendDown===false && bear>bull) { bear=Math.floor(bear*0.7); reasons.push('↑TREND'); }
   }
@@ -1280,14 +1746,17 @@ function scoreSignal(ind) {
   const total = bull+bear+neut || 1;
   const conf  = Math.round(Math.max(bull,bear)/total*100);
   const hasCross = ema5CrossUp || ema5CrossDown || cross==='GOLDEN' || cross==='DEATH';
-  const threshold     = hasCross ? 9  : 11;
-  const confThreshold = hasCross ? 68 : 72;
+  const threshold     = hasCross ? cfg.hasCrossThreshold : cfg.threshold;
+  const confThreshold = hasCross ? cfg.hasCrossConf      : cfg.confThreshold;
 
   let signal = 'WAIT';
   if(bull>bear && bull>=threshold && conf>=confThreshold)       signal='LONG';
   else if(bear>bull && bear>=threshold && conf>=confThreshold)  signal='SHORT';
 
-  return {bull,bear,neut,total,conf,signal,reason:reasons.slice(0,3).join(' · ')};
+  // Tag scalp signals differently
+  if(signal !== 'WAIT' && mode !== 'standard') signal = signal; // keep as LONG/SHORT for logic
+
+  return {bull,bear,neut,total,conf,signal,reason:reasons.slice(0,3).join(' · '),mode};
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1319,11 +1788,9 @@ function updateIndicators(ind, score) {
   document.getElementById('iEma21').className='ind-val '+(ind.e21&&ind.last>ind.e21?'bull':'bear');
   document.getElementById('iStoch').textContent=ind.srsi?fmt(ind.srsi.k,1):'—';
   document.getElementById('iStoch').className='ind-val '+(ind.srsi?(ind.srsi.k<25?'bull':ind.srsi.k>75?'bear':'neut'):'neut');
-  // EMA50 trend
   document.getElementById('iEma50').textContent=ind.e50?'$'+ind.e50.toFixed(0):'—';
   document.getElementById('iEma50').className='ind-val '+(ind.e50?(ind.trendUp?'bull':ind.trendDown?'bear':'neut'):'neut');
 
-  // ATR bar
   if(ind.atr14 && S.price) {
     const atrPct = (ind.atr14/S.price*100).toFixed(3);
     document.getElementById('atrVal').textContent='$'+ind.atr14.toFixed(ind.atr14>10?2:4);
@@ -1334,6 +1801,24 @@ function updateIndicators(ind, score) {
     document.getElementById('atrTpVal').textContent='$'+tp.toFixed(ind.atr14>10?2:4);
     document.getElementById('atrSlVal').textContent='$'+sl.toFixed(ind.atr14>10?2:4);
     updateAtrPreview();
+    updateScalpPreview();
+  }
+
+  // Scalp-specific indicators
+  if(S.signalMode !== 'standard') {
+    const crossEl = document.getElementById('scalpEmaCross');
+    if(ind.ema5CrossUp) { crossEl.textContent='✚ UP'; crossEl.className='si-val bull'; }
+    else if(ind.ema5CrossDown) { crossEl.textContent='✚ DN'; crossEl.className='si-val bear'; }
+    else { crossEl.textContent=ind.e5>ind.e13?'▲':'▼'; crossEl.className='si-val '+(ind.e5>ind.e13?'bull':'bear'); }
+
+    const momEl = document.getElementById('scalpMomentum');
+    const mom = ind.rMom || 0;
+    momEl.textContent=(mom>=0?'+':'')+mom.toFixed(1);
+    momEl.className='si-val '+(mom>2?'bull':mom<-2?'bear':'neut');
+
+    const volEl = document.getElementById('scalpVolSpike');
+    volEl.textContent=ind.vr?ind.vr.toFixed(2)+'×':'—';
+    volEl.className='si-val '+(ind.vr>2?'bull':ind.vr>1.4?'neut':'neut');
   }
 
   document.getElementById('smBull').style.flex=score.bull;
@@ -1346,11 +1831,24 @@ function updateIndicators(ind, score) {
 
 function updateSignal(score) {
   S.signal=score.signal;
-  document.getElementById('sigPair').textContent=S.pair;
+  const isScalp = S.signalMode !== 'standard';
+  document.getElementById('sigPair').textContent=S.pair + (isScalp?' ⚡':'');
   const el=document.getElementById('sigBadge');
-  el.textContent=score.signal; el.className='signal-badge '+score.signal;
-  document.getElementById('sigConf').textContent='Confidence: '+score.conf+'%';
+  const displaySig = score.signal + (isScalp && score.signal !== 'WAIT' ? (score.signal==='LONG'?' ⚡':' ⚡') : '');
+  el.textContent=score.signal !== 'WAIT' ? (score.signal + (isScalp?' ⚡':'')) : 'WAIT';
+  el.className='signal-badge '+score.signal;
+  document.getElementById('sigConf').textContent='Confidence: '+score.conf+'% ['+SIGNAL_MODES[S.signalMode].label+']';
   document.getElementById('sigReason').textContent=score.reason || `B:${score.bull} S:${score.bear}`;
+
+  // Scalp urgency meter
+  if(isScalp) {
+    const urgEl = document.getElementById('urgencyFill');
+    const urgLabel = document.getElementById('urgencyLabel');
+    const urgency = score.signal !== 'WAIT' ? Math.min(100, score.conf) : 0;
+    urgEl.style.width = urgency + '%';
+    urgEl.style.background = urgency > 80 ? 'var(--long)' : urgency > 60 ? 'var(--orange)' : 'var(--yellow)';
+    urgLabel.textContent = urgency > 80 ? 'HIGH' : urgency > 60 ? 'MED' : urgency > 0 ? 'LOW' : '—';
+  }
 }
 
 function updateCompound() {
@@ -1379,13 +1877,16 @@ function updateStats() {
 function updateHistory() {
   const box=document.getElementById('histBox');
   if(!S.trades.length){box.innerHTML='<div style="text-align:center;color:var(--text3);padding:18px;font-size:10px;font-family:\'Space Mono\'">No trades yet</div>';return;}
-  box.innerHTML=S.trades.slice(-8).reverse().map(t=>
-    `<div class="hist-item"><span class="hist-side ${t.side==='LONG'?'L':'S'}">${t.side}</span><span style="color:#6688aa">${t.pair.replace('USDT','')}</span><span>$${t.exit.toFixed(2)}</span><span style="${t.pnl>=0?'color:#00ff88':'color:#ff4466'}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(3)}</span><span style="color:#2a4060">${t.reason||''}</span></div>`
-  ).join('');
+  box.innerHTML=S.trades.slice(-8).reverse().map(t=>{
+    const isScalp = t.scalp;
+    const sideClass = isScalp ? (t.side==='LONG'?'SL':'SS') : (t.side==='LONG'?'L':'S');
+    const sideText = (isScalp?'⚡':'') + t.side;
+    return `<div class="hist-item"><span class="hist-side ${sideClass}">${sideText}</span><span style="color:#6688aa">${t.pair.replace('USDT','')}</span><span>$${t.exit.toFixed(2)}</span><span style="${t.pnl>=0?'color:#00ff88':'color:#ff4466'}">${t.pnl>=0?'+':''}$${t.pnl.toFixed(3)}</span><span style="color:#2a4060">${t.reason||''}</span></div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════════
-// SCANNER — TOP 3 BADGES
+// SCANNER
 // ══════════════════════════════════════════════════════════════════
 async function runScan() {
   if(!S.connected||!WORKER) return;
@@ -1508,17 +2009,13 @@ function setPairFromScan(symbol) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// MULTI-POSITION AUTO TRADE (Max 3, no hedge)
+// MULTI-POSITION AUTO TRADE
 // ══════════════════════════════════════════════════════════════════
 function autoTradeMulti() {
   if(S.autoMode==='off'||!S.connected) return;
-  const top = S.topSignals; // top 3 signals
+  const top = S.topSignals;
   if(!top.length){addLog('INFO','Scanner: sinyal yok');return;}
-
-  // Mevcut pair→side haritası (hedge yok garantisi)
   const openMap = new Map(S.positions.map(p=>[p.pair, p.side]));
-
-  // Ters sinyal → kapat
   S.positions.forEach(p=>{
     const sig=top.find(s=>s.symbol===p.pair);
     if(sig && sig.signal!==p.side) {
@@ -1526,14 +2023,11 @@ function autoTradeMulti() {
       closeTrade(p.id, 'FLIP');
     }
   });
-
-  // Dolu 3 slot → rotation
   const filledCount = S.positions.length;
   if(filledCount >= MAX_SLOTS) {
     const newPairs = top.filter(s=>!openMap.has(s.symbol));
     if(!newPairs.length) return;
     const bestNew = newPairs[0];
-    // En düşük skorlu pozisyon
     const weakest = S.positions
       .map(p=>({ p, score: S.scanResults.find(r=>r&&r.symbol===p.pair)?.score || 0 }))
       .sort((a,b)=>a.score-b.score)[0];
@@ -1544,16 +2038,14 @@ function autoTradeMulti() {
     }
     return;
   }
-
-  // Boş slotları doldur
   const now = Date.now();
-  if(now - S.lastTradeTime < 90000) return; // 90s cooldown
+  if(now - S.lastTradeTime < 90000) return;
   let opened = 0;
   const maxOpen = MAX_SLOTS - S.positions.length;
   for(const sig of top) {
     if(opened >= maxOpen) break;
     if(openMap.has(sig.symbol)) {
-      if(openMap.get(sig.symbol)===sig.signal) continue; // already open same side
+      if(openMap.get(sig.symbol)===sig.signal) continue;
     }
     addLog(sig.signal, `[AUTO x${S.positions.length+1}] ${sig.signal} ${sig.symbol} score:${sig.score?.toFixed(2)}`);
     openTrade(sig.signal, true, sig.symbol);
@@ -1565,17 +2057,16 @@ function autoTradeMulti() {
 // ══════════════════════════════════════════════════════════════════
 // TRADE — open / close
 // ══════════════════════════════════════════════════════════════════
-async function openTrade(side, auto=false, pairOverride=null) {
+async function openTrade(side, auto=false, pairOverride=null, forceScalp=false) {
   if(!S.connected||!S.price) return;
   const tradePair=pairOverride||S.pair;
+  const isScalp = forceScalp || (S.signalMode !== 'standard' && !auto);
 
-  // Hedge koruması: aynı pair'de zaten açık pozisyon varsa yeni yön AÇILAMAZ (farklı yön kontrol edildi üstte)
   if(S.positions.find(p=>p.pair===tradePair)) {
     if(auto) return;
     addLog('WARN','Bu pair için zaten pozisyon var!');
     return;
   }
-  // Slot limit
   if(S.positions.length >= MAX_SLOTS) {
     if(auto) return;
     addLog('WARN', `Maksimum ${MAX_SLOTS} pozisyon açık!`);
@@ -1590,7 +2081,12 @@ async function openTrade(side, auto=false, pairOverride=null) {
   const atr14 = pairOverride ? (scanR?.atr || null) : S.indicators?.atr14;
 
   let tp, sl;
-  if(S.useAtrMode && atr14 && atr14 > 0) {
+  if(isScalp && atr14 && atr14 > 0) {
+    // Scalp: use scalp multipliers (smaller TP/SL)
+    tp = side==='LONG' ? ep + atr14*S.scalpTpMult : ep - atr14*S.scalpTpMult;
+    sl = side==='LONG' ? ep - atr14*S.scalpSlMult : ep + atr14*S.scalpSlMult;
+    addLog('SCALP', `⚡ SCALP TP:+${(atr14*S.scalpTpMult/ep*100).toFixed(3)}% SL:-${(atr14*S.scalpSlMult/ep*100).toFixed(3)}%`);
+  } else if(S.useAtrMode && atr14 && atr14 > 0) {
     tp = side==='LONG' ? ep + atr14*S.atrTpMult : ep - atr14*S.atrTpMult;
     sl = side==='LONG' ? ep - atr14*S.atrSlMult : ep + atr14*S.atrSlMult;
     addLog('FIB', `ATR TP/SL: ${(atr14*S.atrTpMult/ep*100).toFixed(2)}% / ${(atr14*S.atrSlMult/ep*100).toFixed(2)}%`);
@@ -1618,9 +2114,10 @@ async function openTrade(side, auto=false, pairOverride=null) {
   const usdAmount = parseFloat((S.balance * pct).toFixed(2));
   const qty = usdAmount / ep;
 
-  S.positions.push({id:now, pair:tradePair, side, entry:ep, qty, lev:S.leverage, size:usdAmount, tp, sl, auto});
+  S.positions.push({id:now, pair:tradePair, side, entry:ep, qty, lev:S.leverage, size:usdAmount, tp, sl, auto, scalp:isScalp});
   S.lastTradeTime = now;
-  addLog(side, `${auto?'[AUTO] ':''}${side} ${tradePair} @ $${ep.toFixed(2)} TP:$${tp.toFixed(2)} SL:$${sl.toFixed(2)} [${S.positions.length}/${MAX_SLOTS}]`);
+  const tag = isScalp ? '⚡[SCALP]' : (auto?'[AUTO] ':'');
+  addLog(side, `${tag}${side} ${tradePair} @ $${ep.toFixed(2)} TP:$${tp.toFixed(2)} SL:$${sl.toFixed(2)} [${S.positions.length}/${MAX_SLOTS}]`);
   renderSlots(); updateStats();
 
   if(S.mode==='live') {
@@ -1638,9 +2135,9 @@ async function closeTrade(id, reason='MANUAL') {
   const cp=getPairPrice(pos.pair) || pos.entry;
   const pnl=(cp-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty*pos.lev;
   S.balance+=pnl; S.dayPnl+=pnl; S.totalPnl+=pnl;
-  S.trades.push({id, pair:pos.pair, side:pos.side, entry:pos.entry, exit:cp, pnl, pct:pnl/pos.size*100, size:pos.size, lev:pos.lev, reason, tradeNum:S.trades.length+1, today:true});
+  S.trades.push({id, pair:pos.pair, side:pos.side, entry:pos.entry, exit:cp, pnl, pct:pnl/pos.size*100, size:pos.size, lev:pos.lev, reason, tradeNum:S.trades.length+1, today:true, scalp:pos.scalp});
   S.positions=S.positions.filter(p=>p.id!==id);
-  addLog(reason==='TP'?'TP':reason==='SL'?'SL':'INFO', `${reason} ${pos.side} ${pos.pair} P&L:${pnl>=0?'+':''}$${pnl.toFixed(3)} Bal:$${S.balance.toFixed(2)} [${S.positions.length}/${MAX_SLOTS}]`);
+  addLog(reason==='TP'?'TP':reason==='SL'?'SL':'INFO', `${reason} ${pos.scalp?'⚡':''}${pos.side} ${pos.pair} P&L:${pnl>=0?'+':''}$${pnl.toFixed(3)} Bal:$${S.balance.toFixed(2)} [${S.positions.length}/${MAX_SLOTS}]`);
 
   if(S.mode==='live') {
     try {
@@ -1653,7 +2150,7 @@ async function closeTrade(id, reason='MANUAL') {
   renderSlots(); updateHistory(); updateStats(); updateCompound();
 }
 
-function manualTrade(side){openTrade(side,false);}
+function manualTrade(side, scalp=false) { openTrade(side, false, null, scalp); }
 
 function checkSLTP() {
   S.positions.forEach(p=>{
@@ -1701,8 +2198,17 @@ async function fetchMulti() {
 async function refresh() {
   if(!S.running) return;
   document.getElementById('priceSpinner').style.display='block';
+
+  // Use signal mode's preferred interval
+  const cfg = SIGNAL_MODES[S.signalMode];
+  const useInterval = S.interval; // user can override
+  const useLimit = cfg.klineLimit;
+
   try {
-    const [ticker,klines] = await Promise.all([fetchTicker(S.pair), fetchKlines(S.pair, S.interval, 100)]);
+    const [ticker,klines] = await Promise.all([
+      fetchTicker(S.pair),
+      fetchKlines(S.pair, useInterval, useLimit)
+    ]);
     if(ticker) updatePrice(ticker);
     if(klines&&klines.length>50) {
       S.klines=klines;
@@ -1719,18 +2225,23 @@ async function refresh() {
       S.score=score;
       updateIndicators(ind, score);
       updateSignal(score);
-      // fixed mode: tek pair, tek sinyal
-      if(S.autoMode==='fixed') {
+
+      // Fixed mode: auto-enter on signal change
+      if(S.autoMode==='fixed' || S.signalMode !== 'standard') {
         const now=Date.now();
-        if(now-S.lastTradeTime>90000&&score.signal!=='WAIT'&&score.signal!==S.lastSignal) {
+        const cooldown = S.signalMode==='scalp' ? 30000 : 90000; // scalp: 30s cooldown
+        if(now-S.lastTradeTime>cooldown && score.signal!=='WAIT' && score.signal!==S.lastSignal) {
           S.lastSignal=score.signal;
-          openTrade(score.signal,true);
+          if(S.autoMode==='fixed') openTrade(score.signal, true);
         }
       }
       checkSLTP();
       renderSlots();
     }
     await fetchMulti();
+    S.lastRefreshTime = Date.now();
+    updateStatusBar();
+    document.getElementById('asbRefresh').textContent = (S.heartbeatInterval/1000)+'s';
   } catch(e){addLog('WARN','Refresh: '+e.message);}
   document.getElementById('priceSpinner').style.display='none';
 }
@@ -1749,9 +2260,13 @@ async function connect() {
   try {
     const r=await fetch(WORKER+'/ping');
     const d=await r.json();
-    addLog('SYS',`✅ ${d.status} | maxPos:${d.maxPos} | API:${d.connected?'aktif':'yok'}`);
+    S.workerConnected=true;
+    addLog('SYS',`✅ ${d.status} | maxPos:${d.maxPos} | API:${d.connected?'aktif':'yok'} | autoTrade:${d.autoMode}`);
     if(d.scanPairs) S.scanPairs=d.scanPairs;
-  } catch(e){addLog('WARN','⚠️ '+e.message);document.getElementById('connBtn').disabled=false;return;}
+    // Warn if cron not set up
+    if(!d.autoMode) addLog('WARN','AUTO_TRADE=false — worker otomatik order açmaz. ENV\'den aktif et.');
+  } catch(e){addLog('WARN','⚠️ '+e.message);document.getElementById('connBtn').disabled=false;S.workerConnected=false;return;}
+
   S.connected=true; S.running=true;
   document.getElementById('hbConn').textContent='LIVE';
   document.getElementById('hbConn').className='hbadge live';
@@ -1760,19 +2275,34 @@ async function connect() {
   document.getElementById('stopBtn').disabled=false;
   document.getElementById('btnLong').disabled=false;
   document.getElementById('btnShort').disabled=false;
+  document.getElementById('btnScalpLong').disabled=false;
+  document.getElementById('btnScalpShort').disabled=false;
+  if(document.getElementById('btnLong2')) { document.getElementById('btnLong2').disabled=false; document.getElementById('btnShort2').disabled=false; }
   document.getElementById('phPair').textContent=S.pair;
   if(S.mode==='live') addLog('SYS','🔴 LIVE — gerçek emirler gidecek!');
-  renderSlots(); updateCompound();
+  renderSlots(); updateCompound(); updateStatusBar();
   await refresh();
-  S.refreshTimer=setInterval(refresh,10000);
+
+  // Scalp mode gets faster refresh
+  const refreshMs = S.signalMode === 'scalp' ? 5000 : S.heartbeatInterval;
+  S.refreshTimer=setInterval(refresh, refreshMs);
+
+  // Check health immediately after connect
+  setTimeout(checkAgentHealth, 1000);
   setTimeout(()=>{runScan();if(S.autoMode!=='off')startScanCountdown();},2000);
+
+  // Periodic status bar update (independent of price refresh)
+  S.heartbeatTimer = setInterval(updateStatusBar, 5000);
+
   switchTab(0);
 }
 
 function stopAgent() {
   S.running=false;
   clearInterval(S.refreshTimer);
+  clearInterval(S.heartbeatTimer);
   stopScanCountdown();
+  S.workerConnected=false;
   document.getElementById('hbConn').textContent='OFFLINE';
   document.getElementById('hbConn').className='hbadge off';
   document.getElementById('hbScan').textContent='OFF';
@@ -1782,6 +2312,7 @@ function stopAgent() {
   document.getElementById('stopBtn').disabled=true;
   document.getElementById('connBtn').disabled=false;
   document.getElementById('scanCountdownRow').style.display='none';
+  updateStatusBar();
   addLog('SYS','Agent durduruldu');
 }
 
@@ -1846,7 +2377,9 @@ window.addEventListener('load', () => {
     updateAtrPreview();
   });
   setAutoMode('off');
+  setSignalMode('standard');
   renderSlots();
+  updateStatusBar();
   document.addEventListener('visibilitychange', () => {
     if(!document.hidden && S.running) {
       refresh();
