@@ -908,7 +908,7 @@ function scoreSignal(ind){
   if(bb){if(last>bb.mid&&last<bb.upper)bull++;else if(last<bb.mid&&last>bb.lower)bear++;else neut++;}
   if(volSpk){bull>bear?bull+=2:bear+=2;}else if(vr>1.5){bull>bear?bull++:bear++;}
   const total=bull+bear+neut||1,conf=Math.round(Math.max(bull,bear)/total*100);
-  const hasCross=ema5CrossUp||ema5CrossDown,thr=hasCross?5:7,cThr=hasCross?60:65;
+  const hasCross=ema5CrossUp||ema5CrossDown,thr=hasCross?7:9,cThr=hasCross?65:70;
   let signal='WAIT';
   if(bull>bear&&bull>=thr&&conf>=cThr)signal='LONG';
   else if(bear>bull&&bear>=thr&&conf>=cThr)signal='SHORT';
@@ -1119,7 +1119,7 @@ async function connect(){
   if(S.mode==='live')addLog('SYS','🔴 LIVE — gerçek emirler gidecek!');
   updateCompound();await refresh();
   S.refreshTimer=setInterval(refresh,10000);
-  S.scanTimer=setInterval(()=>{if(S.autoMode!=='off')runScan();},120000);
+  S.scanTimer=setInterval(()=>{if(S.autoMode!=='off'&&S.running)runScan();},60000);
   setTimeout(runScan,2000);
   switchTab(0);
 }
@@ -1157,6 +1157,13 @@ window.addEventListener('load',()=>{
   document.getElementById('tpRange').addEventListener('input',function(){document.getElementById('tpVal').textContent=this.value+'%';});
   document.getElementById('slRange').addEventListener('input',function(){document.getElementById('slVal').textContent=this.value+'%';});
   setAutoMode('off');
+    // Sekme arka plandan öne gelince yenile
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&S.running&&S.autoMode!=='off'){
+      addLog('INFO','Sekme aktif — scan yenileniyor');
+      runScan();
+      refresh();
+    }
 });
 </script>
 </body>
