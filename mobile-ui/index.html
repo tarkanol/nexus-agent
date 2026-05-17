@@ -419,6 +419,26 @@
       .signal-cards{-webkit-flex-wrap:nowrap;flex-wrap:nowrap;}
     }
 
+    /* ── SIGNAL MODE SELECTOR ── */
+    .sig-mode-btn{
+      -webkit-flex:1;flex:1;
+      padding:8px 4px;
+      font-family:'Space Mono';font-size:9px;
+      border:1px solid var(--border2);
+      background:transparent;
+      color:var(--text3);
+      cursor:pointer;
+      text-align:center;
+      -webkit-transition:all .2s;transition:all .2s;
+      min-height:46px;
+    }
+    .sig-mode-btn.active.det{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.07);}
+    .sig-mode-btn.active.mod{border-color:var(--yellow);color:var(--yellow);background:rgba(255,221,0,.06);}
+    .sig-mode-btn.active.agg{border-color:#ff66cc;color:#ff66cc;background:rgba(255,102,204,.07);}
+    #sigModeDesc.det{border-color:rgba(0,255,136,.3);color:#00ff88;}
+    #sigModeDesc.mod{border-color:rgba(255,221,0,.3);color:var(--yellow);}
+    #sigModeDesc.agg{border-color:rgba(255,102,204,.3);color:#ff66cc;}
+
     /* ── IPHONE 6 SPECIFIC FIXES ── */
     @media screen and (max-width:375px) and (max-height:667px){
       .tab-btn{padding:8px 1px 6px;min-height:48px;}
@@ -440,6 +460,7 @@
     <div class="hbadge off" id="hbScan">SCAN</div>
     <div class="hbadge off" id="hbSlots">0/3</div>
     <div class="hbadge off" id="hbDaily">0/8</div>
+    <div class="hbadge warn" id="hbSigMode" style="color:var(--yellow);border-color:var(--yellow)">ORTA</div>
     <div class="hbadge off" id="hbScalp">SCALP</div>
     <div class="hbadge off" id="hbAwake" title="Ekran uyanık">&#128161;</div>
   </div>
@@ -634,6 +655,28 @@
       <div style="display:-webkit-flex;display:flex;gap:8px;-webkit-align-items:center;align-items:center;">
         <div class="spin" id="scanSpinner" style="display:none;"></div>
         <button onclick="runScan()" style="font-size:9px;color:var(--blue);background:none;border:1px solid var(--blue);padding:6px 10px;cursor:pointer;font-family:'Space Mono';min-height:34px;">SCAN</button>
+      </div>
+    </div>
+
+    <!-- SİNYAL MODU SEÇİCİ -->
+    <div style="padding:10px 13px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);">
+      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:8px;">SINYAL HASSASIYETI</div>
+      <div style="display:-webkit-flex;display:flex;gap:6px;">
+        <button class="sig-mode-btn" id="sigModeDet" onclick="setSignalMode('det')">
+          <span style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;display:block;">KATI</span>
+          <span style="font-size:7px;opacity:.7;display:block;margin-top:1px;">Bull≥14 Conf≥80%</span>
+        </button>
+        <button class="sig-mode-btn active" id="sigModeMod" onclick="setSignalMode('mod')">
+          <span style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;display:block;">ORTA</span>
+          <span style="font-size:7px;opacity:.7;display:block;margin-top:1px;">Bull≥11 Conf≥72%</span>
+        </button>
+        <button class="sig-mode-btn" id="sigModeAgg" onclick="setSignalMode('agg')">
+          <span style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;display:block;">AGRESIF</span>
+          <span style="font-size:7px;opacity:.7;display:block;margin-top:1px;">Bull≥7 Conf≥55%</span>
+        </button>
+      </div>
+      <div style="font-family:'Space Mono';font-size:9px;margin-top:8px;padding:6px 10px;border:1px solid;" id="sigModeDesc">
+        <span id="sigModeDescTxt">Orta: Standart esikler — cogu firsati yakalar, gürultu orta</span>
       </div>
     </div>
 
@@ -961,6 +1004,7 @@
     <div class="log-box" id="logBox2">
       <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX v6.1 — Swing + Scalp Agent</span></div>
       <div class="le"><span class="lt">00:00:00</span><span class="lSYS">Scalp: $0.05-0.07 TP · $0.15-0.20 SL · Mola $1/gun</span></div>
+      <div class="le"><span class="lt">00:00:00</span><span class="lSYS">Sinyal: KATI / ORTA / AGRESIF mod secimi Scanner sekmesinde</span></div>
       <div class="le"><span class="lt">00:00:00</span><span class="lINFO">Worker URL gir → CONNECT → Mod sec</span></div>
     </div>
   </div>
@@ -1045,6 +1089,7 @@ var S = {
   scalpOnBreak:false,
   scalpBreakEnds:0,
   scalpBreakTimer:null,
+  signalMode:'mod',
   scanPairs:["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT",
              "DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","DOTUSDT",
              "MATICUSDT","LTCUSDT","UNIUSDT","ATOMUSDT","NEARUSDT",
@@ -1335,6 +1380,69 @@ function getSignalTier(score){
 }
 
 function canOpenToday(){ return S.dailyToday<S.dailyMax; }
+
+// ════════════════════════════════════════════════════════════════
+// SIGNAL MODE
+// ════════════════════════════════════════════════════════════════
+var SIG_MODE_CFG = {
+  det: {
+    label:'KATI',
+    cls:'det',
+    color:'#00ff88',
+    desc:'En guclu sinyaller — Bull>=14 Conf>=80% · Tam EMA hizalamasi · Vol onay zorunlu · Az sinyal, az yanlis',
+    risk:'Dusuk risk · Gercek para icin ideal'
+  },
+  mod: {
+    label:'ORTA',
+    cls:'mod',
+    color:'var(--yellow)',
+    desc:'Standart esikler — Bull>=11 Conf>=72% · Cogu firsati yakalar · Orta gurultu seviyesi',
+    risk:'Orta risk · Varsayilan mod'
+  },
+  agg: {
+    label:'AGRESIF',
+    cls:'agg',
+    color:'#ff66cc',
+    desc:'Gevşek esikler — Bull>=7 Conf>=55% · Cok sinyal uretir · Yuksek false positive orani',
+    risk:'YUKSEK RISK — Sadece test / kucuk pozisyon'
+  }
+};
+
+function setSignalMode(mode){
+  S.signalMode=mode;
+  var cfg=SIG_MODE_CFG[mode];
+  ['Det','Mod','Agg'].forEach(function(m){
+    var b=document.getElementById('sigMode'+m);
+    if(b) b.className='sig-mode-btn';
+  });
+  var activeBtn=document.getElementById('sigMode'+mode.charAt(0).toUpperCase()+mode.slice(1));
+  if(activeBtn) activeBtn.className='sig-mode-btn active '+mode;
+  var descEl=document.getElementById('sigModeDesc');
+  if(descEl){
+    descEl.className=mode;
+    document.getElementById('sigModeDescTxt').textContent=cfg.desc+' · '+cfg.risk;
+  }
+  // Header badge guncelle
+  var hb=document.getElementById('hbSigMode');
+  if(hb){hb.textContent=cfg.label;hb.style.color=cfg.color;hb.style.borderColor=cfg.color;}
+  addLog('SYS','Sinyal modu: '+cfg.label+' ('+mode+')');
+  // Mevcut scan sonuclari varsa yeniden siniflandir
+  if(S.scanResults.length){
+    classifyTiers();
+    renderScanTable();
+    renderTierCards();
+  }
+  // Aktif sinyal detayini yeniden hesapla
+  if(S.klines&&S.klines.length>50){
+    var closes=S.klines.map(function(k){return parseFloat(k[4]);});
+    var ind=calcAll(closes,S.klines);
+    S.indicators=ind;
+    var score=scoreSignal(ind);
+    S.score=score;
+    updateIndicators(ind,score);
+    updateSignal(score);
+  }
+}
 
 // ════════════════════════════════════════════════════════════════
 // AUTO MODE
@@ -1662,10 +1770,13 @@ function scoreSignal(ind){
   var vwapVal=ind.vwap,volSpk=ind.volSpk,vr=ind.vr,last=ind.last;
   var trendUp=ind.trendUp,trendDown=ind.trendDown;
 
-  if(bb&&bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
-  if(vr<0.4) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
-  if(atrPct!==null&&atrPct<0.0002) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR cok dusuk'};
-  if(emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
+  var _mode = S.signalMode || 'mod';
+  var _isAgg = _mode === 'agg';
+
+  if(!_isAgg && bb&&bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
+  if(!_isAgg && vr<0.4) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
+  if(atrPct!==null&&atrPct<0.0001) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR sifir'};
+  if(!_isAgg && emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
 
   var bull=0,bear=0,neut=0,reasons=[];
 
@@ -1740,8 +1851,33 @@ function scoreSignal(ind){
   var total=bull+bear+neut||1;
   var conf=Math.round(Math.max(bull,bear)/total*100);
   var hasCross=ema5CrossUp||ema5CrossDown||cross==='GOLDEN'||cross==='DEATH';
-  var threshold=hasCross?9:11;
-  var confThres=hasCross?68:72;
+
+  // Signal mode thresholds
+  var threshold, confThres;
+  var mode = S.signalMode || 'mod';
+  if(mode === 'det'){
+    // KATI: çok seçici, yanlış sinyal az
+    threshold = hasCross ? 12 : 14;
+    confThres = hasCross ? 76 : 80;
+    // Ek filtre: BB sıkışmada ve düşük vol'da kesinlikle geç
+    if(bb && bb.width < 0.004) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: BB dar'};
+    if(vr < 0.7) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: Vol yetersiz'};
+    // EMA alignment tam olmalı
+    if(e5&&e13&&e21&&e50){
+      if(bull>bear && !(e5>e13&&e13>e21)) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: EMA hizalanamadi'};
+      if(bear>bull && !(e5<e13&&e13<e21)) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: EMA hizalanamadi'};
+    }
+  } else if(mode === 'agg'){
+    // AGRESİF: daha fazla sinyal, test için
+    threshold = hasCross ? 5 : 7;
+    confThres = hasCross ? 50 : 55;
+    // Pre-filtreler gevşetildi — sadece tamamen anlamsız sinyaller engellenir
+    // (zaten yukarıda BB/vol filtresi var ama agg'da bunları bypass edelim)
+  } else {
+    // ORTA: mevcut standart
+    threshold = hasCross ? 9 : 11;
+    confThres = hasCross ? 68 : 72;
+  }
 
   var signal='WAIT';
   if(bull>bear&&bull>=threshold&&conf>=confThres) signal='LONG';
@@ -1973,11 +2109,23 @@ function updateHistory(){
 // ════════════════════════════════════════════════════════════════
 // SCANNER
 // ════════════════════════════════════════════════════════════════
+// Frontend signalMode → Worker mode mapping
+function getWorkerMode(){
+  // det = deterministic → Worker'da "standard" (en siki, pre-filterlar acik)
+  // mod = orta          → Worker'da "standard" (normal esikler)
+  // agg = agresif       → Worker'da "aggressive" (pre-filterlar kapali, dusuk esik)
+  // scalpEnabled+agg ise → Worker'da "scalp" (1m kline, cok kisa TF)
+  if(S.scalpEnabled && S.signalMode==='agg') return 'scalp';
+  if(S.signalMode==='agg') return 'aggressive';
+  return 'standard';
+}
+
 function runScan(){
   if(!S.connected||!WORKER) return;
   document.getElementById('scanSpinner').style.display='block';
-  addLog('SCAN','Taraniyor: '+S.scanPairs.length+' pair...');
-  fetch(WORKER+'/scan?pairs='+S.scanPairs.join(',')+'&mode=standard')
+  var workerMode=getWorkerMode();
+  addLog('SCAN','Taraniyor: '+S.scanPairs.length+' pair · Worker: '+workerMode+' · UI: '+S.signalMode.toUpperCase());
+  fetch(WORKER+'/scan?pairs='+S.scanPairs.join(',')+'&mode='+workerMode)
     .then(function(r){return r.json();})
     .then(function(data){
       if(!data.success) throw new Error(data.error);
@@ -1996,6 +2144,15 @@ function runScan(){
 
 function classifyTiers(){
   S.tierHigh=[];S.tierMed=[];S.tierLow=[];
+  // Tier eşiklerini sinyal moduna göre ayarla
+  var modeScale = S.signalMode==='det' ? 1.25 : S.signalMode==='agg' ? 0.65 : 1.0;
+  var thHigh = Math.round(TIER_CFG.HIGH.threshold * modeScale);
+  var thMed  = Math.round(TIER_CFG.MED.threshold  * modeScale);
+  var thLow  = Math.round(TIER_CFG.LOW.threshold  * modeScale);
+  var cfHigh = Math.round(TIER_CFG.HIGH.conf * (S.signalMode==='det'?1.04:S.signalMode==='agg'?0.88:1.0));
+  var cfMed  = Math.round(TIER_CFG.MED.conf  * (S.signalMode==='det'?1.04:S.signalMode==='agg'?0.88:1.0));
+  var cfLow  = Math.round(TIER_CFG.LOW.conf  * (S.signalMode==='det'?1.04:S.signalMode==='agg'?0.88:1.0));
+
   for(var i=0;i<S.scanResults.length;i++){
     var r=S.scanResults[i];
     if(!r||r.signal==='WAIT') continue;
@@ -2005,9 +2162,9 @@ function classifyTiers(){
     var tpPct=atr&&price?(atr*S.atrTpMult/price*100):0;
     var commSafe=isCommissionSafe(tpPct,S.leverage);
     var item=Object.assign({},r,{tpPct:tpPct,commSafe:commSafe});
-    if(s>=TIER_CFG.HIGH.threshold&&c>=TIER_CFG.HIGH.conf) S.tierHigh.push(Object.assign({},item,{tier:'HIGH'}));
-    else if(s>=TIER_CFG.MED.threshold&&c>=TIER_CFG.MED.conf) S.tierMed.push(Object.assign({},item,{tier:'MED'}));
-    else if(s>=TIER_CFG.LOW.threshold&&c>=TIER_CFG.LOW.conf) S.tierLow.push(Object.assign({},item,{tier:'LOW'}));
+    if(s>=thHigh&&c>=cfHigh) S.tierHigh.push(Object.assign({},item,{tier:'HIGH'}));
+    else if(s>=thMed&&c>=cfMed) S.tierMed.push(Object.assign({},item,{tier:'MED'}));
+    else if(s>=thLow&&c>=cfLow) S.tierLow.push(Object.assign({},item,{tier:'LOW'}));
   }
 }
 
@@ -2374,6 +2531,7 @@ window.onload=function(){
   window.onresize=drawChart;
   setAutoMode('off');
   setTradeMode('swing');
+  setSignalMode('mod');
   renderSlots();
   updateDailyBar();
   updateTradePreview();
