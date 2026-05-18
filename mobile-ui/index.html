@@ -1399,14 +1399,14 @@ function scoreSignal(ind){
   var _isAgg=_mode==='agg';
 
   // === AGRESIF MODA ÖZEL: NEREDEYSE HİÇ FİLTRE YOK ===
-  if(!_isAgg){
-    if(bb && bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
-    if(vr<0.45) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
-    if(emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
-  } else {
-    // Agresifte çok hafif vol filtresi (neredeyse her zaman geçer)
-    if(vr<0.15) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'AGRESIF: Vol yok'};
-    // ATR filtresi tamamen kaldırıldı
+  if (_mode === 'agg') {
+    // ----- AGRESİF: TEST MODU -----
+    // Neredeyse hiç filtre yok, sürekli sinyal üretsin
+    threshold = hasCross ? 2 : 3;    // çok düşük puan
+    confThres = 25;                  // %25 güven yeterli
+    // Vol filtresini neredeyse tamamen kaldır (sadece aşırı düşük volu engelle)
+    if (vr < 0.05) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol yok' };
+    // ATR filtresi yok, BB filtresi yok, EMA ayrımı yok
   }
 
   var bull=0,bear=0,neut=0,reasons=[];
