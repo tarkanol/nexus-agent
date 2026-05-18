@@ -9,6 +9,7 @@
   <title>APEX v6.2 — Fixed PnL + Scalp Confirm</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* (CSS aynı, değişiklik yok) */
     :root{--bg:#02040a;--bg2:#060b14;--bg3:#080d18;--border:#0f1e30;--border2:#162840;--accent:#00ffcc;--accent2:#00cc99;--long:#00ff88;--short:#ff4466;--yellow:#ffdd00;--blue:#44aaff;--orange:#ff9944;--purple:#aa66ff;--tier-high:#00ff88;--tier-med:#ffdd00;--tier-low:#44aaff;--text:#ddeeff;--text2:#6688aa;--text3:#2a4060;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
     html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
@@ -391,7 +392,7 @@
     <div class="scan-wrap" style="margin-top:10px;">
       <table class="scan-table">
         <thead><tr><th>PAIR</th><th>TIER</th><th>SIG</th><th>CONF</th><th>ATR%</th></tr></thead>
-        <tbody id="scanBody"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;font-family:'Space Mono';font-size:9px">Baglan ve SCAN bas</td></tr></tbody>
+        <tbody id="scanBody"><td><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;font-family:'Space Mono';font-size:9px">Baglan ve SCAN bas</td></tr></tbody>
       </table>
     </div>
     <div style="padding:6px 12px;border-top:1px solid var(--border);font-size:9px;color:var(--text3);font-family:'Space Mono'" id="scanMeta">—</div>
@@ -1285,7 +1286,7 @@ function updateDailyBar(){
 }
 
 // ══════════════════════════════════════════════════════
-// INDICATORS
+// INDICATORS (İYİLEŞTİRİLMİŞ)
 // ══════════════════════════════════════════════════════
 function ema(prices,period){
   if(prices.length<period) return [];
@@ -1344,7 +1345,13 @@ function calcVolSpike(klines,mult,period){
   mult=mult||2.0;period=period||5;if(!klines||klines.length<period+1) return false;
   var r=klines.slice(-(period+1));
   var avg=r.slice(0,-1).map(function(k){return parseFloat(k[5]);}).reduce(function(a,b){return a+b;},0)/period;
-  return parseFloat(r[r.length-1][5])>mult*avg;
+  var currentVol=parseFloat(r[r.length-1][5]);
+  var spike=currentVol>mult*avg;
+  // Yön: son fiyat değişimi
+  var lastClose=parseFloat(r[r.length-1][4]);
+  var prevClose=parseFloat(r[r.length-2][4]);
+  var dirUp=lastClose>prevClose;
+  return {spike:spike, dirUp:dirUp};
 }
 function calcFib(klines,lb){
   lb=lb||20;if(!klines||klines.length<lb) return null;
@@ -1364,17 +1371,20 @@ function calcAll(closes,klines){
   var emaSep=price>0?Math.abs(le5-le13)/price:0;
   var r=rsi(closes),m=macd(closes),srsi=stochRSI(closes);
   var atr14=calcATR(klines),atrPct=atr14&&price>0?atr14/price:null;
-  var vwapVal=calcVWAP(klines),bb=calcBB(closes),volSpk=calcVolSpike(klines);
+  var vwapVal=calcVWAP(klines),bb=calcBB(closes);
+  var volObj=calcVolSpike(klines);
   var vols=klines.slice(-20).map(function(k){return parseFloat(k[5]);});
   var avgVol=vols.slice(0,-1).reduce(function(a,b){return a+b;},0)/(vols.length-1);
   var vr=avgVol?vols[vols.length-1]/avgVol:1;
   var p9=e9[e9.length-2],p21=e21[e21.length-2];
   var cross=le9&&le21&&p9&&p21?(p9<=p21&&le9>le21?'GOLDEN':p9>=p21&&le9<le21?'DEATH':null):null;
   var rPrev=rsi(closes.slice(0,-1)),rMom=(r!=null&&rPrev!=null)?r-rPrev:0;
-  var trendUp=le50?(price>le50&&le9>le21):null,trendDown=le50?(price<le50&&le9<le21):null;
+  // trendUp/Down null kontrolü düzeltildi
+  var trendUp=le50!==null && le50!==undefined ? (price>le50 && le9>le21) : null;
+  var trendDown=le50!==null && le50!==undefined ? (price<le50 && le9<le21) : null;
   return {r:r,rMom:rMom,m:m,srsi:srsi,e5:le5,e9:le9,e13:le13,e21:le21,e50:le50,
     ema5CrossUp:ema5CrossUp,ema5CrossDown:ema5CrossDown,emaSep:emaSep,cross:cross,
-    bb:bb,atr14:atr14,atrPct:atrPct,vwap:vwapVal,volSpk:volSpk,vr:vr,last:price,
+    bb:bb,atr14:atr14,atrPct:atrPct,vwap:vwapVal,volObj:volObj,volSpike:volObj.spike,volDirUp:volObj.dirUp, vr:vr,last:price,
     trendUp:trendUp,trendDown:trendDown};
 }
 
@@ -1383,79 +1393,144 @@ function scoreSignal(ind){
   var e5=ind.e5,e9=ind.e9,e13=ind.e13,e21=ind.e21,e50=ind.e50;
   var ema5CrossUp=ind.ema5CrossUp,ema5CrossDown=ind.ema5CrossDown;
   var emaSep=ind.emaSep,cross=ind.cross,bb=ind.bb;
-  var vwapVal=ind.vwap,volSpk=ind.volSpk,vr=ind.vr,last=ind.last;
+  var vwapVal=ind.vwap,volSpike=ind.volSpike,volDirUp=ind.volDirUp,vr=ind.vr,last=ind.last;
   var trendUp=ind.trendUp,trendDown=ind.trendDown;
   var _mode=S.signalMode||'mod';
   var _isAgg=_mode==='agg';
 
-  if(!_isAgg&&bb&&bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
-  if(!_isAgg&&vr<0.4) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
-  if(ind.atrPct!==null&&ind.atrPct<0.0001) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR sifir'};
-  if(!_isAgg&&emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
+  // Minimum ATR % filtresi (agresifte bile hafif)
+  if(ind.atrPct!==null && ind.atrPct<0.0003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR cok dusuk'};
+
+  if(!_isAgg && bb && bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
+  if(!_isAgg && vr<0.45) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
+  if(!_isAgg && emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
 
   var bull=0,bear=0,neut=0,reasons=[];
+
+  // EMA5 cross (güncelleme)
   if(ema5CrossUp){bull+=4;reasons.push('EMA5+UP');}
   if(ema5CrossDown){bear+=4;reasons.push('EMA5+DN');}
-  if(e5&&e13&&e21&&e50){
-    if(e5>e13&&e13>e21&&e21>e50&&last>e5){bull+=4;reasons.push('EMA4UP');}
-    else if(e5>e13&&e13>e21&&e21>e50){bull+=2;}
-    else if(e5<e13&&e13<e21&&e21<e50&&last<e5){bear+=4;reasons.push('EMA4DN');}
-    else if(e5<e13&&e13<e21&&e21<e50){bear+=2;}
-    else neut+=2;
-  } else if(e9&&e21){
-    if(e9>e21&&last>e9){bull+=3;}else if(e9>e21){bull+=2;}
-    else if(e9<e21&&last<e9){bear+=3;}else if(e9<e21){bear+=2;}
+
+  // EMA düzeni + fiyat konumu
+  if(e5 && e13 && e21 && e50){
+    if(e5>e13 && e13>e21 && e21>e50){
+      bull+=4;reasons.push('EMA4UP');
+      if(last>e5) bull+=2; // fiyat en yüksek EMA üstünde
+    } else if(e5<e13 && e13<e21 && e21<e50){
+      bear+=4;reasons.push('EMA4DN');
+      if(last<e5) bear+=2;
+    } else neut+=2;
+  } else if(e9 && e21){
+    if(e9>e21 && last>e9){bull+=3;}else if(e9>e21){bull+=2;}
+    else if(e9<e21 && last<e9){bear+=3;}else if(e9<e21){bear+=2;}
     else neut++;
   }
+
+  // Golden/Death cross
   if(cross==='GOLDEN'){bull+=3;reasons.push('GOLDEN');}else if(cross==='DEATH'){bear+=3;reasons.push('DEATH');}
+
+  // MACD
   if(m){
-    if(m.hist>0&&m.macd>0){bull+=3;reasons.push('MACD+');}else if(m.hist>0){bull+=1;}
-    else if(m.hist<0&&m.macd<0){bear+=3;reasons.push('MACD-');}else if(m.hist<0){bear+=1;}
+    if(m.hist>0 && m.macd>0){bull+=3;reasons.push('MACD+');}else if(m.hist>0){bull+=1;}
+    else if(m.hist<0 && m.macd<0){bear+=3;reasons.push('MACD-');}else if(m.hist<0){bear+=1;}
     else neut++;
   }
+
+  // RSI (aşırı bölgeler daha yüksek puan)
   if(r!=null){
-    if(r>=45&&r<68&&rMom>0){bull+=2;}else if(r>=40&&r<72){bull+=1;}
-    else if(r<=55&&r>32&&rMom<0){bear+=2;}else if(r<=60&&r>28){bear+=1;}
-    else if(r>=75){bear+=2;reasons.push('RSI OB');}else if(r<=25){bull+=2;reasons.push('RSI OS');}
+    if(r>=45 && r<68 && rMom>0){bull+=2;}
+    else if(r>=40 && r<72){bull+=1;}
+    else if(r<=55 && r>32 && rMom<0){bear+=2;}
+    else if(r<=60 && r>28){bear+=1;}
+    else if(r>=75){bear+=4;reasons.push('RSI OB');}
+    else if(r<=25){bull+=4;reasons.push('RSI OS');}
     else neut++;
   }
+
+  // StochRSI
   if(srsi){
-    var scUp=srsi.prevK<=srsi.prevD&&srsi.k>srsi.d&&srsi.k<35;
-    var scDn=srsi.prevK>=srsi.prevD&&srsi.k<srsi.d&&srsi.k>65;
+    var scUp=srsi.prevK<=srsi.prevD && srsi.k>srsi.d && srsi.k<35;
+    var scDn=srsi.prevK>=srsi.prevD && srsi.k<srsi.d && srsi.k>65;
     if(scUp){bull+=3;reasons.push('STOCH+');}if(scDn){bear+=3;reasons.push('STOCH-');}
-    if(!scUp&&!scDn){if(srsi.k<20)bull+=2;else if(srsi.k<40)bull+=1;else if(srsi.k>80)bear+=2;else if(srsi.k>60)bear+=1;else neut++;}
+    if(!scUp && !scDn){
+      if(srsi.k<20)bull+=2;
+      else if(srsi.k<40)bull+=1;
+      else if(srsi.k>80)bear+=2;
+      else if(srsi.k>60)bear+=1;
+      else neut++;
+    }
   }
-  if(vwapVal&&last){
+
+  // VWAP
+  if(vwapVal && last){
     if(last>vwapVal*1.001){bull+=2;}else if(last>vwapVal){bull+=1;}
     else if(last<vwapVal*0.999){bear+=2;}else if(last<vwapVal){bear+=1;}
     else neut++;
   }
-  if(bb){if(last>bb.mid&&last<bb.upper*0.998){bull+=1;}else if(last<bb.mid&&last>bb.lower*1.002){bear+=1;}else neut++;}
-  if(volSpk){if(bull>bear){bull+=2;reasons.push('VOL+');}else{bear+=2;reasons.push('VOL-');}}
-  else if(vr>1.4){if(bull>bear)bull++;else bear++;}
-  if(e50){if(trendUp===false&&bull>bear){bull=Math.floor(bull*0.7);}if(trendDown===false&&bear>bull){bear=Math.floor(bear*0.7);}}
+
+  // Bollinger Bands
+  if(bb){
+    if(last>bb.mid && last<bb.upper*0.998){bull+=1;}
+    else if(last<bb.mid && last>bb.lower*1.002){bear+=1;}
+    else neut++;
+  }
+
+  // Hacim spike ve yön (iyileştirilmiş)
+  if(volSpike){
+    if(volDirUp && bull>bear){bull+=3;reasons.push('VOL+UP');}
+    else if(!volDirUp && bear>bull){bear+=3;reasons.push('VOL-DN');}
+    else if(volDirUp){bull+=2;}
+    else {bear+=2;}
+  } else if(vr>1.4){
+    if(bull>bear) bull++;
+    else if(bear>bull) bear++;
+  }
+
+  // Trend doğrulama (null kontrolü)
+  if(trendUp === false && bull>bear){bull=Math.floor(bull*0.7);}
+  if(trendDown === false && bear>bull){bear=Math.floor(bear*0.7);}
+
+  // Mum formasyonu (son mum önceki mumun %60'ından büyük ve yön uyumu)
+  if(S.klines && S.klines.length>=2){
+    var lastCandle=S.klines[S.klines.length-1];
+    var prevCandle=S.klines[S.klines.length-2];
+    var lastCloseP=parseFloat(lastCandle[4]);
+    var lastOpenP=parseFloat(lastCandle[1]);
+    var prevCloseP=parseFloat(prevCandle[4]);
+    var body=Math.abs(lastCloseP-lastOpenP);
+    var prevBody=Math.abs(parseFloat(prevCandle[4])-parseFloat(prevCandle[1]));
+    var isBigCandle=body>prevBody*0.6;
+    if(isBigCandle){
+      if(lastCloseP>lastOpenP && bull>bear){bull+=2;reasons.push('BIGBULL');}
+      else if(lastCloseP<lastOpenP && bear>bull){bear+=2;reasons.push('BIGBEAR');}
+    }
+  }
 
   var total=bull+bear+neut||1;
   var conf=Math.round(Math.max(bull,bear)/total*100);
   var hasCross=ema5CrossUp||ema5CrossDown||cross==='GOLDEN'||cross==='DEATH';
   var threshold,confThres;
   if(_mode==='det'){
-    threshold=hasCross?12:14;confThres=hasCross?76:80;
-    if(bb&&bb.width<0.004) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: BB dar'};
+    threshold=hasCross?12:14; confThres=hasCross?76:80;
+    if(bb && bb.width<0.004) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: BB dar'};
     if(vr<0.7) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: Vol yetersiz'};
   } else if(_mode==='agg'){
-    threshold=hasCross?5:7;confThres=hasCross?50:55;
+    threshold=hasCross?5:7; confThres=hasCross?50:55;
+    // agresifte de çok düşük ATR veya aşırı düşük vol uyarısı
+    if(ind.atrPct!==null && ind.atrPct<0.0005) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'AGRESIF: ATR cok dusuk'};
+    if(vr<0.3) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'AGRESIF: Vol yok'};
   } else {
-    threshold=hasCross?9:11;confThres=hasCross?68:72;
+    threshold=hasCross?9:11; confThres=hasCross?68:72;
   }
+
   var signal='WAIT';
-  if(bull>bear&&bull>=threshold&&conf>=confThres) signal='LONG';
-  else if(bear>bull&&bear>=threshold&&conf>=confThres) signal='SHORT';
+  if(bull>bear && bull>=threshold && conf>=confThres) signal='LONG';
+  else if(bear>bull && bear>=threshold && conf>=confThres) signal='SHORT';
   return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:signal,reason:reasons.slice(0,3).join(' · ')};
 }
 
 // ══════════════════════════════════════════════════════
-// UI UPDATES
+// UI UPDATES (kalan kısımlar aynı)
 // ══════════════════════════════════════════════════════
 function updatePrice(t){
   if(!t) return;
@@ -1612,7 +1687,7 @@ function drawChart(){
 }
 
 // ══════════════════════════════════════════════════════
-// SCANNER
+// SCANNER (kalan kısımlar aynı)
 // ══════════════════════════════════════════════════════
 function runScan(){
   if(!S.connected||!WORKER) return;
