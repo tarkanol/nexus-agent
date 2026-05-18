@@ -1398,16 +1398,20 @@ function scoreSignal(ind){
   var _mode=S.signalMode||'mod';
   var _isAgg=_mode==='agg';
 
-  // Minimum ATR % filtresi (agresifte bile hafif)
-  if(ind.atrPct!==null && ind.atrPct<0.0003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'ATR cok dusuk'};
-
-  if(!_isAgg && bb && bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
-  if(!_isAgg && vr<0.45) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
-  if(!_isAgg && emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
+  // === AGRESIF MODA ÖZEL: NEREDEYSE HİÇ FİLTRE YOK ===
+  if(!_isAgg){
+    if(bb && bb.width<0.003) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'BB sikisma'};
+    if(vr<0.45) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'Vol zayif'};
+    if(emaSep<0.00015) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'EMA dolasik'};
+  } else {
+    // Agresifte çok hafif vol filtresi (neredeyse her zaman geçer)
+    if(vr<0.15) return {bull:0,bear:0,neut:1,conf:0,signal:'WAIT',reason:'AGRESIF: Vol yok'};
+    // ATR filtresi tamamen kaldırıldı
+  }
 
   var bull=0,bear=0,neut=0,reasons=[];
 
-  // EMA5 cross (güncelleme)
+  // EMA5 cross
   if(ema5CrossUp){bull+=4;reasons.push('EMA5+UP');}
   if(ema5CrossDown){bear+=4;reasons.push('EMA5+DN');}
 
@@ -1415,7 +1419,7 @@ function scoreSignal(ind){
   if(e5 && e13 && e21 && e50){
     if(e5>e13 && e13>e21 && e21>e50){
       bull+=4;reasons.push('EMA4UP');
-      if(last>e5) bull+=2; // fiyat en yüksek EMA üstünde
+      if(last>e5) bull+=2;
     } else if(e5<e13 && e13<e21 && e21<e50){
       bear+=4;reasons.push('EMA4DN');
       if(last<e5) bear+=2;
@@ -1436,7 +1440,7 @@ function scoreSignal(ind){
     else neut++;
   }
 
-  // RSI (aşırı bölgeler daha yüksek puan)
+  // RSI
   if(r!=null){
     if(r>=45 && r<68 && rMom>0){bull+=2;}
     else if(r>=40 && r<72){bull+=1;}
@@ -1468,14 +1472,14 @@ function scoreSignal(ind){
     else neut++;
   }
 
-  // Bollinger Bands
+  // Bollinger
   if(bb){
     if(last>bb.mid && last<bb.upper*0.998){bull+=1;}
     else if(last<bb.mid && last>bb.lower*1.002){bear+=1;}
     else neut++;
   }
 
-  // Hacim spike ve yön (iyileştirilmiş)
+  // Hacim spike ve yön
   if(volSpike){
     if(volDirUp && bull>bear){bull+=3;reasons.push('VOL+UP');}
     else if(!volDirUp && bear>bull){bear+=3;reasons.push('VOL-DN');}
@@ -1486,11 +1490,11 @@ function scoreSignal(ind){
     else if(bear>bull) bear++;
   }
 
-  // Trend doğrulama (null kontrolü)
+  // Trend doğrulama
   if(trendUp === false && bull>bear){bull=Math.floor(bull*0.7);}
   if(trendDown === false && bear>bull){bear=Math.floor(bear*0.7);}
 
-  // Mum formasyonu (son mum önceki mumun %60'ından büyük ve yön uyumu)
+  // Mum formasyonu
   if(S.klines && S.klines.length>=2){
     var lastCandle=S.klines[S.klines.length-1];
     var prevCandle=S.klines[S.klines.length-2];
@@ -1515,11 +1519,11 @@ function scoreSignal(ind){
     if(bb && bb.width<0.004) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: BB dar'};
     if(vr<0.7) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'KATI: Vol yetersiz'};
   } else if(_mode==='agg'){
-    threshold=hasCross?5:7; confThres=hasCross?50:55;
-    // agresifte de çok düşük ATR veya aşırı düşük vol uyarısı
-    if(ind.atrPct!==null && ind.atrPct<0.0005) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'AGRESIF: ATR cok dusuk'};
-    if(vr<0.3) return {bull:bull,bear:bear,neut:neut,total:total,conf:conf,signal:'WAIT',reason:'AGRESIF: Vol yok'};
-  } else {
+    // AGRESIF: eşikler iyice düşürüldü
+    threshold=hasCross?3:4;
+    confThres=40;
+    // Agresifte ek bir filtre yok
+  } else { // mod
     threshold=hasCross?9:11; confThres=hasCross?68:72;
   }
 
