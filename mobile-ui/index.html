@@ -1239,46 +1239,110 @@ function updateScalpStats(){
 // SCALP TRADE — sabit $ TP/SL
 // ════════════════════════════════════════════════════════════════
 function manualScalp(side){
-  if(!S.scalpEnabled||S.scalpOnBreak||!S.connected) return;
-  if(S.positions.length>=MAX_SLOTS){ addLog('WARN','Max 3 pozisyon'); return; }
-  var ep=S.price;
-  if(!ep){ addLog('WARN','Fiyat yok'); return; }
 
-  // $ cinsinden TP/SL → fiyat hesapla
-  var tp = side==='LONG' ? ep+S.scalpTp : ep-S.scalpTp;
-  var sl = side==='LONG' ? ep-S.scalpSl : ep+S.scalpSl;
+  if(!S.scalpEnabled || S.scalpOnBreak || !S.connected) return;
 
-  var pct=parseFloat(document.getElementById('perTrade').value)/100;
-  var usdAmount=S.balance*pct;
-  var qty=usdAmount/ep;
-  var id=S.posIdCounter++;
-  var comm=commissionCost(usdAmount);
+  // ❌ direkt trade yok → pending state
+  pendingScalp = {
+    side: side,
+    pair: S.pair,
+    startTime: Date.now(),
+    ticks: []
+  };
+
+  addLog('SCALP','⏳ Scalp bekleme başladı (90s)');
+}
+
+  function evaluateScalp(){
+
+  const t = pendingScalp.ticks;
+  if(t.length < 5) return;
+
+  const first = t[0].price;
+  const last = t[t.length - 1].price;
+
+  const change = (last - first) / first;
+
+  // momentum
+  let momentum = 0;
+  for(let i=1;i<t.length;i++){
+    momentum += (t[i].price > t[i-1].price ? 1 : -1);
+  }
+
+  // ❌ flat
+  if(Math.abs(change) < 0.0005){
+    addLog('SCALP','Flat market skip');
+    return;
+  }
+
+  // ❌ fake spike
+  const prices = t.map(x => x.price);
+  const spike = Math.max(...prices) - Math.min(...prices);
+
+  if((spike / first) > 0.003 && Math.abs(momentum) < 2){
+    addLog('SCALP','Fake spike skip');
+    return;
+  }
+
+  // ✅ geçerli → trade aç
+  if(pendingScalp.side === "LONG" && change > 0.001 && momentum > 2){
+    executeScalp("LONG");
+  }
+
+  if(pendingScalp.side === "SHORT" && change < -0.001 && momentum < -2){
+    executeScalp("SHORT");
+  }
+}
+
+  function executeScalp(side){
+
+  var ep = S.price;
+
+  var pct = parseFloat(document.getElementById('perTrade').value)/100;
+  var usdAmount = S.balance * pct;
+  var qty = usdAmount / ep;
+
+  // ✅ LEVERAGE AWARE TP
+  var tp = calculateScalpTP(ep, usdAmount, S.leverage, S.scalpTp, side);
+
+  // SL aynı kalabilir
+  var sl = side==='LONG' ? ep - S.scalpSl : ep + S.scalpSl;
+
+  var id = S.posIdCounter++;
 
   S.positions.push({
-    id:id, pair:S.pair, side:side, entry:ep, qty:qty,
-    lev:S.leverage, size:usdAmount, tp:tp, sl:sl,
-    tier:'SCALP', tradeMode:'scalp', auto:false, commPaid:comm,
-    isScalp:true, scalpTpAbs:S.scalpTp, scalpSlAbs:S.scalpSl
+    id:id,
+    pair:S.pair,
+    side:side,
+    entry:ep,
+    qty:qty,
+    lev:S.leverage,
+    size:usdAmount,
+    tp:tp,
+    sl:sl,
+    tier:'SCALP',
+    tradeMode:'scalp',
+    auto:false,
+    isScalp:true
   });
-  S.lastTradeTime=Date.now();
+
   S.dailyToday++;
-  S.totalCommission+=comm;
   S.scalpDayCount++;
-  S.scalpTotalCount++;
 
-  addLog('SCALP','[SCALP] '+side+' '+S.pair+' @$'+ep.toFixed(4)+' TP:$'+tp.toFixed(4)+' SL:$'+sl.toFixed(4));
-  renderSlots();updateStats();updateDailyBar();updateScalpStats();
+  addLog('SCALP','✅ SCALP ENTRY '+side+' (confirmed)');
 
-  if(S.mode==='live'){
-    fetch(WORKER+'/order',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({symbol:S.pair,side:side,usdAmount:usdAmount,leverage:S.leverage,tp:parseFloat(tp.toFixed(6)),sl:parseFloat(sl.toFixed(6))})
-    }).then(function(r){return r.json();}).then(function(d){
-      if(d.success) addLog('SYS','Scalp emri tamam: qty:'+d.quantity);
-      else addLog('WARN','Scalp emri hata: '+d.error);
-    }).catch(function(e){ addLog('WARN',''+e.message); });
-  }
+  renderSlots();
+  updateStats();
+  updateDailyBar();
+  updateScalpStats();
+}
+
+  function calculateScalpTP(entry, size, leverage, targetUSD, side){
+  const move = targetUSD / (size * leverage);
+
+  return side === "LONG"
+    ? entry * (1 + move)
+    : entry * (1 - move);
 }
 
 function closeScalpTrade(id,reason){
@@ -1997,6 +2061,22 @@ function updatePrice(t){
   document.getElementById('pl24').textContent='$'+parseFloat(t.lowPrice||0).toFixed(2);
   var vol=parseFloat(t.quoteVolume||0);
   document.getElementById('pvol').textContent=vol>=1e9?(vol/1e9).toFixed(1)+'B':(vol/1e6).toFixed(0)+'M';
+
+  // ✅ SCALP TRACKING
+if(pendingScalp){
+  pendingScalp.ticks.push({
+    price: S.price,
+    time: Date.now()
+  });
+
+  let elapsed = Date.now() - pendingScalp.startTime;
+
+  if(elapsed >= 90 * 1000){
+    evaluateScalp();
+    pendingScalp = null;
+  }
+}
+
 }
 
 function updateIndicators(ind,score){
