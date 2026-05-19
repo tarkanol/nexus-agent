@@ -426,6 +426,47 @@
   </div>
 </div>
 
+<!-- FIB AUTO TRADE PANEL -->
+<div class="scalp-panel" style="border-color: rgba(0,255,136,.4);">
+  <div class="scalp-header" style="border-bottom-color: rgba(0,255,136,.3);">
+    <div>
+      <div class="scalp-title" style="color:var(--long);">🔄 FIB AUTO TRADE</div>
+      <div style="font-family:'Space Mono';font-size:8px;color:var(--text3);">Seçili coinde Fib destek/direnç otomatik al-sat · Durdurana kadar çalışır</div>
+    </div>
+    <div class="scalp-badge" id="fibAutoStatusBadge" style="color:var(--long);border-color:var(--long);">KAPALI</div>
+  </div>
+  <div class="scalp-body">
+    <div class="scalp-toggle-row">
+      <button class="scalp-toggle-btn active" id="fibAutoOff" onclick="toggleFibAutoTrade(false)">KAPALI</button>
+      <button class="scalp-toggle-btn" id="fibAutoOn" onclick="toggleFibAutoTrade(true)">AÇIK 🔄</button>
+    </div>
+    <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;">TP (% fiyat)</div>
+    <div class="scalp-tp-row">
+      <button class="scalp-tp-btn" onclick="setFibAutoTpPct(this,0.3)">%0.3</button>
+      <button class="scalp-tp-btn active" onclick="setFibAutoTpPct(this,0.5)">%0.5</button>
+      <button class="scalp-tp-btn" onclick="setFibAutoTpPct(this,0.8)">%0.8</button>
+      <button class="scalp-tp-btn" onclick="setFibAutoTpPct(this,1.0)">%1.0</button>
+    </div>
+    <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:8px 0 5px;">SL (% fiyat)</div>
+    <div class="scalp-sl-row">
+      <button class="scalp-sl-btn" onclick="setFibAutoSlPct(this,0.2)">%0.2</button>
+      <button class="scalp-sl-btn active" onclick="setFibAutoSlPct(this,0.5)">%0.5</button>
+      <button class="scalp-sl-btn" onclick="setFibAutoSlPct(this,0.7)">%0.7</button>
+      <button class="scalp-sl-btn" onclick="setFibAutoSlPct(this,1.0)">%1.0</button>
+    </div>
+    <div class="trade-preview" style="margin-top:10px;">
+      <div class="tp-row"><span class="tp-label">Sinyal Durumu:</span><span class="tp-val" id="fibAutoSignalStatus" style="color:var(--text3);">—</span></div>
+      <div class="tp-row"><span class="tp-label">Aktif Yön:</span><span class="tp-val" id="fibAutoActiveSide" style="color:var(--text3);">—</span></div>
+      <div class="tp-row"><span class="tp-label">Son İşlem:</span><span class="tp-val" id="fibAutoLastTrade" style="color:var(--text2);">—</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn-accent" id="btnFibAutoStart" onclick="toggleFibAutoTrade(true)" style="flex:1;">BAŞLAT</button>
+      <button class="btn-red" id="btnFibAutoStop" onclick="toggleFibAutoTrade(false)" style="flex:1;">DURDUR</button>
+    </div>
+    <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:4px;text-align:center;" id="fibAutoNote">Kapalı</div>
+  </div>
+</div>
+  
 <!-- TAB: SCANNER -->
 <div class="tab-pane" id="tab1">
   <div class="panel">
@@ -1271,6 +1312,237 @@ function executeConfirmedFibScalp(side, pair) {
   renderSlots(); updateStats(); updateDailyBar(); updateScalpStats();
 }
 
+// ═══════════════════════════════════════════════════
+// FIB AUTO TRADE (SÜREKLİ DÖNGÜ)
+// ═══════════════════════════════════════════════════
+S.fibAutoTradeEnabled = false;
+S.fibAutoTradeSide = null;       // şu an açık pozisyonun yönü (LONG/SHORT)
+S.fibAutoTradePosId = null;      // açık pozisyonun ID'si
+S.fibAutoTradeTpPct = 0.5;       // TP yüzdesi
+S.fibAutoTradeSlPct = 0.5;       // SL yüzdesi
+S.fibAutoTradePair = null;       // hangi pair ile çalışıyor (S.pair)
+
+function toggleFibAutoTrade(on) {
+  S.fibAutoTradeEnabled = on;
+  document.getElementById('fibAutoOff').className = 'scalp-toggle-btn' + (on ? '' : ' active');
+  document.getElementById('fibAutoOn').className = 'scalp-toggle-btn' + (on ? ' active' : '');
+  document.getElementById('fibAutoStatusBadge').textContent = on ? 'AÇIK' : 'KAPALI';
+  document.getElementById('fibAutoStatusBadge').style.color = on ? 'var(--long)' : 'var(--text3)';
+  document.getElementById('fibAutoNote').textContent = on ? 'Otomatik Fib al-sat aktif...' : 'Kapalı';
+  document.getElementById('btnFibAutoStart').disabled = on;
+  document.getElementById('btnFibAutoStop').disabled = !on;
+
+  if (on) {
+    S.fibAutoTradePair = S.pair; // başlangıçta seçili pair
+    addLog('SYS', '🔄 Fib Auto Trade BAŞLATILDI (' + S.fibAutoTradePair + ')');
+    // Hemen bir kontrol yap
+    fibAutoTradeCheck();
+  } else {
+    // Açık pozisyonu kapat
+    if (S.fibAutoTradePosId) {
+      closeTrade(S.fibAutoTradePosId, 'FIB AUTO STOP');
+      S.fibAutoTradePosId = null;
+    }
+    S.fibAutoTradeSide = null;
+    addLog('SYS', '🔄 Fib Auto Trade DURDURULDU');
+    updateFibAutoUI();
+  }
+}
+
+function setFibAutoTpPct(btn, val) {
+  S.fibAutoTradeTpPct = val;
+  document.querySelectorAll('#tab2 .scalp-tp-btn').forEach(function(b) { b.className = 'scalp-tp-btn'; });
+  btn.className = 'scalp-tp-btn active';
+}
+function setFibAutoSlPct(btn, val) {
+  S.fibAutoTradeSlPct = val;
+  document.querySelectorAll('#tab2 .scalp-sl-btn').forEach(function(b) { b.className = 'scalp-sl-btn'; });
+  btn.className = 'scalp-sl-btn active';
+}
+
+// Her fiyat güncellemesinde çağrılacak ana kontrol
+function fibAutoTradeCheck() {
+  if (!S.fibAutoTradeEnabled || !S.connected) return;
+  if (circuitBreakerActive || !canOpenToday()) {
+    // Limitler aşıldıysa otomatik durdur
+    if (S.fibAutoTradeEnabled) toggleFibAutoTrade(false);
+    return;
+  }
+
+  // Sadece seçili pair ile çalış (kullanıcı pair değiştirirse eşleşmeyi kontrol et)
+  if (S.pair !== S.fibAutoTradePair) {
+    // Pair değişmiş, önceki pozisyonu kapatıp yeni pair'e geç
+    if (S.fibAutoTradePosId) {
+      closeTrade(S.fibAutoTradePosId, 'PAIR DEĞİŞTİ');
+      S.fibAutoTradePosId = null;
+      S.fibAutoTradeSide = null;
+    }
+    S.fibAutoTradePair = S.pair;
+    updateFibAutoUI();
+    return; // bu tick'te yeni sinyal bakmaya gerek yok, sonraki tick'te bakar
+  }
+
+  // Önce mevcut pozisyon var mı kontrol et
+  var pos = S.positions.find(function(p) { return p.id === S.fibAutoTradePosId; });
+  if (pos) {
+    // TP/SL kontrolü
+    var cp = getPairPrice(pos.pair);
+    if (!cp || cp <= 0) return;
+    var tpPrice = pos.entry * (1 + S.fibAutoTradeTpPct / 100 * (pos.side === 'LONG' ? 1 : -1));
+    var slPrice = pos.entry * (1 - S.fibAutoTradeSlPct / 100 * (pos.side === 'LONG' ? 1 : -1));
+    
+    if (pos.side === 'LONG' && cp >= tpPrice) {
+      closeTrade(pos.id, 'FIB TP');
+      S.fibAutoTradePosId = null;
+      S.fibAutoTradeSide = null;
+      updateFibAutoUI();
+      // Pozisyon kapandı, hemen yeni sinyal kontrolü yapılacak (return yok)
+    } else if (pos.side === 'LONG' && cp <= slPrice) {
+      closeTrade(pos.id, 'FIB SL');
+      S.fibAutoTradePosId = null;
+      S.fibAutoTradeSide = null;
+      updateFibAutoUI();
+    } else if (pos.side === 'SHORT' && cp <= tpPrice) {
+      closeTrade(pos.id, 'FIB TP');
+      S.fibAutoTradePosId = null;
+      S.fibAutoTradeSide = null;
+      updateFibAutoUI();
+    } else if (pos.side === 'SHORT' && cp >= slPrice) {
+      closeTrade(pos.id, 'FIB SL');
+      S.fibAutoTradePosId = null;
+      S.fibAutoTradeSide = null;
+      updateFibAutoUI();
+    } else {
+      // TP/SL henüz gelmedi, pozisyonu koru
+      updateFibAutoUI();
+      return; // yeni pozisyon açma
+    }
+  }
+
+  // Eğer pozisyon yoksa, Fib seviyelerine göre yeni sinyal ara
+  if (!S.fibLevels) {
+    updateFibLevels(); // yoksa hesapla
+    if (!S.fibLevels) return;
+  }
+
+  var fib = S.fibLevels;
+  var price = S.price;
+  if (!price || price <= 0) return;
+
+  var tolerance = price * S.fibSensitivity; // sensitivity genel Fib ayarından gelir, ya da sabit 0.002
+  // Eğer sensitivity tanımlı değilse varsayılan ata
+  if (!S.fibSensitivity) S.fibSensitivity = 0.002;
+  tolerance = price * S.fibSensitivity;
+
+  var lastClose = S.klines && S.klines.length ? parseFloat(S.klines[S.klines.length-1][4]) : price;
+  var prevClose = S.klines && S.klines.length > 1 ? parseFloat(S.klines[S.klines.length-2][4]) : lastClose;
+
+  // LONG sinyali: fiyat 0.618 veya 0.786 desteğinde ve son mum yukarı dönüyor
+  var nearSupport = Math.abs(price - fib.r618) < tolerance || Math.abs(price - fib.r786) < tolerance;
+  // SHORT sinyali: fiyat 0.382 veya 0.236 direncinde ve son mum aşağı dönüyor
+  var nearResist = Math.abs(price - fib.r382) < tolerance || Math.abs(price - fib.r236) < tolerance;
+
+  if (nearSupport && lastClose > prevClose) {
+    // LONG aç
+    openFibAutoPosition('LONG', fib);
+  } else if (nearResist && lastClose < prevClose) {
+    // SHORT aç
+    openFibAutoPosition('SHORT', fib);
+  }
+
+  updateFibAutoUI();
+}
+
+function openFibAutoPosition(side, fib) {
+  if (S.positions.length >= MAX_SLOTS) {
+    addLog('WARN', 'Fib Auto: Max slot dolu, pozisyon açılamadı');
+    return;
+  }
+  var ep = S.price;
+  if (!ep || ep <= 0) return;
+
+  var posSize = calcPositionSize();
+  var qty = calcQty(posSize, ep);
+  var pct = parseFloat(document.getElementById('perTrade').value) / 100;
+  var comm = S.balance * pct * COMMISSION_RT;
+  var id = S.posIdCounter++;
+
+  // TP ve SL fiyatlarını yüzde olarak hesapla
+  var tpPrice = ep * (1 + S.fibAutoTradeTpPct / 100 * (side === 'LONG' ? 1 : -1));
+  var slPrice = ep * (1 - S.fibAutoTradeSlPct / 100 * (side === 'LONG' ? 1 : -1));
+
+  S.positions.push({
+    id: id, pair: S.pair, side: side, entry: ep, qty: qty,
+    lev: S.leverage, size: S.balance * pct, positionSize: posSize,
+    tp: tpPrice, sl: slPrice, tier: 'FIB_AUTO', tradeMode: 'scalp', auto: true, commPaid: comm,
+    isScalp: true, scalpTargetProfit: null, scalpStopLoss: null, fibScalp: true
+  });
+
+  S.fibAutoTradePosId = id;
+  S.fibAutoTradeSide = side;
+  S.lastTradeTime = Date.now();
+  S.dailyToday++;
+  S.totalCommission += comm;
+  S.scalpDayCount++;
+  S.scalpTotalCount++;
+  S.peakPrices[id] = ep;
+
+  addLog('FIB', '[FIB AUTO] ' + side + ' açıldı @$' + ep.toFixed(4) +
+    ' TP:$' + tpPrice.toFixed(4) + ' SL:$' + slPrice.toFixed(4));
+  renderSlots();
+  updateStats();
+  updateDailyBar();
+  updateScalpStats();
+}
+
+function updateFibAutoUI() {
+  var statusEl = document.getElementById('fibAutoSignalStatus');
+  var sideEl = document.getElementById('fibAutoActiveSide');
+  var lastEl = document.getElementById('fibAutoLastTrade');
+
+  if (!S.fibAutoTradeEnabled) {
+    statusEl.textContent = 'Kapalı';
+    sideEl.textContent = '—';
+    return;
+  }
+
+  // Sinyal durumu
+  if (S.fibLevels && S.price) {
+    var fib = S.fibLevels;
+    var tolerance = S.price * (S.fibSensitivity || 0.002);
+    var nearSupport = Math.abs(S.price - fib.r618) < tolerance || Math.abs(S.price - fib.r786) < tolerance;
+    var nearResist = Math.abs(S.price - fib.r382) < tolerance || Math.abs(S.price - fib.r236) < tolerance;
+    var lastClose = S.klines && S.klines.length ? parseFloat(S.klines[S.klines.length-1][4]) : S.price;
+    var prevClose = S.klines && S.klines.length > 1 ? parseFloat(S.klines[S.klines.length-2][4]) : lastClose;
+
+    if (S.fibAutoTradePosId) {
+      statusEl.textContent = 'Pozisyon açık';
+    } else if (nearSupport && lastClose > prevClose) {
+      statusEl.textContent = 'LONG sinyali';
+      statusEl.style.color = 'var(--long)';
+    } else if (nearResist && lastClose < prevClose) {
+      statusEl.textContent = 'SHORT sinyali';
+      statusEl.style.color = 'var(--short)';
+    } else {
+      statusEl.textContent = 'Bekliyor';
+      statusEl.style.color = 'var(--text3)';
+    }
+  } else {
+    statusEl.textContent = 'Veri yok';
+  }
+
+  sideEl.textContent = S.fibAutoTradeSide || '—';
+  sideEl.style.color = S.fibAutoTradeSide === 'LONG' ? 'var(--long)' : S.fibAutoTradeSide === 'SHORT' ? 'var(--short)' : 'var(--text3)';
+
+  // Son işlem
+  var lastTrade = S.trades.filter(function(t) { return t.tier === 'FIB_AUTO'; }).slice(-1)[0];
+  if (lastTrade) {
+    lastEl.textContent = lastTrade.side + ' ' + lastTrade.pair.replace('USDT','') + ' PnL:' + (lastTrade.pnl >= 0 ? '+' : '') + '$' + lastTrade.pnl.toFixed(4);
+  } else {
+    lastEl.textContent = '—';
+  }
+}
+  
 // ═══════════════════════════════════════════════════
 // SWING TRADE
 // ═══════════════════════════════════════════════════
@@ -2217,6 +2489,7 @@ function refresh(){
         renderSlots(); updateTradePreview(); updateScalpStats();
         if(S.scalpEnabled) updateScalpPreview();
         if(S.fibScalpEnabled) updateFibLevels();
+        if(S.fibAutoTradeEnabled) fibAutoTradeCheck();
       }
       fetchMulti();
     })
@@ -2305,6 +2578,7 @@ function demoRefresh() {
   updateScalpStats();
   if (S.scalpEnabled) updateScalpPreview();
   if (S.fibScalpEnabled) updateFibLevels();
+  if(S.fibAutoTradeEnabled) fibAutoTradeCheck();
   fetchMultiDemo();
 }
 
