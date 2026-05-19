@@ -6,9 +6,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#02040a">
-  <title>APEX v6.3 — SCALP AUTO TP & FULL AUTO</title>
+  <title>APEX v6.4 — AGGRESSIVE FIXED</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* CSS aynı, kısaltmak için yazmıyorum, ancak orijinal stil bloğunun tamamı buraya gelmeli */
     :root{--bg:#02040a;--bg2:#060b14;--bg3:#080d18;--border:#0f1e30;--border2:#162840;--accent:#00ffcc;--accent2:#00cc99;--long:#00ff88;--short:#ff4466;--yellow:#ffdd00;--blue:#44aaff;--orange:#ff9944;--purple:#aa66ff;--tier-high:#00ff88;--tier-med:#ffdd00;--tier-low:#44aaff;--text:#ddeeff;--text2:#6688aa;--text3:#2a4060;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
     *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
     html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
@@ -226,7 +227,7 @@
 <body>
 <div class="app">
 <header>
-  <div class="logo">APEX<small>// v6.3 · SCALP AUTO TP</small></div>
+  <div class="logo">APEX<small>// v6.4 · AGGRESSIVE ALWAYS ON</small></div>
   <div class="hbadges">
     <div class="hbadge off" id="hbConn">OFFLINE</div>
     <div class="hbadge sim" id="hbMode">SIM</div>
@@ -247,25 +248,15 @@
   <div class="daily-progress"><div class="daily-fill" id="dailyFill" style="width:0%"></div></div>
   <div class="db-item"><span class="db-val" id="dbPnl">$0.00</span></div>
 </div>
-<div class="scalp-break-banner" id="scalpBreakBanner">
-  &#9749; SCALP MOLA — $<span id="scalpBreakTarget">1.00</span> hedefine ulasildi!
-  <div style="font-size:12px;font-weight:700;margin-top:3px;" id="scalpBreakCountdown"></div>
-</div>
-<div class="pending-scalp-banner" id="pendingScalpBanner">
-  &#9203; Scalp trend dogrulaniyor... <span id="pendingScalpTxt">0s</span> — iptal: <button onclick="cancelPendingScalp()" style="background:none;border:1px solid var(--yellow);color:var(--yellow);cursor:pointer;font-family:'Space Mono';font-size:9px;padding:2px 8px;">IPTAL</button>
-</div>
+<div class="scalp-break-banner" id="scalpBreakBanner">&#9749; SCALP MOLA — $<span id="scalpBreakTarget">1.00</span> hedefine ulasildi!<div style="font-size:12px;font-weight:700;margin-top:3px;" id="scalpBreakCountdown"></div></div>
+<div class="pending-scalp-banner" id="pendingScalpBanner">&#9203; Scalp trend dogrulaniyor... <span id="pendingScalpTxt">0s</span> — iptal: <button onclick="cancelPendingScalp()" style="background:none;border:1px solid var(--yellow);color:var(--yellow);cursor:pointer;font-family:'Space Mono';font-size:9px;padding:2px 8px;">IPTAL</button></div>
 <div class="comm-banner" id="commBanner">&#9888; KOMISYON UYARISI: TP cok dar — kaldiracs veya pozisyon artir</div>
 <div class="ticker"><div class="ticker-inner" id="tickerInner"></div></div>
-
 <div class="content"><div class="wrap">
 <div class="panel">
   <div class="ph"><div class="ph-title"><div class="dot"></div>POZISYONLAR (MAX 3)</div><div style="font-family:'Space Mono';font-size:9px;color:var(--text3)" id="slotsAvailTxt">0/3</div></div>
   <div class="slots-grid" id="slotsGrid"></div>
-  <div style="display:flex;gap:12px;padding:0 13px 10px;font-family:'Space Mono';font-size:10px;flex-wrap:wrap;">
-    <span id="slotUsedTxt" style="color:var(--accent)">0 slot</span>
-    <span id="slotAvailTxt" style="color:var(--text2)">3 bos</span>
-    <span id="slotTotalPnl" style="margin-left:auto;font-size:11px;font-weight:700;color:var(--text2)">P&amp;L: $0.00</span>
-  </div>
+  <div style="display:flex;gap:12px;padding:0 13px 10px;font-family:'Space Mono';font-size:10px;flex-wrap:wrap;"><span id="slotUsedTxt" style="color:var(--accent)">0 slot</span><span id="slotAvailTxt" style="color:var(--text2)">3 bos</span><span id="slotTotalPnl" style="margin-left:auto;font-size:11px;font-weight:700;color:var(--text2)">P&amp;L: $0.00</span></div>
 </div>
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-label">Bakiye</div><div class="stat-val col-acc" id="statCapital">$50</div><div class="stat-sub" id="statCapitalPct">+0.00%</div></div>
@@ -275,295 +266,51 @@
 </div>
 <div class="auto-bar mode-off" id="autoModeBar">
   <div class="auto-bar-top"><div class="auto-bar-title" id="autoModeTitle" style="color:var(--text3)">AUTO MODE</div><div style="font-size:9px;color:var(--text2);font-family:'Space Mono'" id="autoModeDesc">Sec</div></div>
-  <div class="auto-btns">
-    <button class="auto-btn" id="modeOff" onclick="setAutoMode('off')">OFF<br><span style="font-size:7px;opacity:.5">manuel</span></button>
-    <button class="auto-btn" id="modeSwing" onclick="setAutoMode('swing')">SWING<br><span style="font-size:7px;opacity:.5">HIGH/MED tier</span></button>
-    <button class="auto-btn" id="modeFull" onclick="setAutoMode('full')">FULL<br><span style="font-size:7px;opacity:.5">tum tierlar</span></button>
-  </div>
+  <div class="auto-btns"><button class="auto-btn" id="modeOff" onclick="setAutoMode('off')">OFF<br><span style="font-size:7px;opacity:.5">manuel</span></button><button class="auto-btn" id="modeSwing" onclick="setAutoMode('swing')">SWING<br><span style="font-size:7px;opacity:.5">HIGH/MED tier</span></button><button class="auto-btn" id="modeFull" onclick="setAutoMode('full')">FULL<br><span style="font-size:7px;opacity:.5">tum tierlar</span></button></div>
 </div>
 <div class="tab-pane active" id="tab0">
   <div class="panel">
     <div class="ph"><div class="ph-title"><div class="dot"></div>SINYAL — <span id="phPair" style="color:var(--accent)">BTCUSDT</span></div><div class="spin" id="priceSpinner" style="display:none;"></div></div>
-    <div class="pair-chips">
-      <button class="pair-chip active" data-sym="BTCUSDT" onclick="setPair(this,'BTCUSDT')">BTC</button>
-      <button class="pair-chip" data-sym="ETHUSDT" onclick="setPair(this,'ETHUSDT')">ETH</button>
-      <button class="pair-chip" data-sym="SOLUSDT" onclick="setPair(this,'SOLUSDT')">SOL</button>
-      <button class="pair-chip" data-sym="BNBUSDT" onclick="setPair(this,'BNBUSDT')">BNB</button>
-      <button class="pair-chip" data-sym="XRPUSDT" onclick="setPair(this,'XRPUSDT')">XRP</button>
-      <button class="pair-chip" id="bestChip" style="display:none;border-color:var(--blue);color:var(--blue)">—*</button>
-    </div>
-    <div class="price-row">
-      <div><div class="price-big col-acc" id="priceBig">—</div><div class="price-chg neut" id="priceChg">— (—%)</div></div>
-      <div class="price-meta"><div>H: <span class="col-long" id="ph24">—</span></div><div>L: <span class="col-short" id="pl24">—</span></div><div style="margin-top:2px;">V: <span id="pvol">—</span></div></div>
-    </div>
-    <div class="atr-info">
-      <div class="atr-item"><span class="al">ATR(14)</span><span class="av" id="atrVal">—</span></div>
-      <div class="atr-item"><span class="al">ATR%</span><span class="av" id="atrPctVal">—</span></div>
-      <div class="atr-item"><span class="al">ATR TP</span><span class="av" id="atrTpVal" style="color:var(--long)">—</span></div>
-      <div class="atr-item"><span class="al">ATR SL</span><span class="av" id="atrSlVal" style="color:var(--short)">—</span></div>
-    </div>
-    <div class="chart-controls">
-      <button class="iv-btn" onclick="setInterval2(this,'5m')">5m</button>
-      <button class="iv-btn active" onclick="setInterval2(this,'15m')">15m</button>
-      <button class="iv-btn" onclick="setInterval2(this,'1h')">1h</button>
-      <button class="iv-btn" onclick="setInterval2(this,'4h')">4h</button>
-    </div>
+    <div class="pair-chips"><button class="pair-chip active" data-sym="BTCUSDT" onclick="setPair(this,'BTCUSDT')">BTC</button><button class="pair-chip" data-sym="ETHUSDT" onclick="setPair(this,'ETHUSDT')">ETH</button><button class="pair-chip" data-sym="SOLUSDT" onclick="setPair(this,'SOLUSDT')">SOL</button><button class="pair-chip" data-sym="BNBUSDT" onclick="setPair(this,'BNBUSDT')">BNB</button><button class="pair-chip" data-sym="XRPUSDT" onclick="setPair(this,'XRPUSDT')">XRP</button><button class="pair-chip" id="bestChip" style="display:none;border-color:var(--blue);color:var(--blue)">—*</button></div>
+    <div class="price-row"><div><div class="price-big col-acc" id="priceBig">—</div><div class="price-chg neut" id="priceChg">— (—%)</div></div><div class="price-meta"><div>H: <span class="col-long" id="ph24">—</span></div><div>L: <span class="col-short" id="pl24">—</span></div><div style="margin-top:2px;">V: <span id="pvol">—</span></div></div></div>
+    <div class="atr-info"><div class="atr-item"><span class="al">ATR(14)</span><span class="av" id="atrVal">—</span></div><div class="atr-item"><span class="al">ATR%</span><span class="av" id="atrPctVal">—</span></div><div class="atr-item"><span class="al">ATR TP</span><span class="av" id="atrTpVal" style="color:var(--long)">—</span></div><div class="atr-item"><span class="al">ATR SL</span><span class="av" id="atrSlVal" style="color:var(--short)">—</span></div></div>
+    <div class="chart-controls"><button class="iv-btn" onclick="setInterval2(this,'5m')">5m</button><button class="iv-btn active" onclick="setInterval2(this,'15m')">15m</button><button class="iv-btn" onclick="setInterval2(this,'1h')">1h</button><button class="iv-btn" onclick="setInterval2(this,'4h')">4h</button></div>
     <div style="padding:8px 0;"><canvas id="chart" height="150"></canvas></div>
-    <div class="fib-panel">
-      <div class="fib-title">FIB RETRACEMENT (20 mum)</div>
-      <div class="fib-levels">
-        <div class="fib-level fib-236"><div class="fl-r">0.236</div><div class="fl-p" id="fibP236">—</div><div class="fl-d" id="fibD236">—</div></div>
-        <div class="fib-level fib-382"><div class="fl-r">0.382</div><div class="fl-p" id="fibP382">—</div><div class="fl-d" id="fibD382">—</div></div>
-        <div class="fib-level fib-500"><div class="fl-r">0.500</div><div class="fl-p" id="fibP500">—</div><div class="fl-d" id="fibD500">—</div></div>
-        <div class="fib-level fib-618"><div class="fl-r">0.618</div><div class="fl-p" id="fibP618">—</div><div class="fl-d" id="fibD618">—</div></div>
-        <div class="fib-level fib-786"><div class="fl-r">0.786</div><div class="fl-p" id="fibP786">—</div><div class="fl-d" id="fibD786">—</div></div>
-      </div>
-    </div>
-    <div class="signal-hero">
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:8px;" id="sigPairLabel">—</div>
-      <div class="signal-badge WAIT" id="sigBadge">WAIT</div>
-      <div class="signal-conf" id="sigConf">Confidence: —</div>
-      <div class="signal-tier-row"><div class="signal-tier-badge none" id="sigTierBadge">TIER: —</div></div>
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text2);margin-top:6px;" id="sigReason">Baglan ve veri bekle</div>
-    </div>
-    <div class="pb" style="padding-top:0;">
-      <div class="score-meter"><div class="sm-bull" id="smBull" style="flex:1"></div><div class="sm-neut" id="smNeut" style="flex:1"></div><div class="sm-bear" id="smBear" style="flex:1"></div></div>
-      <div class="score-labels"><span id="smBullN">BULL 0</span><span id="smNeutN">NEUT 0</span><span id="smBearN">BEAR 0</span></div>
-      <div class="ind-grid">
-        <div class="ind-item"><span class="ind-name">RSI</span><span class="ind-val neut" id="iRsi">—</span></div>
-        <div class="ind-item"><span class="ind-name">MACD</span><span class="ind-val neut" id="iMacd">—</span></div>
-        <div class="ind-item"><span class="ind-name">EMA9</span><span class="ind-val neut" id="iEma9">—</span></div>
-        <div class="ind-item"><span class="ind-name">EMA21</span><span class="ind-val neut" id="iEma21">—</span></div>
-        <div class="ind-item"><span class="ind-name">STOCH</span><span class="ind-val neut" id="iStoch">—</span></div>
-        <div class="ind-item"><span class="ind-name">EMA50</span><span class="ind-val neut" id="iEma50">—</span></div>
-      </div>
-    </div>
+    <div class="fib-panel"><div class="fib-title">FIB RETRACEMENT (20 mum)</div><div class="fib-levels"><div class="fib-level fib-236"><div class="fl-r">0.236</div><div class="fl-p" id="fibP236">—</div><div class="fl-d" id="fibD236">—</div></div><div class="fib-level fib-382"><div class="fl-r">0.382</div><div class="fl-p" id="fibP382">—</div><div class="fl-d" id="fibD382">—</div></div><div class="fib-level fib-500"><div class="fl-r">0.500</div><div class="fl-p" id="fibP500">—</div><div class="fl-d" id="fibD500">—</div></div><div class="fib-level fib-618"><div class="fl-r">0.618</div><div class="fl-p" id="fibP618">—</div><div class="fl-d" id="fibD618">—</div></div><div class="fib-level fib-786"><div class="fl-r">0.786</div><div class="fl-p" id="fibP786">—</div><div class="fl-d" id="fibD786">—</div></div></div></div>
+    <div class="signal-hero"><div style="font-family:'Space Mono';font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:8px;" id="sigPairLabel">—</div><div class="signal-badge WAIT" id="sigBadge">WAIT</div><div class="signal-conf" id="sigConf">Confidence: —</div><div class="signal-tier-row"><div class="signal-tier-badge none" id="sigTierBadge">TIER: —</div></div><div style="font-family:'Space Mono';font-size:9px;color:var(--text2);margin-top:6px;" id="sigReason">Baglan ve veri bekle</div></div>
+    <div class="pb" style="padding-top:0;"><div class="score-meter"><div class="sm-bull" id="smBull" style="flex:1"></div><div class="sm-neut" id="smNeut" style="flex:1"></div><div class="sm-bear" id="smBear" style="flex:1"></div></div><div class="score-labels"><span id="smBullN">BULL 0</span><span id="smNeutN">NEUT 0</span><span id="smBearN">BEAR 0</span></div><div class="ind-grid"><div class="ind-item"><span class="ind-name">RSI</span><span class="ind-val neut" id="iRsi">—</span></div><div class="ind-item"><span class="ind-name">MACD</span><span class="ind-val neut" id="iMacd">—</span></div><div class="ind-item"><span class="ind-name">EMA9</span><span class="ind-val neut" id="iEma9">—</span></div><div class="ind-item"><span class="ind-name">EMA21</span><span class="ind-val neut" id="iEma21">—</span></div><div class="ind-item"><span class="ind-name">STOCH</span><span class="ind-val neut" id="iStoch">—</span></div><div class="ind-item"><span class="ind-name">EMA50</span><span class="ind-val neut" id="iEma50">—</span></div></div></div>
   </div>
 </div>
 <div class="tab-pane" id="tab1">
   <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot scan"></div>SCANNER — TIER SISTEMI</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <div class="spin" id="scanSpinner" style="display:none;"></div>
-        <button onclick="runScan()" style="font-size:9px;color:var(--blue);background:none;border:1px solid var(--blue);padding:6px 10px;cursor:pointer;font-family:'Space Mono';min-height:34px;">SCAN</button>
-      </div>
-    </div>
-    <div class="sig-mode-bar">
-      <button class="sig-mode-btn" id="sigModeDet" onclick="setSignalMode('det')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">KATI</span><span style="font-size:7px;opacity:.7;">Bull≥14 80%</span></button>
-      <button class="sig-mode-btn active-mod" id="sigModeMod" onclick="setSignalMode('mod')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">ORTA</span><span style="font-size:7px;opacity:.7;">Bull≥11 72%</span></button>
-      <button class="sig-mode-btn" id="sigModeAgg" onclick="setSignalMode('agg')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">AGRESIF</span><span style="font-size:7px;opacity:.7;">Bull≥2 25%</span></button>
-    </div>
-    <div class="scan-countdown" id="scanCountdownRow" style="display:none;">
-      <span style="font-family:'Space Mono';font-size:9px;color:var(--text3)">NEXT</span>
-      <div class="countdown-bar"><div class="countdown-fill" id="countdownFill" style="width:100%"></div></div>
-      <span style="font-family:'Space Mono';font-size:9px;color:var(--text3);min-width:36px;text-align:right" id="countdownTxt">120s</span>
-    </div>
-    <div style="padding:8px 13px 0;">
-      <div class="tier-header high"><div><div class="tier-label high">YESIL HIGH</div><div class="tier-desc">Bull>=14 · Conf>=78%</div></div><div class="tier-count col-long" id="tierHighCount">0</div></div>
-      <div class="signal-cards" id="tierHighCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div>
-      <div class="tier-header med" style="margin-top:6px;"><div><div class="tier-label med">SARI MED</div><div class="tier-desc">Bull>=11 · Conf>=72%</div></div><div class="tier-count col-yellow" id="tierMedCount">0</div></div>
-      <div class="signal-cards" id="tierMedCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div>
-      <div class="tier-header low" style="margin-top:6px;"><div><div class="tier-label low">MAVI LOW</div><div class="tier-desc">Bull>=9 · Conf>=65%</div></div><div class="tier-count" id="tierLowCount" style="color:var(--blue)">0</div></div>
-      <div class="signal-cards" id="tierLowCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div>
-    </div>
-    <div class="scan-wrap" style="margin-top:10px;">
-      <table class="scan-table">
-        <thead><tr><th>PAIR</th><th>TIER</th><th>SIG</th><th>CONF</th><th>ATR%</th></tr></thead>
-        <tbody id="scanBody"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Baglan ve SCAN bas</td></tr></tbody>
-      </table>
-    </div>
+    <div class="ph"><div class="ph-title"><div class="dot scan"></div>SCANNER — TIER SISTEMI</div><div style="display:flex;gap:8px;align-items:center;"><div class="spin" id="scanSpinner" style="display:none;"></div><button onclick="runScan()" style="font-size:9px;color:var(--blue);background:none;border:1px solid var(--blue);padding:6px 10px;cursor:pointer;font-family:'Space Mono';min-height:34px;">SCAN</button></div></div>
+    <div class="sig-mode-bar"><button class="sig-mode-btn" id="sigModeDet" onclick="setSignalMode('det')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">KATI</span><span style="font-size:7px;opacity:.7;">Bull≥14 80%</span></button><button class="sig-mode-btn active-mod" id="sigModeMod" onclick="setSignalMode('mod')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">ORTA</span><span style="font-size:7px;opacity:.7;">Bull≥11 72%</span></button><button class="sig-mode-btn" id="sigModeAgg" onclick="setSignalMode('agg')"><span style="font-family:'Bebas Neue';font-size:13px;display:block;">AGRESIF</span><span style="font-size:7px;opacity:.7;">Sürekli sinyal</span></button></div>
+    <div class="scan-countdown" id="scanCountdownRow" style="display:none;"><span style="font-family:'Space Mono';font-size:9px;color:var(--text3)">NEXT</span><div class="countdown-bar"><div class="countdown-fill" id="countdownFill" style="width:100%"></div></div><span style="font-family:'Space Mono';font-size:9px;color:var(--text3);min-width:36px;text-align:right" id="countdownTxt">120s</span></div>
+    <div style="padding:8px 13px 0;"><div class="tier-header high"><div><div class="tier-label high">YESIL HIGH</div><div class="tier-desc">Bull>=14 · Conf>=78%</div></div><div class="tier-count col-long" id="tierHighCount">0</div></div><div class="signal-cards" id="tierHighCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div><div class="tier-header med" style="margin-top:6px;"><div><div class="tier-label med">SARI MED</div><div class="tier-desc">Bull>=11 · Conf>=72%</div></div><div class="tier-count col-yellow" id="tierMedCount">0</div></div><div class="signal-cards" id="tierMedCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div><div class="tier-header low" style="margin-top:6px;"><div><div class="tier-label low">MAVI LOW</div><div class="tier-desc">Bull>=9 · Conf>=65%</div></div><div class="tier-count" id="tierLowCount" style="color:var(--blue)">0</div></div><div class="signal-cards" id="tierLowCards"><div class="sig-card wait"><div class="sc-pair" style="color:var(--text3)">—</div></div></div></div>
+    <div class="scan-wrap" style="margin-top:10px;"><table class="scan-table"><thead><tr><th>PAIR</th><th>TIER</th><th>SIG</th><th>CONF</th><th>ATR%</th></tr></thead><tbody id="scanBody"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Baglan ve SCAN bas</td></tr></tbody></table></div>
     <div style="padding:6px 12px;border-top:1px solid var(--border);font-size:9px;color:var(--text3);font-family:'Space Mono'" id="scanMeta">—</div>
   </div>
 </div>
 <div class="tab-pane" id="tab2">
-  <div class="scalp-panel">
-    <div class="scalp-header">
-      <div><div class="scalp-title">&#9889; SCALP MODU</div><div style="font-family:'Space Mono';font-size:8px;color:var(--text3)">90sn onay · Otomatik kar hedefi</div></div>
-      <div class="scalp-badge" id="scalpStatusBadge">KAPALI</div>
-    </div>
-    <div class="scalp-body">
-      <div class="scalp-toggle-row">
-        <button class="scalp-toggle-btn active" id="scalpOff" onclick="toggleScalp(false)">KAPALI</button>
-        <button class="scalp-toggle-btn" id="scalpOn" onclick="toggleScalp(true)">ACIK &#9889;</button>
-      </div>
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;">KAR HEDEFI ($)</div>
-      <div class="scalp-tp-row">
-        <button class="scalp-tp-btn" onclick="setScalpTp(this,0.05)">0.05</button>
-        <button class="scalp-tp-btn active" onclick="setScalpTp(this,0.07)">0.07</button>
-        <button class="scalp-tp-btn" onclick="setScalpTp(this,0.08)">0.08</button>
-        <button class="scalp-tp-btn" onclick="setScalpTp(this,0.10)">0.10</button>
-      </div>
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:8px 0 5px;">ZARAR KES ($)</div>
-      <div class="scalp-sl-row">
-        <button class="scalp-sl-btn active" onclick="setScalpSl(this,0.15)">0.15</button>
-        <button class="scalp-sl-btn" onclick="setScalpSl(this,0.17)">0.17</button>
-        <button class="scalp-sl-btn" onclick="setScalpSl(this,0.20)">0.20</button>
-        <button class="scalp-sl-btn" onclick="setScalpSl(this,0.25)">0.25</button>
-      </div>
-      <div style="background:rgba(255,102,204,.05);border:1px solid rgba(255,102,204,.2);padding:8px;margin-top:10px;font-family:'Space Mono';font-size:9px;">
-        <div style="color:#ff66cc;margin-bottom:5px;">GUNLUK MOLA: $<span id="scalpBreakTargetCfg">1.00</span></div>
-        <div class="scalp-tp-row">
-          <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,0.75)">0.75</button>
-          <button class="scalp-tp-btn active" onclick="setScalpBreakTarget(this,1.00)">1.00</button>
-          <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.25)">1.25</button>
-          <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.50)">1.50</button>
-        </div>
-        <div style="color:var(--text3);margin-top:5px;">Mola: <span id="scalpBreakDurCfg">30</span>dk
-          <button onclick="setScalpBreakDur(30)">30dk</button>
-          <button onclick="setScalpBreakDur(60)">60dk</button>
-          <button onclick="setScalpBreakDur(120)">2sa</button>
-        </div>
-      </div>
-      <div class="trade-preview" style="margin-top:10px;" id="scalpPreview">
-        <div class="tp-row"><span class="tp-label">Pozisyon büyüklüğü:</span><span class="tp-val ok" id="scalpPosSizeDisp">—</span></div>
-        <div class="tp-row"><span class="tp-label">Kar hedefi (net):</span><span class="tp-val ok" id="scalpNetTpDisp">—</span></div>
-        <div class="tp-row"><span class="tp-label">Zarar kes (net):</span><span class="tp-val bad" id="scalpNetSlDisp">—</span></div>
-        <div class="tp-row"><span class="tp-label">Komisyon (gir+cik):</span><span class="tp-val warn" id="scalpCommDisp">—</span></div>
-      </div>
-      <div class="scalp-stats">
-        <div class="scalp-stat"><div class="ss-label">BUGUN</div><div class="ss-val" id="scalpDayPnl" style="color:#ff66cc;font-size:16px;">$0.00</div></div>
-        <div class="scalp-stat"><div class="ss-label">ISLEM</div><div class="ss-val" id="scalpDayCount" style="color:var(--yellow)">0</div></div>
-        <div class="scalp-stat"><div class="ss-label">W/L</div><div class="ss-val" id="scalpWinLoss" style="color:var(--text2);font-size:14px;">0/0</div></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button class="btn-scalp-long" id="btnScalpLong" onclick="startPendingScalp('LONG')" disabled>&#9650; SCALP L</button>
-        <button class="btn-scalp-short" id="btnScalpShort" onclick="startPendingScalp('SHORT')" disabled>&#9660; SCALP S</button>
-      </div>
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:4px;text-align:center;" id="scalpNote">Scalp modu kapali</div>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>SWING / POZISYON</div><span id="posCount" style="font-size:9px;color:var(--text3);font-family:'Space Mono'">0/3</span></div>
-    <div class="pb">
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:8px;">KALDIRACS</div>
-      <div class="lev-grid">
-        <button class="lev-btn" onclick="setLev(this,1)">1x</button>
-        <button class="lev-btn active" onclick="setLev(this,2)">2x</button>
-        <button class="lev-btn" onclick="setLev(this,3)">3x</button>
-        <button class="lev-btn" onclick="setLev(this,5)">5x</button>
-      </div>
-      <div class="two-col">
-        <div class="field"><label>Sermaye (USDT)</label><input type="number" id="capital" value="50" min="10" onchange="updateCapital()"/></div>
-        <div class="field"><label>Islem basi %</label><input type="number" id="perTrade" value="33" min="10" max="100" step="5" onchange="updateTradePreview()"/></div>
-      </div>
-      <div class="field"><label>Gunluk max islem</label>
-        <select id="dailyMax" onchange="S.dailyMax=parseInt(this.value);updateDailyBar()">
-          <option value="4">4</option><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option>
-        </select>
-      </div>
-      <div class="trade-preview">
-        <div class="tp-row"><span class="tp-label">Pozisyon (sermaye x % x kaldiracs):</span><span class="tp-val ok" id="tpPosSize">—</span></div>
-        <div class="tp-row"><span class="tp-label">Komisyon (gir+cik):</span><span class="tp-val warn" id="tpComm">—</span></div>
-        <div class="tp-row"><span class="tp-label">Breakeven TP (min fiyat hareketi):</span><span class="tp-val warn" id="tpBreak">—</span></div>
-        <div class="tp-row"><span class="tp-label">ATR TP hedefi:</span><span class="tp-val ok" id="tpTarget">—</span></div>
-        <div class="tp-row"><span class="tp-label">ATR SL hedefi:</span><span class="tp-val bad" id="slTarget">—</span></div>
-        <div class="tp-row"><span class="tp-label">R:R orani:</span><span class="tp-val ok" id="tpRR">—</span></div>
-      </div>
-      <div class="range-wrap">
-        <div class="range-label">ATR TP CARPANI <span id="atrTpMultLbl" style="color:var(--long)">2.0x</span></div>
-        <input type="range" id="atrTpRng" min="1" max="5" step="0.5" value="2" oninput="updateATRMults()"/>
-      </div>
-      <div class="range-wrap">
-        <div class="range-label">ATR SL CARPANI <span id="atrSlMultLbl" style="color:var(--short)">1.0x</span></div>
-        <input type="range" id="atrSlRng" min="0.5" max="3" step="0.5" value="1" oninput="updateATRMults()"/>
-      </div>
-      <div id="atrPreviewTxt" style="font-family:'Space Mono';font-size:9px;color:var(--text3);padding:4px 0;margin-bottom:10px;"></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn-long" id="btnLong" onclick="manualTrade('LONG')" disabled style="flex:1;">&#9650; LONG</button>
-        <button class="btn-short" id="btnShort" onclick="manualTrade('SHORT')" disabled style="flex:1;">&#9660; SHORT</button>
-      </div>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>SON ISLEMLER</div></div>
-    <div id="histBox"><div style="text-align:center;color:var(--text3);padding:18px;font-size:9px;">Islem yok</div></div>
-  </div>
+  <div class="scalp-panel"><div class="scalp-header"><div><div class="scalp-title">&#9889; SCALP MODU</div><div style="font-family:'Space Mono';font-size:8px;color:var(--text3)">90sn onay · Otomatik kar hedefi</div></div><div class="scalp-badge" id="scalpStatusBadge">KAPALI</div></div><div class="scalp-body"><div class="scalp-toggle-row"><button class="scalp-toggle-btn active" id="scalpOff" onclick="toggleScalp(false)">KAPALI</button><button class="scalp-toggle-btn" id="scalpOn" onclick="toggleScalp(true)">ACIK &#9889;</button></div><div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;">KAR HEDEFI ($)</div><div class="scalp-tp-row"><button class="scalp-tp-btn" onclick="setScalpTp(this,0.05)">0.05</button><button class="scalp-tp-btn active" onclick="setScalpTp(this,0.07)">0.07</button><button class="scalp-tp-btn" onclick="setScalpTp(this,0.08)">0.08</button><button class="scalp-tp-btn" onclick="setScalpTp(this,0.10)">0.10</button></div><div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:8px 0 5px;">ZARAR KES ($)</div><div class="scalp-sl-row"><button class="scalp-sl-btn active" onclick="setScalpSl(this,0.15)">0.15</button><button class="scalp-sl-btn" onclick="setScalpSl(this,0.17)">0.17</button><button class="scalp-sl-btn" onclick="setScalpSl(this,0.20)">0.20</button><button class="scalp-sl-btn" onclick="setScalpSl(this,0.25)">0.25</button></div><div style="background:rgba(255,102,204,.05);border:1px solid rgba(255,102,204,.2);padding:8px;margin-top:10px;font-family:'Space Mono';font-size:9px;"><div style="color:#ff66cc;margin-bottom:5px;">GUNLUK MOLA: $<span id="scalpBreakTargetCfg">1.00</span></div><div class="scalp-tp-row"><button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,0.75)">0.75</button><button class="scalp-tp-btn active" onclick="setScalpBreakTarget(this,1.00)">1.00</button><button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.25)">1.25</button><button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.50)">1.50</button></div><div style="color:var(--text3);margin-top:5px;">Mola: <span id="scalpBreakDurCfg">30</span>dk <button onclick="setScalpBreakDur(30)">30dk</button><button onclick="setScalpBreakDur(60)">60dk</button><button onclick="setScalpBreakDur(120)">2sa</button></div></div><div class="trade-preview" style="margin-top:10px;" id="scalpPreview"><div class="tp-row"><span class="tp-label">Pozisyon büyüklüğü:</span><span class="tp-val ok" id="scalpPosSizeDisp">—</span></div><div class="tp-row"><span class="tp-label">Kar hedefi (net):</span><span class="tp-val ok" id="scalpNetTpDisp">—</span></div><div class="tp-row"><span class="tp-label">Zarar kes (net):</span><span class="tp-val bad" id="scalpNetSlDisp">—</span></div><div class="tp-row"><span class="tp-label">Komisyon (gir+cik):</span><span class="tp-val warn" id="scalpCommDisp">—</span></div></div><div class="scalp-stats"><div class="scalp-stat"><div class="ss-label">BUGUN</div><div class="ss-val" id="scalpDayPnl" style="color:#ff66cc;font-size:16px;">$0.00</div></div><div class="scalp-stat"><div class="ss-label">ISLEM</div><div class="ss-val" id="scalpDayCount" style="color:var(--yellow)">0</div></div><div class="scalp-stat"><div class="ss-label">W/L</div><div class="ss-val" id="scalpWinLoss" style="color:var(--text2);font-size:14px;">0/0</div></div></div><div style="display:flex;gap:8px;margin-top:10px;"><button class="btn-scalp-long" id="btnScalpLong" onclick="startPendingScalp('LONG')" disabled>&#9650; SCALP L</button><button class="btn-scalp-short" id="btnScalpShort" onclick="startPendingScalp('SHORT')" disabled>&#9660; SCALP S</button></div><div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:4px;text-align:center;" id="scalpNote">Scalp modu kapali</div></div></div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>SWING / POZISYON</div><span id="posCount" style="font-size:9px;color:var(--text3);font-family:'Space Mono'">0/3</span></div><div class="pb"><div style="font-family:'Space Mono';font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:8px;">KALDIRACS</div><div class="lev-grid"><button class="lev-btn" onclick="setLev(this,1)">1x</button><button class="lev-btn active" onclick="setLev(this,2)">2x</button><button class="lev-btn" onclick="setLev(this,3)">3x</button><button class="lev-btn" onclick="setLev(this,5)">5x</button></div><div class="two-col"><div class="field"><label>Sermaye (USDT)</label><input type="number" id="capital" value="50" min="10" onchange="updateCapital()"/></div><div class="field"><label>Islem basi %</label><input type="number" id="perTrade" value="33" min="10" max="100" step="5" onchange="updateTradePreview()"/></div></div><div class="field"><label>Gunluk max islem</label><select id="dailyMax" onchange="S.dailyMax=parseInt(this.value);updateDailyBar()"><option value="4">4</option><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option></select></div><div class="trade-preview"><div class="tp-row"><span class="tp-label">Pozisyon (sermaye x % x kaldiracs):</span><span class="tp-val ok" id="tpPosSize">—</span></div><div class="tp-row"><span class="tp-label">Komisyon (gir+cik):</span><span class="tp-val warn" id="tpComm">—</span></div><div class="tp-row"><span class="tp-label">Breakeven TP (min fiyat hareketi):</span><span class="tp-val warn" id="tpBreak">—</span></div><div class="tp-row"><span class="tp-label">ATR TP hedefi:</span><span class="tp-val ok" id="tpTarget">—</span></div><div class="tp-row"><span class="tp-label">ATR SL hedefi:</span><span class="tp-val bad" id="slTarget">—</span></div><div class="tp-row"><span class="tp-label">R:R orani:</span><span class="tp-val ok" id="tpRR">—</span></div></div><div class="range-wrap"><div class="range-label">ATR TP CARPANI <span id="atrTpMultLbl" style="color:var(--long)">2.0x</span></div><input type="range" id="atrTpRng" min="1" max="5" step="0.5" value="2" oninput="updateATRMults()"/></div><div class="range-wrap"><div class="range-label">ATR SL CARPANI <span id="atrSlMultLbl" style="color:var(--short)">1.0x</span></div><input type="range" id="atrSlRng" min="0.5" max="3" step="0.5" value="1" oninput="updateATRMults()"/></div><div id="atrPreviewTxt" style="font-family:'Space Mono';font-size:9px;color:var(--text3);padding:4px 0;margin-bottom:10px;"></div><div style="display:flex;gap:8px;margin-top:8px;"><button class="btn-long" id="btnLong" onclick="manualTrade('LONG')" disabled style="flex:1;">&#9650; LONG</button><button class="btn-short" id="btnShort" onclick="manualTrade('SHORT')" disabled style="flex:1;">&#9660; SHORT</button></div></div></div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>SON ISLEMLER</div></div><div id="histBox"><div style="text-align:center;color:var(--text3);padding:18px;font-size:9px;">Islem yok</div></div></div>
 </div>
 <div class="tab-pane" id="tab3">
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>COMPOUND TRACKER</div><span style="font-size:9px;color:var(--text3);font-family:'Space Mono'">2x / 100</span></div>
-    <div class="pb">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;">
-        <div><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">BAKIYE</div><div class="compound-val" id="compVal">$50.00</div></div>
-        <div style="text-align:right;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">GETIRI</div><div style="font-family:'Bebas Neue';font-size:26px;letter-spacing:2px;" id="compPct">+0.00%</div></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px;"><span id="compTrades">0 / 100</span><span id="compTarget">Hedef: $100</span></div>
-      <div class="progress-bar"><div class="progress-fill" id="compFill" style="width:0%"></div></div>
-      <div class="ms-grid">
-        <div class="ms-cell"><div class="ms-n">20T</div><div class="ms-v" id="ms20">—</div></div>
-        <div class="ms-cell"><div class="ms-n">40T</div><div class="ms-v" id="ms40">—</div></div>
-        <div class="ms-cell"><div class="ms-n">60T</div><div class="ms-v" id="ms60">—</div></div>
-        <div class="ms-cell"><div class="ms-n">80T</div><div class="ms-v" id="ms80">—</div></div>
-        <div class="ms-cell"><div class="ms-n">100T</div><div class="ms-v col-acc" id="ms100">$100</div></div>
-      </div>
-      <div style="background:rgba(255,102,204,.04);border:1px solid rgba(255,102,204,.2);padding:10px;margin-top:12px;">
-        <div style="font-family:'Space Mono';font-size:9px;color:#ff66cc;margin-bottom:6px;">SCALP OZETI</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div style="flex:1 1 80px;"><span style="color:var(--text3)">Toplam:</span><br><span id="scalpTotalPnl" style="color:#ff66cc;font-size:14px;">$0.00</span></div>
-          <div style="flex:1 1 80px;"><span style="color:var(--text3)">Islem:</span><br><span id="scalpTotalCount" style="color:var(--yellow);font-size:14px;">0</span></div>
-          <div style="flex:1 1 80px;"><span style="color:var(--text3)">Win%:</span><br><span id="scalpWinRate" style="color:var(--long);font-size:14px;">—</span></div>
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
-        <div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">WIN</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--long)" id="dsWin">0</div></div>
-        <div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">LOSS</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--short)" id="dsLoss">0</div></div>
-        <div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">KOMISYON</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--yellow)" id="dsComm">$0.00</div></div>
-      </div>
-    </div>
-  </div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>COMPOUND TRACKER</div><span style="font-size:9px;color:var(--text3);font-family:'Space Mono'">2x / 100</span></div><div class="pb"><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;"><div><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">BAKIYE</div><div class="compound-val" id="compVal">$50.00</div></div><div style="text-align:right;"><div style="font-size:9px;color:var(--text3);margin-bottom:3px;">GETIRI</div><div style="font-family:'Bebas Neue';font-size:26px;letter-spacing:2px;" id="compPct">+0.00%</div></div></div><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px;"><span id="compTrades">0 / 100</span><span id="compTarget">Hedef: $100</span></div><div class="progress-bar"><div class="progress-fill" id="compFill" style="width:0%"></div></div><div class="ms-grid"><div class="ms-cell"><div class="ms-n">20T</div><div class="ms-v" id="ms20">—</div></div><div class="ms-cell"><div class="ms-n">40T</div><div class="ms-v" id="ms40">—</div></div><div class="ms-cell"><div class="ms-n">60T</div><div class="ms-v" id="ms60">—</div></div><div class="ms-cell"><div class="ms-n">80T</div><div class="ms-v" id="ms80">—</div></div><div class="ms-cell"><div class="ms-n">100T</div><div class="ms-v col-acc" id="ms100">$100</div></div></div><div style="background:rgba(255,102,204,.04);border:1px solid rgba(255,102,204,.2);padding:10px;margin-top:12px;"><div style="font-family:'Space Mono';font-size:9px;color:#ff66cc;margin-bottom:6px;">SCALP OZETI</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><div style="flex:1 1 80px;"><span style="color:var(--text3)">Toplam:</span><br><span id="scalpTotalPnl" style="color:#ff66cc;font-size:14px;">$0.00</span></div><div style="flex:1 1 80px;"><span style="color:var(--text3)">Islem:</span><br><span id="scalpTotalCount" style="color:var(--yellow);font-size:14px;">0</span></div><div style="flex:1 1 80px;"><span style="color:var(--text3)">Win%:</span><br><span id="scalpWinRate" style="color:var(--long);font-size:14px;">—</span></div></div></div><div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;"><div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">WIN</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--long)" id="dsWin">0</div></div><div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">LOSS</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--short)" id="dsLoss">0</div></div><div style="text-align:center;padding:8px;background:rgba(0,0,0,.3);border:1px solid var(--border);flex:1 1 80px;"><div style="font-size:8px;color:var(--text3);">KOMISYON</div><div style="font-family:'Bebas Neue';font-size:18px;color:var(--yellow)" id="dsComm">$0.00</div></div></div></div></div>
 </div>
 <div class="tab-pane" id="tab4">
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>EKRAN UYANIK TUT</div></div>
-    <div class="awake-status">
-      <div class="awake-dot" id="awakeDot"></div>
-      <span style="font-family:'Space Mono';font-size:9px;" id="awakeLabel">Pasif</span>
-      <div class="toggle-sw" id="awakeSw" onclick="toggleKeepAwake()" style="margin-left:auto;"></div>
-    </div>
-    <div style="padding:10px 13px;border-top:1px solid var(--border);">
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-bottom:8px;">HEARTBEAT ARALIGI</div>
-      <select id="heartbeatInterval" onchange="updateHbInterval()" style="background:#040810;border:1px solid var(--border2);color:var(--text);padding:10px;width:100%;">
-        <option value="5000">5s</option><option value="10000" selected>10s</option><option value="30000">30s</option><option value="60000">60s</option>
-      </select>
-    </div>
-  </div>
-  <div class="info-box">
-    <div class="ib-title">SCALP MANTIGI</div>
-    <div>1. 90 saniye boyunca fiyat takibi ve momentum kontrolü</div>
-    <div>2. Flat market veya fake spike iptal eder</div>
-    <div>3. Onaylanınca pozisyon açar</div>
-    <div>4. Pozisyon açıldıktan sonra anlık kar $ olarak hesaplanır</div>
-    <div>5. Belirlediğiniz kar hedefine ulaşıldığında otomatik kapatır</div>
-    <div style="color:var(--long);">Artık TP fiyatı değil, doğrudan $ kar hedefi kullanılır.</div>
-  </div>
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>API YAPILANDIRMASI</div></div>
-    <div class="pb">
-      <div class="field"><label>Worker URL</label><input type="url" id="workerUrl" placeholder="https://your-worker.workers.dev"/></div>
-      <div class="field"><label>Mod</label><select id="tradeMode" onchange="S.mode=this.value"><option value="sim">Simulation</option><option value="live">Live Futures</option></select></div>
-      <button class="btn-accent" id="connBtn" onclick="connect()">CONNECT</button>
-      <button class="btn-red" id="stopBtn" onclick="stopAgent()" disabled>DURDUR</button>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="ph"><div class="ph-title"><div class="dot"></div>AGENT LOG</div><button onclick="document.getElementById('logBox2').innerHTML=''" style="font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;padding:6px;">TEMIZLE</button></div>
-    <div class="log-box" id="logBox2"></div>
-  </div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>EKRAN UYANIK TUT</div></div><div class="awake-status"><div class="awake-dot" id="awakeDot"></div><span style="font-family:'Space Mono';font-size:9px;" id="awakeLabel">Pasif</span><div class="toggle-sw" id="awakeSw" onclick="toggleKeepAwake()" style="margin-left:auto;"></div></div><div style="padding:10px 13px;border-top:1px solid var(--border);"><div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-bottom:8px;">HEARTBEAT ARALIGI</div><select id="heartbeatInterval" onchange="updateHbInterval()" style="background:#040810;border:1px solid var(--border2);color:var(--text);padding:10px;width:100%;"><option value="5000">5s</option><option value="10000" selected>10s</option><option value="30000">30s</option><option value="60000">60s</option></select></div></div>
+  <div class="info-box"><div class="ib-title">SCALP MANTIGI</div><div>1. 90 saniye boyunca fiyat takibi ve momentum kontrolü</div><div>2. Flat market veya fake spike iptal eder</div><div>3. Onaylanınca pozisyon açar</div><div>4. Pozisyon açıldıktan sonra anlık kar $ olarak hesaplanır</div><div>5. Belirlediğiniz kar hedefine ulaşıldığında otomatik kapatır</div><div style="color:var(--long);">Artık TP fiyatı değil, doğrudan $ kar hedefi kullanılır.</div></div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>API YAPILANDIRMASI</div></div><div class="pb"><div class="field"><label>Worker URL</label><input type="url" id="workerUrl" placeholder="https://your-worker.workers.dev"/></div><div class="field"><label>Mod</label><select id="tradeMode" onchange="S.mode=this.value"><option value="sim">Simulation</option><option value="live">Live Futures</option></select></div><button class="btn-accent" id="connBtn" onclick="connect()">CONNECT</button><button class="btn-red" id="stopBtn" onclick="stopAgent()" disabled>DURDUR</button></div></div>
+  <div class="panel"><div class="ph"><div class="ph-title"><div class="dot"></div>AGENT LOG</div><button onclick="document.getElementById('logBox2').innerHTML=''" style="font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;padding:6px;">TEMIZLE</button></div><div class="log-box" id="logBox2"></div></div>
 </div>
 </div></div>
-<nav class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab(0)"><span class="ti">&#9889;</span><span>SINYAL</span></button>
-  <button class="tab-btn" onclick="switchTab(1)"><span class="ti">&#128225;</span><span>SCAN</span></button>
-  <button class="tab-btn" onclick="switchTab(2)"><span class="ti">&#128202;</span><span>ISLEM</span></button>
-  <button class="tab-btn" onclick="switchTab(3)"><span class="ti">&#128176;</span><span>PORTFOY</span></button>
-  <button class="tab-btn" onclick="switchTab(4)"><span class="ti">&#9881;</span><span>AYAR</span></button>
-</nav>
+<nav class="tab-nav"><button class="tab-btn active" onclick="switchTab(0)"><span class="ti">&#9889;</span><span>SINYAL</span></button><button class="tab-btn" onclick="switchTab(1)"><span class="ti">&#128225;</span><span>SCAN</span></button><button class="tab-btn" onclick="switchTab(2)"><span class="ti">&#128202;</span><span>ISLEM</span></button><button class="tab-btn" onclick="switchTab(3)"><span class="ti">&#128176;</span><span>PORTFOY</span></button><button class="tab-btn" onclick="switchTab(4)"><span class="ti">&#9881;</span><span>AYAR</span></button></nav>
 </div>
 <script>
 // ----------------------------------------------------------------------
-// TAMAMEN ÇALIŞAN APEX v6.3 KODU
-// Scalp: net kar $0.07 hedefine ulaşınca otomatik kapat
-// Agresif sinyal modu: neredeyse tüm filtreler kaldırıldı
+// APEX v6.4 - AGGRESSIVE MOD ALWAYS SIGNAL (TEST İÇİN)
 // ----------------------------------------------------------------------
 const COMMISSION_RT = 0.0004;
 const MAX_SLOTS = 3;
@@ -577,7 +324,7 @@ let S = {
   lastTradeTime: 0, refreshTimer: null, hbTimer: null, countdownTimer: null, heartbeatInterval: 10000,
   chartData: { prices: [], ema9: [], ema21: [] }, mode: 'sim', scanResults: [], tierHigh: [], tierMed: [], tierLow: [], fib: null,
   scanCountdown: 120, scanInterval: 120, atrTpMult: 2.0, atrSlMult: 1.0, dailyMax: 8, dailyToday: 0, dailyWin: 0, dailyLoss: 0, posIdCounter: 1,
-  signalMode: 'mod', // 'det', 'mod', 'agg'
+  signalMode: 'mod',
   scalpEnabled: false, scalpTp: 0.07, scalpSl: 0.15,
   scalpDayPnl: 0, scalpDayCount: 0, scalpWin: 0, scalpLoss: 0,
   scalpTotalPnl: 0, scalpTotalCount: 0, scalpTotalWin: 0,
@@ -587,7 +334,6 @@ let S = {
 let pendingScalp = null;
 let ctx = null;
 
-// -------------------- LOG --------------------
 function addLog(type, msg) {
   const box = document.getElementById('logBox2');
   const t = new Date().toLocaleTimeString('tr-TR', { hour12: false });
@@ -608,7 +354,7 @@ function getPairPrice(sym) { if (sym === S.pair) return S.price || 0; const r = 
 function canOpenToday() { return S.dailyToday < S.dailyMax; }
 function breakevenTpPct(lev) { return (COMMISSION_RT / lev) * 100; }
 
-// -------------------- SCALP --------------------
+// -------------------- SCALP (Aynı, değişmedi) --------------------
 function startPendingScalp(side) {
   if (!S.scalpEnabled || S.scalpOnBreak || !S.connected) return;
   if (S.positions.length >= MAX_SLOTS) { addLog('WARN', 'Max 3 pozisyon'); return; }
@@ -932,7 +678,7 @@ function renderScanTable() {
       <td><span class="sig-pill ${r.signal}">${r.signal}</span></td>
       <td style="color:${r.signal === 'LONG' ? 'var(--long)' : r.signal === 'SHORT' ? 'var(--short)' : 'var(--text3)'}">${r.sc5?.conf || 0}%</td>
       <td style="color:var(--yellow)">${atrPct}</td>
-    </tr>`;
+     </tr>`;
   }).join('');
 }
 function updatePairChipColors() {
@@ -1060,16 +806,46 @@ function calcAll(closes, klines) {
   const trendDown = le50 !== null ? (price < le50 && le9 < le21) : null;
   return { r, rMom, m, srsi, e5: le5, e9: le9, e13: le13, e21: le21, e50: le50, ema5CrossUp, ema5CrossDown, emaSep, cross, bb, atr14, atrPct, vwap: vwapVal, volObj, volSpike: volObj.spike, volDirUp: volObj.dirUp, vr, last: price, trendUp, trendDown };
 }
+
+// ******* DEĞİŞEN KISIM: AGRESİF MODDA SÜREKLİ SİNYAL *******
 function scoreSignal(ind) {
-  const { r, rMom, m, srsi, e5, e9, e13, e21, e50, ema5CrossUp, ema5CrossDown, emaSep, cross, bb, vwapVal, volSpike, volDirUp, vr, last, trendUp, trendDown } = ind;
   const isAgg = S.signalMode === 'agg';
+  // Agresif mod: sadece aşırı düşük hacim veya fiyat yoksa WAIT, yoksa her zaman sinyal üret
+  if (isAgg) {
+    if (!S.price || S.price <= 0) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Fiyat yok' };
+    if (ind.vr < 0.05) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol yok' };
+    // Rastgele değil, basit bir strateji: son fiyat 20 periyot ortalamasının üstünde mi? (bull/bear belirle)
+    const closes = S.klines ? S.klines.slice(-20).map(k => parseFloat(k[4])) : [S.price];
+    const avg20 = closes.reduce((a,b)=>a+b,0)/closes.length;
+    const isPriceAboveAvg = S.price > avg20;
+    // Ayrıca kısa EMA (9) ve uzun EMA (21) varsa onlara da bak
+    let bullPoints = 0, bearPoints = 0;
+    if (ind.e9 && ind.e21) {
+      if (ind.e9 > ind.e21) bullPoints += 3;
+      else bearPoints += 3;
+    }
+    if (isPriceAboveAvg) bullPoints += 2;
+    else bearPoints += 2;
+    // RSI yönü
+    if (ind.r && ind.r > 50) bullPoints += 1;
+    else if (ind.r && ind.r < 50) bearPoints += 1;
+    // MACD histogram
+    if (ind.m && ind.m.hist > 0) bullPoints += 2;
+    else if (ind.m && ind.m.hist < 0) bearPoints += 2;
+    
+    const total = bullPoints + bearPoints + 1;
+    const conf = Math.round(Math.max(bullPoints, bearPoints) / total * 100);
+    const signal = bullPoints > bearPoints ? 'LONG' : 'SHORT';
+    return { bull: bullPoints, bear: bearPoints, neut: 0, total, conf, signal, reason: 'AGGRESSIVE ALWAYS' };
+  }
+  
+  // ---------- KATI ve ORTA modlar (eski mantık, değişmedi) ----------
+  const { r, rMom, m, srsi, e5, e9, e13, e21, e50, ema5CrossUp, ema5CrossDown, emaSep, cross, bb, vwapVal, volSpike, volDirUp, vr, last, trendUp, trendDown } = ind;
   if (!isAgg) {
     if (bb && bb.width < 0.003) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'BB sikisma' };
     if (vr < 0.45) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol zayif' };
     if (emaSep < 0.00015) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'EMA dolasik' };
     if (ind.atrPct && ind.atrPct < 0.0003) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'ATR dusuk' };
-  } else {
-    if (vr < 0.05) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol yok' };
   }
   let bull = 0, bear = 0, neut = 0, reasons = [];
   if (ema5CrossUp) { bull += 4; reasons.push('EMA5+UP'); }
@@ -1128,7 +904,6 @@ function scoreSignal(ind) {
   const hasCross = ema5CrossUp || ema5CrossDown || cross === 'GOLDEN' || cross === 'DEATH';
   let threshold, confThres;
   if (S.signalMode === 'det') { threshold = hasCross ? 12 : 14; confThres = hasCross ? 76 : 80; }
-  else if (S.signalMode === 'agg') { threshold = hasCross ? 2 : 3; confThres = 25; }
   else { threshold = hasCross ? 9 : 11; confThres = hasCross ? 68 : 72; }
   let signal = 'WAIT';
   if (bull > bear && bull >= threshold && conf >= confThres) signal = 'LONG';
@@ -1424,8 +1199,6 @@ function drawChart() {
   const ly = py(prices[n - 1]); ctx.beginPath(); ctx.moveTo(pad.l, ly); ctx.lineTo(W - pad.r, ly); ctx.strokeStyle = 'rgba(0,255,204,.25)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
 }
 function initChart() { ctx = document.getElementById('chart').getContext('2d'); drawChart(); }
-
-// -------------------- FETCH --------------------
 function fetchKlines(sym, interval, limit = 100) {
   return fetch(`${WORKER}/klines?symbol=${sym}&interval=${interval}&limit=${limit}`).then(r => r.json()).then(j => j.success ? j.data : null).catch(() => null);
 }
