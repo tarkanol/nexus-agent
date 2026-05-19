@@ -809,47 +809,28 @@ function calcAll(closes, klines) {
 
 // ******* DEĞİŞEN KISIM: AGRESİF MODDA SÜREKLİ SİNYAL *******
 function scoreSignal(ind) {
-  const isAgg = S.signalMode === 'agg';
-  // Agresif mod: sadece aşırı düşük hacim veya fiyat yoksa WAIT, yoksa her zaman sinyal üret
-  if (isAgg) {
-    if (!S.price || S.price <= 0) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Fiyat yok' };
-    if (ind.vr < 0.05) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol yok' };
-    // Rastgele değil, basit bir strateji: son fiyat 20 periyot ortalamasının üstünde mi? (bull/bear belirle)
-    const closes = S.klines ? S.klines.slice(-20).map(k => parseFloat(k[4])) : [S.price];
-    const avg20 = closes.reduce((a,b)=>a+b,0)/closes.length;
-    const isPriceAboveAvg = S.price > avg20;
-    // Ayrıca kısa EMA (9) ve uzun EMA (21) varsa onlara da bak
-    let bullPoints = 0, bearPoints = 0;
-    if (ind.e9 && ind.e21) {
-      if (ind.e9 > ind.e21) bullPoints += 3;
-      else bearPoints += 3;
-    }
-    if (isPriceAboveAvg) bullPoints += 2;
-    else bearPoints += 2;
-    // RSI yönü
-    if (ind.r && ind.r > 50) bullPoints += 1;
-    else if (ind.r && ind.r < 50) bearPoints += 1;
-    // MACD histogram
-    if (ind.m && ind.m.hist > 0) bullPoints += 2;
-    else if (ind.m && ind.m.hist < 0) bearPoints += 2;
-    
-    const total = bullPoints + bearPoints + 1;
-    const conf = Math.round(Math.max(bullPoints, bearPoints) / total * 100);
-    const signal = bullPoints > bearPoints ? 'LONG' : 'SHORT';
-    return { bull: bullPoints, bear: bearPoints, neut: 0, total, conf, signal, reason: 'AGGRESSIVE ALWAYS' };
-  }
-  
-  // ---------- KATI ve ORTA modlar (eski mantık, değişmedi) ----------
   const { r, rMom, m, srsi, e5, e9, e13, e21, e50, ema5CrossUp, ema5CrossDown, emaSep, cross, bb, vwapVal, volSpike, volDirUp, vr, last, trendUp, trendDown } = ind;
+  const isAgg = S.signalMode === 'agg';
+  
+  // ----- AGRESİF MOD: NEREDEYSE HİÇ FİLTRE YOK -----
   if (!isAgg) {
+    // Normal (katı/orta) modda filtreler
     if (bb && bb.width < 0.003) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'BB sikisma' };
     if (vr < 0.45) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol zayif' };
     if (emaSep < 0.00015) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'EMA dolasik' };
     if (ind.atrPct && ind.atrPct < 0.0003) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'ATR dusuk' };
+  } else {
+    // AGRESİF: Sadece aşırı durumları engelle (vol tamamen sıfırsa)
+    if (vr < 0.01) return { bull: 0, bear: 0, neut: 1, conf: 0, signal: 'WAIT', reason: 'Vol yok' };
+    // ATR, BB, EMA ayrımı kontrolleri tamamen kaldırıldı
   }
+
+  // ----- PUANLAMA (agresifte de aynı mantık, ancak eşikler çok düşük olacak) -----
   let bull = 0, bear = 0, neut = 0, reasons = [];
+
   if (ema5CrossUp) { bull += 4; reasons.push('EMA5+UP'); }
   if (ema5CrossDown) { bear += 4; reasons.push('EMA5+DN'); }
+
   if (e5 && e13 && e21 && e50) {
     if (e5 > e13 && e13 > e21 && e21 > e50) { bull += 4; reasons.push('EMA4UP'); if (last > e5) bull += 2; }
     else if (e5 < e13 && e13 < e21 && e21 < e50) { bear += 4; reasons.push('EMA4DN'); if (last < e5) bear += 2; }
@@ -859,12 +840,15 @@ function scoreSignal(ind) {
     else if (e9 < e21 && last < e9) bear += 3; else if (e9 < e21) bear += 2;
     else neut++;
   }
+
   if (cross === 'GOLDEN') { bull += 3; reasons.push('GOLDEN'); } else if (cross === 'DEATH') { bear += 3; reasons.push('DEATH'); }
+
   if (m) {
     if (m.hist > 0 && m.macd > 0) { bull += 3; reasons.push('MACD+'); } else if (m.hist > 0) bull += 1;
     else if (m.hist < 0 && m.macd < 0) { bear += 3; reasons.push('MACD-'); } else if (m.hist < 0) bear += 1;
     else neut++;
   }
+
   if (r != null) {
     if (r >= 45 && r < 68 && rMom > 0) bull += 2;
     else if (r >= 40 && r < 72) bull += 1;
@@ -873,6 +857,7 @@ function scoreSignal(ind) {
     else if (r >= 75) { bear += 4; reasons.push('RSI OB'); } else if (r <= 25) { bull += 4; reasons.push('RSI OS'); }
     else neut++;
   }
+
   if (srsi) {
     const scUp = srsi.prevK <= srsi.prevD && srsi.k > srsi.d && srsi.k < 35;
     const scDn = srsi.prevK >= srsi.prevD && srsi.k < srsi.d && srsi.k > 65;
@@ -883,34 +868,56 @@ function scoreSignal(ind) {
       else neut++;
     }
   }
+
   if (vwapVal && last) {
     if (last > vwapVal * 1.001) bull += 2; else if (last > vwapVal) bull += 1;
     else if (last < vwapVal * 0.999) bear += 2; else if (last < vwapVal) bear += 1;
     else neut++;
   }
+
   if (bb) {
     if (last > bb.mid && last < bb.upper * 0.998) bull += 1;
     else if (last < bb.mid && last > bb.lower * 1.002) bear += 1;
     else neut++;
   }
+
   if (volSpike) {
     if (volDirUp && bull > bear) { bull += 3; reasons.push('VOL+UP'); } else if (!volDirUp && bear > bull) { bear += 3; reasons.push('VOL-DN'); }
     else if (volDirUp) bull += 2; else bear += 2;
   } else if (vr > 1.4) { if (bull > bear) bull++; else if (bear > bull) bear++; }
+
   if (trendUp === false && bull > bear) bull = Math.floor(bull * 0.7);
   if (trendDown === false && bear > bull) bear = Math.floor(bear * 0.7);
+
   const total = bull + bear + neut || 1;
   const conf = Math.round(Math.max(bull, bear) / total * 100);
   const hasCross = ema5CrossUp || ema5CrossDown || cross === 'GOLDEN' || cross === 'DEATH';
+
   let threshold, confThres;
-  if (S.signalMode === 'det') { threshold = hasCross ? 12 : 14; confThres = hasCross ? 76 : 80; }
-  else { threshold = hasCross ? 9 : 11; confThres = hasCross ? 68 : 72; }
+  if (S.signalMode === 'det') {
+    threshold = hasCross ? 12 : 14;
+    confThres = hasCross ? 76 : 80;
+  } else if (S.signalMode === 'agg') {
+    // AGRESİF: Çok düşük eşikler, neredeyse her zaman sinyal
+    threshold = hasCross ? 1 : 2;
+    confThres = 20;
+  } else { // 'mod'
+    threshold = hasCross ? 9 : 11;
+    confThres = hasCross ? 68 : 72;
+  }
+
   let signal = 'WAIT';
   if (bull > bear && bull >= threshold && conf >= confThres) signal = 'LONG';
   else if (bear > bull && bear >= threshold && conf >= confThres) signal = 'SHORT';
+  
+  // AGRESİF: Eğer hala WAIT kaldıysa ve bull/bear farkı varsa, zorla LONG/SHORT ata
+  if (S.signalMode === 'agg' && signal === 'WAIT' && (bull > 0 || bear > 0)) {
+    if (bull > bear) signal = 'LONG';
+    else if (bear > bull) signal = 'SHORT';
+  }
+
   return { bull, bear, neut, total, conf, signal, reason: reasons.slice(0, 3).join(' · ') };
 }
-
 // -------------------- UI UPDATE --------------------
 function updatePrice(t) {
   if (!t) return;
