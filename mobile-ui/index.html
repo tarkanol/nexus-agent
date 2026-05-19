@@ -934,13 +934,23 @@ function startPendingScalp(side) {
   tickPendingScalp();
 }
 function tickPendingScalp() {
-  if(!pendingScalp) return;
-  if(S.price>0) pendingScalp.ticks.push({price:S.price, time:Date.now()});
+  if (!pendingScalp) return;
+
+  // >>> DEMO MOD İÇİN: fiyatı hafif rastgele hareket ettir (trend yakalamak için) <<<
+  if (WORKER === 'demo' && S.price > 0) {
+    S.price *= (1 + (Math.random() - 0.5) * 0.0005); // her tick'te ±0.025%
+  }
+
+  if (S.price > 0) pendingScalp.ticks.push({ price: S.price, time: Date.now() });
   var elapsed = Date.now() - pendingScalp.startTime;
-  var remaining = Math.max(0, 90000-elapsed);
-  document.getElementById('pendingScalpTxt').textContent = Math.ceil(remaining/1000)+'s';
-  if(elapsed>=90000) { evaluatePendingScalp(); }
-  else { setTimeout(tickPendingScalp, 3000); }
+  var remaining = Math.max(0, 90000 - elapsed);
+  document.getElementById('pendingScalpTxt').textContent = Math.ceil(remaining / 1000) + 's';
+
+  if (elapsed >= 90000) {
+    evaluatePendingScalp();
+  } else {
+    setTimeout(tickPendingScalp, 3000);
+  }
 }
 function evaluatePendingScalp() {
   if(!pendingScalp) return;
@@ -2106,7 +2116,7 @@ function startDemoMode() {
 function demoRefresh() {
   // Tüm coinler için fiyat güncelle
   Object.keys(demoPrices).forEach(function(sym) {
-    var change = (Math.random() - 0.5) * 0.002; // ±0.1%
+    var change = (Math.random() - 0.5) * 0.008; // ±0.4% daha oynak
     demoPrices[sym] *= (1 + change);
     if (demoPrices[sym] <= 0) demoPrices[sym] = 0.01;
   });
