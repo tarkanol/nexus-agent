@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#02040a">
-  <title>APEX v6.4 · Trader Grade</title>
+  <title>APEX v6.4 · Fib Scalp</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -284,7 +284,7 @@
 <body>
 <div class="app">
 <header>
-  <div class="logo">APEX<small>// v6.4 · Trader Grade · Risk Engine</small></div>
+  <div class="logo">APEX<small>// v6.4 · Trader Grade · Risk Engine · Fib Scalp</small></div>
   <div class="hbadges">
     <div class="hbadge off" id="hbConn">OFFLINE</div>
     <div class="hbadge sim" id="hbMode">SIM</div>
@@ -541,6 +541,41 @@
     </div>
   </div>
 
+  <!-- FIB SCALP PANEL -->
+  <div class="scalp-panel" style="border-color: rgba(170,102,255,.4);">
+    <div class="scalp-header" style="border-bottom-color: rgba(170,102,255,.3);">
+      <div>
+        <div class="scalp-title" style="color:#aa66ff;">📐 FIB SCALP</div>
+        <div style="font-family:'Space Mono';font-size:8px;color:var(--text3);">1m/5m · 0.618/0.786 desteğinden al, 0.382/0.236 direncinden sat</div>
+      </div>
+      <div class="scalp-badge" id="fibScalpStatusBadge" style="color:#aa66ff;border-color:#aa66ff;">KAPALI</div>
+    </div>
+    <div class="scalp-body">
+      <div class="scalp-toggle-row">
+        <button class="scalp-toggle-btn active" id="fibScalpOff" onclick="toggleFibScalp(false)">KAPALI</button>
+        <button class="scalp-toggle-btn" id="fibScalpOn" onclick="toggleFibScalp(true)">AÇIK 📐</button>
+      </div>
+      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;">FIB HASSASİYET (% fiyat)</div>
+      <div class="scalp-tp-row">
+        <button class="scalp-tp-btn" onclick="setFibSensitivity(this,0.001)">%0.1</button>
+        <button class="scalp-tp-btn active" onclick="setFibSensitivity(this,0.002)">%0.2</button>
+        <button class="scalp-tp-btn" onclick="setFibSensitivity(this,0.003)">%0.3</button>
+        <button class="scalp-tp-btn" onclick="setFibSensitivity(this,0.005)">%0.5</button>
+      </div>
+      <div class="trade-preview" style="margin-top:10px;">
+        <div class="tp-row"><span class="tp-label">Son Hesaplanan Fib:</span><span class="tp-val" id="fibLevelsDisplay" style="color:#aa66ff">—</span></div>
+        <div class="tp-row"><span class="tp-label">Fiyat - 0.618 mesafe:</span><span class="tp-val" id="fib618Dist">—</span></div>
+        <div class="tp-row"><span class="tp-label">Fiyat - 0.786 mesafe:</span><span class="tp-val" id="fib786Dist">—</span></div>
+        <div class="tp-row"><span class="tp-label">Sinyal:</span><span class="tp-val" id="fibSignalTxt" style="font-weight:700;">—</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-scalp-long" id="btnFibLong" onclick="startPendingFibScalp('LONG')" disabled>▲ FIB LONG</button>
+        <button class="btn-scalp-short" id="btnFibShort" onclick="startPendingFibScalp('SHORT')" disabled>▼ FIB SHORT</button>
+      </div>
+      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:4px;text-align:center;" id="fibScalpNote">Fib Scalp kapalı</div>
+    </div>
+  </div>
+
   <!-- SWING PANEL -->
   <div class="panel">
     <div class="ph"><div class="ph-title"><div class="dot"></div>SWING / POZİSYON</div><span id="posCount" style="font-size:9px;color:var(--text3);font-family:'Space Mono'">0/3</span></div>
@@ -698,7 +733,7 @@
   <div class="panel">
     <div class="ph"><div class="ph-title"><div class="dot"></div>AGENT LOG</div><button onclick="document.getElementById('logBox2').innerHTML=''" style="font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'Space Mono';padding:6px;">TEMİZLE</button></div>
     <div class="log-box" id="logBox2">
-      <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX v6.4 — Risk Engine + Divergence + MTF</span></div>
+      <div class="le"><span class="lt">00:00:00</span><span class="lSYS">APEX v6.4 — Risk Engine + Divergence + MTF + Fib Scalp</span></div>
       <div class="le"><span class="lt">00:00:00</span><span class="lINFO">Risk: Günlük kayıp $5, CB: 4 kayıp/30dk, Trail: %1.0</span></div>
     </div>
   </div>
@@ -753,14 +788,18 @@ var S = {
   scanPairs:['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT',
              'DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','DOTUSDT',
              'LTCUSDT','UNIUSDT','ATOMUSDT','NEARUSDT','APTUSDT'],
-  // YENİ RİSK PARAMETRELERİ
   dailyLossLimit:5, dailyLossAmount:0,
   maxConsecLoss:4, consecLosses:0,
-  cbDuration:30, // devre kesici süresi (dk)
-  trailingStopPct:1.0, // trailing stop yüzdesi
-  peakPrices:{}, // trailing için zirve fiyatlar
-  divergence:{}, // divergence tespiti
+  cbDuration:30,
+  trailingStopPct:1.0,
+  peakPrices:{},
+  divergence:{},
   mtfConfirmation:false,
+  // Fib Scalp
+  fibScalpEnabled: false,
+  fibSensitivity: 0.002,
+  fibLevels: null,
+  pendingFibScalp: null,
 };
 
 // ═══════════════════════════════════════════════════
@@ -900,7 +939,7 @@ function calcSharpeRatio() {
   var variance = pnls.reduce(function(a,b){return a+(b-mean)*(b-mean);},0) / pnls.length;
   var std = Math.sqrt(variance);
   if (std === 0) return null;
-  return mean / std * Math.sqrt(252); // yıllıklandırılmış
+  return mean / std * Math.sqrt(252);
 }
 function detectDivergence(prices, rsiValues, macdHist) {
   if (prices.length < 30 || !rsiValues || !macdHist) return {rsi: null, macd: null};
@@ -935,17 +974,13 @@ function startPendingScalp(side) {
 }
 function tickPendingScalp() {
   if (!pendingScalp) return;
-
-  // >>> DEMO MOD İÇİN: fiyatı hafif rastgele hareket ettir (trend yakalamak için) <<<
   if (WORKER === 'demo' && S.price > 0) {
-    S.price *= (1 + (Math.random() - 0.5) * 0.0005); // her tick'te ±0.025%
+    S.price *= (1 + (Math.random() - 0.5) * 0.0005);
   }
-
   if (S.price > 0) pendingScalp.ticks.push({ price: S.price, time: Date.now() });
   var elapsed = Date.now() - pendingScalp.startTime;
   var remaining = Math.max(0, 90000 - elapsed);
   document.getElementById('pendingScalpTxt').textContent = Math.ceil(remaining / 1000) + 's';
-
   if (elapsed >= 90000) {
     evaluatePendingScalp();
   } else {
@@ -990,7 +1025,7 @@ function executeConfirmedScalp(side, pair) {
     id:id, pair:pair, side:side, entry:ep, qty:qty,
     lev:S.leverage, size:S.balance*pct, positionSize:posSize,
     tp:null, sl:null, tier:'SCALP', tradeMode:'scalp', auto:false, commPaid:comm,
-    isScalp:true, scalpTargetProfit:S.scalpTp, scalpStopLoss:S.scalpSl
+    isScalp:true, scalpTargetProfit:S.scalpTp, scalpStopLoss:S.scalpSl, fibScalp: false
   });
   S.lastTradeTime=Date.now(); S.dailyToday++; S.totalCommission+=comm;
   S.scalpDayCount++; S.scalpTotalCount++;
@@ -1103,14 +1138,137 @@ function updateScalpStats() {
   document.getElementById('scalpDayPnl').textContent = (S.scalpDayPnl >= 0 ? '+' : '') + '$' + S.scalpDayPnl.toFixed(2);
   document.getElementById('scalpDayCount').textContent = S.scalpDayCount;
   document.getElementById('scalpWinLoss').textContent = S.scalpWin + '/' + S.scalpLoss;
-  // Aşağıdaki iki satır hatalıydı, kaldırıldı:
-  // document.getElementById('statScalpPnl').textContent = ...
-  // document.getElementById('statScalpCount').textContent = ...
   document.getElementById('scalpTotalPnl').textContent = (S.scalpTotalPnl >= 0 ? '+' : '') + '$' + S.scalpTotalPnl.toFixed(2);
   document.getElementById('scalpTotalCount').textContent = S.scalpTotalCount;
   var wr = S.scalpTotalCount > 0 ? ((S.scalpTotalWin / S.scalpTotalCount) * 100).toFixed(0) + '%' : '—';
   document.getElementById('scalpWinRate').textContent = wr;
   document.getElementById('dbScalpStat').textContent = '$' + S.scalpDayPnl.toFixed(2) + '/' + S.scalpBreakTarget;
+}
+
+// ═══════════════════════════════════════════════════
+// FIB SCALP
+// ═══════════════════════════════════════════════════
+function toggleFibScalp(on) {
+  S.fibScalpEnabled = on;
+  document.getElementById('fibScalpOff').className = 'scalp-toggle-btn' + (on ? '' : ' active');
+  document.getElementById('fibScalpOn').className = 'scalp-toggle-btn' + (on ? ' active' : '');
+  document.getElementById('fibScalpStatusBadge').textContent = on ? 'AÇIK' : 'KAPALI';
+  document.getElementById('btnFibLong').disabled = !S.connected || !on;
+  document.getElementById('btnFibShort').disabled = !S.connected || !on;
+  document.getElementById('fibScalpNote').textContent = on ? '1m/5m Fib seviyeleri taranıyor...' : 'Fib Scalp kapalı';
+  addLog('SYS', '📐 Fib Scalp: ' + (on ? 'AÇILDI' : 'KAPATILDI'));
+  if (on && S.connected) updateFibLevels();
+}
+function setFibSensitivity(btn, val) {
+  S.fibSensitivity = val;
+  document.querySelectorAll('#tab2 .scalp-tp-btn').forEach(function(b) { b.className = 'scalp-tp-btn'; });
+  btn.className = 'scalp-tp-btn active';
+  if (S.fibScalpEnabled) updateFibLevels();
+}
+function updateFibLevels() {
+  if (!S.klines || S.klines.length < 30) return;
+  var klines = S.klines;
+  var fib = calcFib(klines, 30);
+  if (!fib) return;
+  S.fibLevels = fib;
+  var price = S.price || (klines.length ? parseFloat(klines[klines.length-1][4]) : 0);
+  if (!price) return;
+  var dist618 = ((price - fib.r618) / price * 100).toFixed(3);
+  var dist786 = ((price - fib.r786) / price * 100).toFixed(3);
+  document.getElementById('fibLevelsDisplay').textContent = 
+    '0.236:$' + fib.r236.toFixed(2) + ' 0.382:$' + fib.r382.toFixed(2) + 
+    ' 0.618:$' + fib.r618.toFixed(2) + ' 0.786:$' + fib.r786.toFixed(2);
+  document.getElementById('fib618Dist').textContent = dist618 + '%';
+  document.getElementById('fib786Dist').textContent = dist786 + '%';
+  var tolerance = price * S.fibSensitivity;
+  var lastClose = klines.length ? parseFloat(klines[klines.length-1][4]) : price;
+  var prevClose = klines.length > 1 ? parseFloat(klines[klines.length-2][4]) : lastClose;
+  var sig = 'WAIT';
+  if (Math.abs(price - fib.r618) < tolerance || Math.abs(price - fib.r786) < tolerance) {
+    if (lastClose > prevClose) sig = 'LONG';
+  } else if (Math.abs(price - fib.r382) < tolerance || Math.abs(price - fib.r236) < tolerance) {
+    if (lastClose < prevClose) sig = 'SHORT';
+  }
+  var sigEl = document.getElementById('fibSignalTxt');
+  sigEl.textContent = sig;
+  sigEl.style.color = sig === 'LONG' ? 'var(--long)' : sig === 'SHORT' ? 'var(--short)' : 'var(--text3)';
+}
+function startPendingFibScalp(side) {
+  if (!S.fibScalpEnabled || !S.connected || circuitBreakerActive) return;
+  if (S.positions.length >= MAX_SLOTS) { addLog('WARN', 'Max 3 pozisyon'); return; }
+  S.pendingFibScalp = { side: side, pair: S.pair, startTime: Date.now(), ticks: [] };
+  document.getElementById('pendingScalpBanner').className = 'pending-scalp-banner show';
+  addLog('FIB', '📐 Fib Scalp analiz başladı 90sn (' + side + ')');
+  tickPendingFibScalp();
+}
+function tickPendingFibScalp() {
+  if (!S.pendingFibScalp) return;
+  if (WORKER === 'demo' && S.price > 0) {
+    S.price *= (1 + (Math.random() - 0.5) * 0.0005);
+  }
+  if (S.price > 0) S.pendingFibScalp.ticks.push({ price: S.price, time: Date.now() });
+  var elapsed = Date.now() - S.pendingFibScalp.startTime;
+  var remaining = Math.max(0, 90000 - elapsed);
+  document.getElementById('pendingScalpTxt').textContent = Math.ceil(remaining / 1000) + 's';
+  if (elapsed >= 90000) {
+    evaluatePendingFibScalp();
+  } else {
+    setTimeout(tickPendingFibScalp, 3000);
+  }
+}
+function evaluatePendingFibScalp() {
+  if (!S.pendingFibScalp) return;
+  var t = S.pendingFibScalp.ticks;
+  document.getElementById('pendingScalpBanner').className = 'pending-scalp-banner';
+  if (t.length < 5) { addLog('FIB', 'Yetersiz veri'); S.pendingFibScalp = null; return; }
+  var first = t[0].price, last = t[t.length-1].price, change = (last - first) / first;
+  var momentum = 0;
+  for (var i = 1; i < t.length; i++) momentum += (t[i].price > t[i-1].price ? 1 : -1);
+  if (!S.fibLevels) { addLog('FIB', 'Fib seviyesi yok'); S.pendingFibScalp = null; return; }
+  var fib = S.fibLevels;
+  var tol = S.price * S.fibSensitivity;
+  var nearSupport = Math.abs(S.price - fib.r618) < tol || Math.abs(S.price - fib.r786) < tol;
+  var nearResist = Math.abs(S.price - fib.r382) < tol || Math.abs(S.price - fib.r236) < tol;
+  if (S.pendingFibScalp.side === 'LONG' && nearSupport && change > 0.0008 && momentum > 1) {
+    executeConfirmedFibScalp('LONG', S.pendingFibScalp.pair);
+    S.pendingFibScalp = null; return;
+  }
+  if (S.pendingFibScalp.side === 'SHORT' && nearResist && change < -0.0008 && momentum < -1) {
+    executeConfirmedFibScalp('SHORT', S.pendingFibScalp.pair);
+    S.pendingFibScalp = null; return;
+  }
+  addLog('FIB', 'Fib onaylanamadı — iptal');
+  S.pendingFibScalp = null;
+}
+function executeConfirmedFibScalp(side, pair) {
+  var ep = S.price;
+  if (!ep || ep <= 0) { addLog('WARN', 'Fiyat yok'); return; }
+  var posSize = calcPositionSize();
+  var qty = calcQty(posSize, ep);
+  var pct = parseFloat(document.getElementById('perTrade').value) / 100;
+  var comm = S.balance * pct * COMMISSION_RT;
+  var id = S.posIdCounter++;
+  var fib = S.fibLevels;
+  var tp, sl;
+  if (side === 'LONG') {
+    tp = fib.r500;
+    sl = fib.r786 * 0.999;
+  } else {
+    tp = fib.r500;
+    sl = fib.r236 * 1.001;
+  }
+  S.positions.push({
+    id: id, pair: pair, side: side, entry: ep, qty: qty,
+    lev: S.leverage, size: S.balance * pct, positionSize: posSize,
+    tp: tp, sl: sl, tier: 'FIB', tradeMode: 'scalp', auto: false, commPaid: comm,
+    isScalp: true, scalpTargetProfit: null, scalpStopLoss: null, fibScalp: true
+  });
+  S.lastTradeTime = Date.now(); S.dailyToday++; S.totalCommission += comm;
+  S.scalpDayCount++; S.scalpTotalCount++;
+  S.peakPrices[id] = ep;
+  addLog('FIB', '[FIB AÇILDI] ' + side + ' ' + pair + ' @$' + ep.toFixed(4) +
+    ' TP:$' + tp.toFixed(4) + ' SL:$' + sl.toFixed(4));
+  renderSlots(); updateStats(); updateDailyBar(); updateScalpStats();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1146,7 +1304,7 @@ function openTrade(side, auto, pairOverride, tierOverride) {
     id:id, pair:tradePair, side:side, entry:ep, qty:qty,
     lev:S.leverage, size:S.balance*pct, positionSize:posSize,
     tp:tp, sl:sl, tier:tierOverride||'MED', tradeMode:'swing',
-    auto:auto, commPaid:comm, isScalp:false
+    auto:auto, commPaid:comm, isScalp:false, fibScalp: false
   });
   S.peakPrices[id] = ep;
   S.lastTradeTime=Date.now(); S.dailyToday++; S.totalCommission+=comm;
@@ -1175,7 +1333,6 @@ function closeTrade(id, reason) {
   S.balance+=netPnl; S.dayPnl+=netPnl; S.totalPnl+=netPnl;
   S.totalCommission+=exitComm;
 
-  // Günlük kayıp takibi
   if (netPnl < 0) {
     S.dailyLossAmount += Math.abs(netPnl);
     S.consecLosses++;
@@ -1202,7 +1359,6 @@ function closeTrade(id, reason) {
     today:true, isScalp:pos.isScalp
   });
 
-  // peakPrices temizle
   delete S.peakPrices[id];
   S.positions=S.positions.filter(function(p){return p.id!==id;});
 
@@ -1225,16 +1381,25 @@ function checkSLTP() {
   var snap = S.positions.slice();
   for(var i=0;i<snap.length;i++){
     var p=snap[i];
+    if(p.isScalp && p.fibScalp) {
+      var cpFib = getPairPrice(p.pair);
+      if(!cpFib || cpFib<=0) continue;
+      if(p.side==='LONG'){
+        if(cpFib>=p.tp) closeTrade(p.id,'TP');
+        else if(cpFib<=p.sl) closeTrade(p.id,'SL');
+      } else {
+        if(cpFib<=p.tp) closeTrade(p.id,'TP');
+        else if(cpFib>=p.sl) closeTrade(p.id,'SL');
+      }
+      continue;
+    }
     if(p.isScalp) continue;
     var cp=getPairPrice(p.pair);
     if(!cp||cp<=0) continue;
-
-    // Trailing stop kontrolü
     if (checkTrailingStop(p, cp)) {
       closeTrade(p.id, 'TRAIL');
       continue;
     }
-
     if(p.side==='LONG'){
       if(cp>=p.tp) closeTrade(p.id,'TP');
       else if(cp<=p.sl) closeTrade(p.id,'SL');
@@ -1297,13 +1462,10 @@ function startScanCountdown() {
 function stopScanCountdown(){if(S.countdownTimer){clearInterval(S.countdownTimer);S.countdownTimer=null;}}
 function runAutoScan() {
   if(!S.connected||!WORKER) return;
-  
-  // >>> DEMO KONTROLÜ <<<
   if (WORKER === 'demo') {
     runDemoScan();
     return;
   }
-  
   fetch(WORKER+'/scan?pairs='+AUTO_PAIRS.join(','))
     .then(function(r){return r.json();})
     .then(function(data){
@@ -1433,31 +1595,22 @@ function autoTradeByTier() {
 // ═══════════════════════════════════════════════════
 function setSignalMode(mode) {
   S.signalMode = mode;
-  
-  // Butonların aktiflik görünümünü güncelle
   ['Det', 'Mod', 'Agg'].forEach(function(m) {
     var b = document.getElementById('sigMode' + m);
     if (b) b.className = 'sig-mode-btn';
   });
   var active = document.getElementById('sigMode' + mode.charAt(0).toUpperCase() + mode.slice(1));
   if (active) active.className = 'sig-mode-btn active-' + mode;
-  
-  // Renk ve etiket ayarları
   var colors = { det: '#00ff88', mod: 'var(--yellow)', agg: '#ff66cc' };
   var labels = { det: 'KATI', mod: 'ORTA', agg: 'AGRESİF' };
   var hb = document.getElementById('hbSigMode');
   hb.textContent = labels[mode];
   hb.style.color = colors[mode];
   hb.style.borderColor = colors[mode];
-  
   addLog('SYS', 'Sinyal modu: ' + labels[mode]);
-  
-  // Eğer demo modda çalışıyorsa, mod değişince hemen yeniden tara
   if (S.running && WORKER === 'demo') {
     runDemoScan();
   }
-  
-  // Mevcut pair için sinyali yeniden hesapla (eğer veri varsa)
   if (S.klines && S.klines.length > 50) {
     var closes = S.klines.map(function(k) { return parseFloat(k[4]); });
     var ind = calcAll(closes, S.klines);
@@ -1466,7 +1619,6 @@ function setSignalMode(mode) {
     updateIndicators(ind, score);
     updateSignal(score);
   }
-  
   saveSettings();
 }
 
@@ -1581,12 +1733,9 @@ function calcAll(closes,klines){
   var cross=le9&&le21&&p9&&p21?(p9<=p21&&le9>le21?'GOLDEN':p9>=p21&&le9<le21?'DEATH':null):null;
   var rPrev=rsi(closes.slice(0,-1)),rMom=(r!=null&&rPrev!=null)?r-rPrev:0;
   var trendUp=le50?(price>le50&&le9>le21):null,trendDown=le50?(price<le50&&le9<le21):null;
-
-  // Divergence tespiti için seri veriler
   var rsiVals = rsiSeries(closes, 14);
   var macdHists = macdHistSeries(closes);
   var divergence = detectDivergence(closes, rsiVals, macdHists);
-
   return {r:r,rMom:rMom,m:m,srsi:srsi,e5:le5,e9:le9,e13:le13,e21:le21,e50:le50,
     ema5CrossUp:ema5CrossUp,ema5CrossDown:ema5CrossDown,emaSep:emaSep,cross:cross,
     bb:bb,atr14:atr14,atrPct:atrPct,vwap:vwapVal,volSpk:volSpk,vr:vr,last:price,
@@ -1675,7 +1824,6 @@ function scoreSignal(ind){
   if(volSpk){if(bull>bear){bull+=2;reasons.push('VOL+');}else{bear+=2;reasons.push('VOL-');}}
   else if(vr>1.4){if(bull>bear)bull++;else bear++;}
 
-  // Divergence etkisi
   if (divergence) {
     if (divergence.rsi === 'bullish' || divergence.macd === 'bullish') {
       bull += 5; reasons.push('DIV+');
@@ -1786,8 +1934,6 @@ function updateSignal(score){
   if(tier){tierEl.textContent='TIER: '+tier;tierEl.className='signal-tier-badge '+tier.toLowerCase();}
   else{tierEl.textContent='TIER: —';tierEl.className='signal-tier-badge none';}
   document.getElementById('sigReason').textContent=score.reason||'—';
-
-  // Divergence
   var divEl = document.getElementById('sigDivergence');
   if (score.divergence && (score.divergence.rsi || score.divergence.macd)) {
     var divText = [];
@@ -1797,7 +1943,6 @@ function updateSignal(score){
   } else {
     divEl.textContent = '';
   }
-
   var canTrade=S.connected&&canOpenToday()&&S.positions.length<MAX_SLOTS;
   document.getElementById('btnLong').disabled=!canTrade;
   document.getElementById('btnShort').disabled=!canTrade;
@@ -1805,8 +1950,6 @@ function updateSignal(score){
     document.getElementById('btnScalpLong').disabled=!canTrade;
     document.getElementById('btnScalpShort').disabled=!canTrade;
   }
-
-  // MTF placeholder
   document.getElementById('sigMTF').textContent = '';
 }
 function updateCompound(){
@@ -1823,8 +1966,6 @@ function updateCompound(){
   document.getElementById('dsWin').textContent=today.filter(function(t){return t.pnl>0;}).length;
   document.getElementById('dsLoss').textContent=today.filter(function(t){return t.pnl<=0;}).length;
   document.getElementById('dsComm').textContent='$'+S.totalCommission.toFixed(4);
-
-  // Sharpe ratio
   var sharpe = calcSharpeRatio();
   document.getElementById('statSharpe').textContent = sharpe ? sharpe.toFixed(2) : '—';
   document.getElementById('statSharpeSub').textContent = sharpe ? (sharpe > 1 ? 'İyi' : sharpe > 0.5 ? 'Orta' : 'Düşük') : 'Veri yok';
@@ -1882,7 +2023,7 @@ function renderSlots(){
       var cardCls=p.isScalp?'scalp-pos':(p.side==='LONG'?'long-pos':'short-pos');
       var pairCls=p.isScalp?'scalp':(p.side==='LONG'?'long':'short');
       var tierCls=p.isScalp?'scalp':(p.tier||'med').toLowerCase();
-      var modeLabel=p.isScalp?'SCALP '+p.lev+'x · Hedef:$'+p.scalpTargetProfit:p.side+' '+p.lev+'x';
+      var modeLabel=p.isScalp?(p.fibScalp?'FIB SCALP':'SCALP')+' '+p.lev+'x · Hedef:$'+(p.scalpTargetProfit||'—'):p.side+' '+p.lev+'x';
       var extraInfo=p.isScalp?'Net:$'+netPnl.toFixed(4):'TP:$'+p.tp.toFixed(2)+' SL:$'+p.sl.toFixed(2);
       html+='<div class="slot-card '+cardCls+'">'+
         '<div class="slot-num">#'+(i+1)+'</div>'+
@@ -2075,6 +2216,7 @@ function refresh(){
         checkSLTP();
         renderSlots(); updateTradePreview(); updateScalpStats();
         if(S.scalpEnabled) updateScalpPreview();
+        if(S.fibScalpEnabled) updateFibLevels();
       }
       fetchMulti();
     })
@@ -2093,7 +2235,6 @@ function startDemoMode() {
   S.connected = true;
   S.running = true;
   S.mode = 'sim';
-  
   document.getElementById('hbConn').textContent = 'DEMO';
   document.getElementById('hbConn').className = 'hbadge live';
   document.getElementById('hbMode').textContent = 'DEMO';
@@ -2101,37 +2242,25 @@ function startDemoMode() {
   document.getElementById('stopBtn').disabled = false;
   document.getElementById('btnLong').disabled = false;
   document.getElementById('btnShort').disabled = false;
-  
   renderSlots();
   updateCompound();
   updateDailyBar();
   updateTradePreview();
   updateScalpStats();
-  
-  // Periyodik demo güncellemesi başlat
   S.refreshTimer = setInterval(demoRefresh, S.heartbeatInterval);
   S.hbTimer = setInterval(function() { updateDailyBar(); }, 5000);
-  
-  // İlk veriyi hemen oluştur
   demoRefresh();
-  
-  // Scanner'ı da demo veri ile besle
   setTimeout(runDemoScan, 1000);
   switchTab(0);
 }
 
 function demoRefresh() {
-  // Tüm coinler için fiyat güncelle
   Object.keys(demoPrices).forEach(function(sym) {
-    var change = (Math.random() - 0.5) * 0.008; // ±0.4% daha oynak
+    var change = (Math.random() - 0.5) * 0.008;
     demoPrices[sym] *= (1 + change);
     if (demoPrices[sym] <= 0) demoPrices[sym] = 0.01;
   });
-  
-  // Eğer mevcut pair demoPrices'ta yoksa ekle
   if (!demoPrices[S.pair]) demoPrices[S.pair] = 100;
-  
-  // Sahte ticker
   var fakeTicker = {
     symbol: S.pair,
     lastPrice: demoPrices[S.pair],
@@ -2142,8 +2271,6 @@ function demoRefresh() {
     quoteVolume: Math.random() * 1000000
   };
   updatePrice(fakeTicker);
-  
-  // Sahte klines oluştur (120 mum)
   var fakeKlines = [];
   var basePrice = demoPrices[S.pair] * 0.9;
   for (var i = 0; i < 120; i++) {
@@ -2153,13 +2280,12 @@ function demoRefresh() {
     var low = Math.min(open, close) * (1 - Math.random() * 0.005);
     var vol = Math.random() * 1000 + 500;
     fakeKlines.push([
-      Date.now() - (119 - i) * 60000, // zaman
+      Date.now() - (119 - i) * 60000,
       open.toFixed(2), high.toFixed(2), low.toFixed(2), close.toFixed(2), vol.toFixed(2)
     ]);
     basePrice = close;
   }
   S.klines = fakeKlines;
-  
   var closes = fakeKlines.map(function(k) { return parseFloat(k[4]); });
   S.chartData.prices = closes.slice(-60);
   S.chartData.ema9 = ema(closes, 9).slice(-60);
@@ -2167,21 +2293,18 @@ function demoRefresh() {
   S.fib = calcFib(fakeKlines, 20);
   drawChart();
   if (S.fib) updateFibUI(closes[closes.length - 1], S.fib);
-  
   var ind = calcAll(closes, fakeKlines);
   S.indicators = ind;
   var score = scoreSignal(ind);
   S.score = score;
   updateIndicators(ind, score);
   updateSignal(score);
-  
   checkSLTP();
   renderSlots();
   updateTradePreview();
   updateScalpStats();
   if (S.scalpEnabled) updateScalpPreview();
-  
-  // Multi ticker
+  if (S.fibScalpEnabled) updateFibLevels();
   fetchMultiDemo();
 }
 
@@ -2201,7 +2324,6 @@ function fetchMultiDemo() {
 }
 
 function runDemoScan() {
-  // Demo için sahte scan sonuçları oluştur
   var results = [];
   var allPairs = S.signalMode === 'agg' ? S.scanPairs : AUTO_PAIRS;
   allPairs.forEach(function(sym) {
@@ -2227,55 +2349,41 @@ function runDemoScan() {
   renderScanTable();
   renderTierCards();
   updateBestPair();
-  
   if (S.signalMode === 'agg' && S.scalpEnabled && !S.scalpOnBreak && !circuitBreakerActive) {
-    // Agresif modda uygun coinlere otomatik scalp dene
     autoScalpByScan();
   }
-  
   addLog('SCAN', 'Demo tarama: ' + S.tierHigh.length + 'H ' + S.tierMed.length + 'M ' + S.tierLow.length + 'L');
 }
 
 function autoScalpByScan() {
-  // HIGH/MED tier'dan uygun olan ilk 2 coine scalp aç
   var candidates = S.tierHigh.concat(S.tierMed);
   if (candidates.length === 0) return;
-  
   var opened = 0;
   for (var i = 0; i < candidates.length && opened < 2; i++) {
     var sig = candidates[i];
     if (S.positions.find(function(p) { return p.pair === sig.symbol; })) continue;
     if (S.positions.length >= MAX_SLOTS) break;
     if (!canOpenToday() || circuitBreakerActive) break;
-    
-    // Geçici olarak seçili pair'i değiştirip scalp başlat
     var prevPair = S.pair;
     S.pair = sig.symbol;
     setPair(document.querySelector('.pair-chip[data-sym="' + sig.symbol + '"]') || document.querySelector('.pair-chip'), sig.symbol);
     S.price = demoPrices[sig.symbol];
-    
     startPendingScalp(sig.signal);
     S.pair = prevPair;
     opened++;
   }
 }
 
-
-
 // ═══════════════════════════════════════════════════
 // BAĞLANTI
 // ═══════════════════════════════════════════════════
 function connect(){
   WORKER=document.getElementById('workerUrl').value.trim().replace(/\/$/,'');
-
-  // DEMO MODU
   if (WORKER === 'demo' || WORKER === '') {
     WORKER = 'demo';
     startDemoMode();
     return;
-    }
-  
-  
+  }
   if(!WORKER){addLog('WARN','Worker URL gerekli!');return;}
   S.mode=document.getElementById('tradeMode').value;
   S.capital=parseFloat(document.getElementById('capital').value)||50;
@@ -2345,7 +2453,6 @@ window.onload=function(){
   window.addEventListener('online',function(){if(S.connected){refresh();runScan();}addLog('SYS','Bağlantı yenilendi');});
 };
 
-// Risk ayarları değişikliklerini dinle
 document.getElementById('dailyLossLimit').addEventListener('change', function() {
   S.dailyLossLimit = parseFloat(this.value); updateDailyBar(); saveSettings();
 });
