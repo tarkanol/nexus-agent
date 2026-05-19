@@ -738,13 +738,11 @@
 <!-- ── TAB: TRADE ── -->
 <div class="tab-pane" id="tab2">
 
-  <!-- ═══ SCALP PANEL ═══ -->
+
+  <!-- SCALP PANEL -->
   <div class="scalp-panel">
     <div class="scalp-header">
-      <div>
-        <div class="scalp-title">&#9889; SCALP MODU</div>
-        <div style="font-family:'Space Mono';font-size:8px;color:var(--text3)">Kisa vadeli · $0.05-0.07 TP · $0.15-0.20 SL</div>
-      </div>
+      <div><div class="scalp-title">&#9889; SCALP MODU</div><div style="font-family:'Space Mono';font-size:8px;color:var(--text3)">90sn trend dogrulama · Kaldiracs-aware TP/SL</div></div>
       <div class="scalp-badge" id="scalpStatusBadge">KAPALI</div>
     </div>
     <div class="scalp-body">
@@ -753,51 +751,57 @@
         <button class="scalp-toggle-btn" id="scalpOn" onclick="toggleScalp(true)">ACIK &#9889;</button>
       </div>
 
-      <!-- TP seçenekleri -->
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;letter-spacing:1px;">SCALP TP HEDEFI (dolar)</div>
-      <div class="scalp-tp-row" id="scalpTpButtons">
+      <!-- TP/SL seçenekleri -->
+      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:10px 0 5px;">SCALP TP (kazanc $)</div>
+      <div class="scalp-tp-row">
         <button class="scalp-tp-btn active" onclick="setScalpTp(this,0.05)">$0.05</button>
         <button class="scalp-tp-btn" onclick="setScalpTp(this,0.06)">$0.06</button>
         <button class="scalp-tp-btn" onclick="setScalpTp(this,0.07)">$0.07</button>
         <button class="scalp-tp-btn" onclick="setScalpTp(this,0.10)">$0.10</button>
       </div>
-
-      <!-- SL seçenekleri -->
-      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:8px 0 5px;letter-spacing:1px;">SCALP SL LIMITI (dolar)</div>
-      <div class="scalp-sl-row" id="scalpSlButtons">
+      <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin:8px 0 5px;">SCALP SL (kayip $)</div>
+      <div class="scalp-sl-row">
         <button class="scalp-sl-btn active" onclick="setScalpSl(this,0.15)">$0.15</button>
         <button class="scalp-sl-btn" onclick="setScalpSl(this,0.17)">$0.17</button>
         <button class="scalp-sl-btn" onclick="setScalpSl(this,0.20)">$0.20</button>
         <button class="scalp-sl-btn" onclick="setScalpSl(this,0.25)">$0.25</button>
       </div>
 
-      <!-- Mola ayarları -->
-      <div class="scalp-break-cfg">
-        <div class="scalp-break-cfg-title">GUNLUK MOLA: $<span id="scalpBreakTargetCfg">1.00</span> kazaninca dur</div>
-        <div style="display:-webkit-flex;display:flex;gap:6px;-webkit-flex-wrap:wrap;flex-wrap:wrap;">
+      <!-- Mola -->
+      <div style="background:rgba(255,102,204,.05);border:1px solid rgba(255,102,204,.2);padding:8px;margin-top:10px;font-family:'Space Mono';font-size:9px;">
+        <div style="color:#ff66cc;margin-bottom:5px;">GUNLUK MOLA: $<span id="scalpBreakTargetCfg">1.00</span></div>
+        <div class="scalp-tp-row">
           <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,0.75)">$0.75</button>
           <button class="scalp-tp-btn active" onclick="setScalpBreakTarget(this,1.00)">$1.00</button>
           <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.25)">$1.25</button>
           <button class="scalp-tp-btn" onclick="setScalpBreakTarget(this,1.50)">$1.50</button>
         </div>
-        <div style="font-family:'Space Mono';font-size:8px;color:var(--text3);margin-top:6px;">Mola suresi: <span id="scalpBreakDurCfg">30</span> dk &nbsp;|&nbsp;
-          <button onclick="setScalpBreakDur(30)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;">30dk</button>
-          <button onclick="setScalpBreakDur(60)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;">60dk</button>
-          <button onclick="setScalpBreakDur(120)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;">2sa</button>
+        <div style="color:var(--text3);margin-top:5px;">Mola: <span id="scalpBreakDurCfg">30</span>dk
+          <button onclick="setScalpBreakDur(30)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;padding:2px 6px;">30dk</button>
+          <button onclick="setScalpBreakDur(60)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;padding:2px 6px;">60dk</button>
+          <button onclick="setScalpBreakDur(120)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-family:'Space Mono';font-size:8px;padding:2px 6px;">2sa</button>
         </div>
       </div>
 
-      <!-- Scalp istatistikleri -->
-      <div class="scalp-stats">
-        <div class="scalp-stat"><div class="ss-label">BUGUN KAZANC</div><div class="ss-val" id="scalpDayPnl" style="color:#ff66cc;font-size:16px;">$0.00</div></div>
-        <div class="scalp-stat"><div class="ss-label">ISLEM</div><div class="ss-val" id="scalpDayCount" style="color:var(--yellow)">0</div></div>
-        <div class="scalp-stat"><div class="ss-label">WIN/LOSS</div><div class="ss-val" id="scalpWinLoss" style="color:var(--text2);font-size:14px;">0/0</div></div>
+      <!-- Scalp hesap önizlemesi -->
+      <div class="trade-preview" style="margin-top:10px;" id="scalpPreview">
+        <div class="tp-row"><span class="tp-label">Pozisyon (sermaye x kaldiracs):</span><span class="tp-val ok" id="scalpPosSizeDisp">—</span></div>
+        <div class="tp-row"><span class="tp-label">TP = $<span id="scalpTpDisp">0.05</span> kazanc / fiyat degisimi:</span><span class="tp-val ok" id="scalpTpPctDisp">—</span></div>
+        <div class="tp-row"><span class="tp-label">SL = $<span id="scalpSlDisp">0.15</span> kayip / fiyat degisimi:</span><span class="tp-val bad" id="scalpSlPctDisp">—</span></div>
+        <div class="tp-row"><span class="tp-label">Komisyon (gir+cik):</span><span class="tp-val warn" id="scalpCommDisp">—</span></div>
+        <div class="tp-row"><span class="tp-label">Net TP:</span><span class="tp-val ok" id="scalpNetTpDisp">—</span></div>
+        <div class="tp-row" style="border-top:1px solid var(--border);padding-top:5px;margin-top:5px;"><span class="tp-label">90sn onay: momentum+spike kontrolu</span><span class="tp-val" style="color:var(--blue)">aktif</span></div>
       </div>
 
-      <!-- Scalp el butonu -->
+      <div class="scalp-stats">
+        <div class="scalp-stat"><div class="ss-label">BUGUN</div><div class="ss-val" id="scalpDayPnl" style="color:#ff66cc;font-size:16px;">$0.00</div></div>
+        <div class="scalp-stat"><div class="ss-label">ISLEM</div><div class="ss-val" id="scalpDayCount" style="color:var(--yellow)">0</div></div>
+        <div class="scalp-stat"><div class="ss-label">W/L</div><div class="ss-val" id="scalpWinLoss" style="color:var(--text2);font-size:14px;">0/0</div></div>
+      </div>
+
       <div style="display:-webkit-flex;display:flex;gap:8px;margin-top:10px;">
-        <button class="btn-scalp-long"  id="btnScalpLong"  onclick="manualScalp('LONG')"  disabled>&#9650; SCALP LONG</button>
-        <button class="btn-scalp-short" id="btnScalpShort" onclick="manualScalp('SHORT')" disabled>&#9660; SCALP SHORT</button>
+        <button class="btn-scalp-long" id="btnScalpLong" onclick="startPendingScalp('LONG')" disabled>&#9650; SCALP L</button>
+        <button class="btn-scalp-short" id="btnScalpShort" onclick="startPendingScalp('SHORT')" disabled>&#9660; SCALP S</button>
       </div>
       <div style="font-family:'Space Mono';font-size:9px;color:var(--text3);margin-top:4px;text-align:center;" id="scalpNote">Scalp modu kapali</div>
     </div>
@@ -2274,6 +2278,169 @@ function autoTradeByTier(){
     openTrade(sig.signal,true,sig.symbol,sig.tier);
     openPairs[sig.symbol]=true;
   }
+}
+// ══════════════════════════════════════════════════════
+// SCALP: 90SN TREND DOGRULAMA
+// ══════════════════════════════════════════════════════
+function startPendingScalp(side){
+  if(!S.scalpEnabled||S.scalpOnBreak||!S.connected) return;
+  if(S.positions.length>=MAX_SLOTS){addLog('WARN','Max '+MAX_SLOTS+' pozisyon');return;}
+
+  pendingScalp = {side:side, pair:S.pair, startTime:Date.now(), ticks:[]};
+  document.getElementById('pendingScalpBanner').className='pending-scalp-banner show';
+  addLog('SCALP','Scalp analiz baslatildi — 90sn trend dogrulama ('+side+')');
+  tickPendingScalp();
+}
+
+function tickPendingScalp(){
+  if(!pendingScalp) return;
+  // Mevcut fiyati kaydet
+  if(S.price>0) pendingScalp.ticks.push({price:S.price, time:Date.now()});
+
+  var elapsed=Date.now()-pendingScalp.startTime;
+  var remaining=Math.max(0,90000-elapsed);
+
+  // Banner guncelle
+  document.getElementById('pendingScalpTxt').textContent=Math.ceil(remaining/1000)+'s';
+
+  if(elapsed>=90000){
+    evaluatePendingScalp();
+  } else {
+    setTimeout(tickPendingScalp, 3000); // 3sn'de bir tick
+  }
+}
+
+function evaluatePendingScalp(){
+  if(!pendingScalp) return;
+  var t=pendingScalp.ticks;
+  document.getElementById('pendingScalpBanner').className='pending-scalp-banner';
+
+  if(t.length<5){
+    addLog('SCALP','Yetersiz veri — scalp iptal');
+    pendingScalp=null;return;
+  }
+
+  var first=t[0].price;
+  var last=t[t.length-1].price;
+  var change=(last-first)/first;
+
+  // Momentum hesapla
+  var momentum=0;
+  for(var i=1;i<t.length;i++){
+    momentum += (t[i].price > t[i-1].price ? 1 : -1);
+  }
+
+  var prices=t.map(function(x){return x.price;});
+  var maxP=Math.max.apply(null,prices);
+  var minP=Math.min.apply(null,prices);
+  var spike=(maxP-minP)/first;
+
+  // FLAT: hareket yok
+  if(Math.abs(change)<0.0005){
+    addLog('SCALP','Flat market — scalp iptal');
+    pendingScalp=null;return;
+  }
+
+  // FAKE SPIKE: ani hareket ama momentum yok
+  if(spike>0.003 && Math.abs(momentum)<2){
+    addLog('SCALP','Fake spike — scalp iptal');
+    pendingScalp=null;return;
+  }
+
+  // LONG icin: yukari trend ve momentum
+  if(pendingScalp.side==='LONG' && change>0.0008 && momentum>1){
+    executeConfirmedScalp('LONG', pendingScalp.pair);
+    pendingScalp=null;return;
+  }
+
+  // SHORT icin: asagi trend ve momentum
+  if(pendingScalp.side==='SHORT' && change<-0.0008 && momentum<-1){
+    executeConfirmedScalp('SHORT', pendingScalp.pair);
+    pendingScalp=null;return;
+  }
+
+  addLog('SCALP','Trend onaylanamadi (change:'+(change*100).toFixed(3)+'% mom:'+momentum+') — iptal');
+  pendingScalp=null;
+}
+
+function cancelPendingScalp(){
+  pendingScalp=null;
+  document.getElementById('pendingScalpBanner').className='pending-scalp-banner';
+  addLog('SCALP','Scalp iptal edildi');
+}
+
+function executeConfirmedScalp(side, pair){
+  var ep=S.price;
+  if(!ep||ep<=0){addLog('WARN','Fiyat yok');return;}
+
+  // DUZELTILMIS: pozisyon = sermaye x % x kaldiracs
+  var posSize=calcPositionSize();
+  var qty=calcQty(posSize, ep);
+  var comm=S.balance * (parseFloat(document.getElementById('perTrade').value)/100) * COMMISSION_RT;
+
+  // TP/SL: sabit $ kazanc/kayip → fiyat hareketine cevir
+  // TP dolar = positionSize x fiyat_degisim_yuzdesi
+  // fiyat_degisim = TP_dolar / positionSize
+  var tpMove = S.scalpTp / posSize;
+  var slMove = S.scalpSl / posSize;
+
+  var tp = side==='LONG' ? ep*(1+tpMove) : ep*(1-tpMove);
+  var sl = side==='LONG' ? ep*(1-slMove) : ep*(1+slMove);
+  var netTp = S.scalpTp - comm*2; // giris+cikis komisyonu
+
+  var id=S.posIdCounter++;
+  S.positions.push({
+    id:id, pair:pair, side:side, entry:ep, qty:qty,
+    lev:S.leverage, size:S.balance*(parseFloat(document.getElementById('perTrade').value)/100),
+    positionSize:posSize, tp:tp, sl:sl,
+    tier:'SCALP', tradeMode:'scalp', auto:false, commPaid:comm,
+    isScalp:true, scalpTpAbs:S.scalpTp, scalpSlAbs:S.scalpSl
+  });
+  S.lastTradeTime=Date.now();
+  S.dailyToday++;
+  S.totalCommission+=comm;
+  S.scalpDayCount++;
+  S.scalpTotalCount++;
+
+  addLog('SCALP','[SCALP CONFIRMED] '+side+' '+pair+' @$'+ep.toFixed(4)+' TP:$'+tp.toFixed(4)+' SL:$'+sl.toFixed(4));
+  addLog('INFO','Pos:$'+posSize.toFixed(2)+' ('+S.leverage+'x) · TP move:'+((tpMove)*100).toFixed(4)+'% · Net:$'+netTp.toFixed(4));
+
+  renderSlots();updateStats();updateDailyBar();updateScalpStats();
+
+  if(S.mode==='live'){
+    fetch(WORKER+'/order',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({symbol:pair,side:side,usdAmount:S.balance*(parseFloat(document.getElementById('perTrade').value)/100),leverage:S.leverage,tp:parseFloat(tp.toFixed(6)),sl:parseFloat(sl.toFixed(6))})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.success) addLog('SYS','Scalp emri tamam: '+d.quantity);
+      else addLog('WARN','Scalp emri hata: '+d.error);
+    }).catch(function(e){addLog('WARN',e.message);});
+  }
+}
+
+function closeScalpTrade(id, reason){
+  var pos=S.positions.find(function(p){return p.id===id;});
+  if(!pos) return;
+  var cp=getPairPrice(pos.pair)||pos.entry;
+  // DUZELTILMIS PNL
+  var pnl=calcPnlFromPos(pos,cp);
+  var comm=pos.commPaid||0;
+  var netPnl=pnl-comm;
+
+  S.balance+=netPnl; S.dayPnl+=netPnl; S.totalPnl+=netPnl; S.totalCommission+=comm;
+  S.scalpDayPnl+=netPnl; S.scalpTotalPnl+=netPnl;
+  if(netPnl>0){S.scalpWin++;S.scalpTotalWin++;S.dailyWin++;}else{S.scalpLoss++;S.dailyLoss++;}
+
+  S.trades.push({id:id,pair:pos.pair,side:pos.side,entry:pos.entry,exit:cp,
+    pnl:netPnl,pct:netPnl/(pos.positionSize||1)*100,size:pos.positionSize||pos.size,
+    lev:pos.lev,tier:'SCALP',tradeMode:'scalp',reason:reason,today:true,isScalp:true});
+  S.positions=S.positions.filter(function(p){return p.id!==id;});
+
+  addLog(reason==='TP'?'TP':reason==='SL'?'SL':'SCALP',
+    '[SCALP] '+reason+' '+pos.side+' '+pos.pair+' @$'+cp.toFixed(4)+' Net:'+(netPnl>=0?'+':'')+'$'+netPnl.toFixed(4));
+
+  if(!S.scalpOnBreak && S.scalpDayPnl>=S.scalpBreakTarget) startScalpBreak();
+  renderSlots();updateHistory();updateStats();updateCompound();updateScalpStats();
 }
 
 // ════════════════════════════════════════════════════════════════
