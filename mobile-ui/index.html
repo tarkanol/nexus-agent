@@ -1297,6 +1297,13 @@ function startScanCountdown() {
 function stopScanCountdown(){if(S.countdownTimer){clearInterval(S.countdownTimer);S.countdownTimer=null;}}
 function runAutoScan() {
   if(!S.connected||!WORKER) return;
+  
+  // >>> DEMO KONTROLÜ <<<
+  if (WORKER === 'demo') {
+    runDemoScan();
+    return;
+  }
+  
   fetch(WORKER+'/scan?pairs='+AUTO_PAIRS.join(','))
     .then(function(r){return r.json();})
     .then(function(data){
