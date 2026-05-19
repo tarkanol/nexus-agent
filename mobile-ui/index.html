@@ -839,7 +839,9 @@ function getPairPrice(sym) {
   var r = S.scanResults.find(function(x){return x&&x.symbol===sym;});
   return r ? r.price : 0;
 }
-function canOpenToday() { return S.dailyToday < S.dailyMax && !circuitBreakerActive && S.dayPnl > -S.dailyLossLimit; }
+function canOpenToday() {
+  return S.dailyToday < S.dailyMax && !circuitBreakerActive && S.dayPnl > -S.dailyLossLimit;
+}
 function breakevenTpPct(lev) { return (COMMISSION_RT/lev)*100; }
 function checkCircuitBreaker() {
   if (S.consecLosses >= S.maxConsecLoss && !circuitBreakerActive) {
@@ -1413,21 +1415,41 @@ function autoTradeByTier() {
 // SİNYAL MODU
 // ═══════════════════════════════════════════════════
 function setSignalMode(mode) {
-  S.signalMode=mode;
-  ['Det','Mod','Agg'].forEach(function(m){var b=document.getElementById('sigMode'+m);if(b)b.className='sig-mode-btn';});
-  var active=document.getElementById('sigMode'+mode.charAt(0).toUpperCase()+mode.slice(1));
-  if(active) active.className='sig-mode-btn active-'+mode;
-  var colors={det:'#00ff88',mod:'var(--yellow)',agg:'#ff66cc'};
-  var labels={det:'KATI',mod:'ORTA',agg:'AGRESİF'};
-  var hb=document.getElementById('hbSigMode');
-  hb.textContent=labels[mode]; hb.style.color=colors[mode]; hb.style.borderColor=colors[mode];
-  addLog('SYS','Sinyal modu: '+labels[mode]);
-  if(S.klines&&S.klines.length>50){
-    var closes=S.klines.map(function(k){return parseFloat(k[4]);});
-    var ind=calcAll(closes,S.klines);
-    var score=scoreSignal(ind); S.score=score;
-    updateIndicators(ind,score); updateSignal(score);
+  S.signalMode = mode;
+  
+  // Butonların aktiflik görünümünü güncelle
+  ['Det', 'Mod', 'Agg'].forEach(function(m) {
+    var b = document.getElementById('sigMode' + m);
+    if (b) b.className = 'sig-mode-btn';
+  });
+  var active = document.getElementById('sigMode' + mode.charAt(0).toUpperCase() + mode.slice(1));
+  if (active) active.className = 'sig-mode-btn active-' + mode;
+  
+  // Renk ve etiket ayarları
+  var colors = { det: '#00ff88', mod: 'var(--yellow)', agg: '#ff66cc' };
+  var labels = { det: 'KATI', mod: 'ORTA', agg: 'AGRESİF' };
+  var hb = document.getElementById('hbSigMode');
+  hb.textContent = labels[mode];
+  hb.style.color = colors[mode];
+  hb.style.borderColor = colors[mode];
+  
+  addLog('SYS', 'Sinyal modu: ' + labels[mode]);
+  
+  // Eğer demo modda çalışıyorsa, mod değişince hemen yeniden tara
+  if (S.running && WORKER === 'demo') {
+    runDemoScan();
   }
+  
+  // Mevcut pair için sinyali yeniden hesapla (eğer veri varsa)
+  if (S.klines && S.klines.length > 50) {
+    var closes = S.klines.map(function(k) { return parseFloat(k[4]); });
+    var ind = calcAll(closes, S.klines);
+    var score = scoreSignal(ind);
+    S.score = score;
+    updateIndicators(ind, score);
+    updateSignal(score);
+  }
+  
   saveSettings();
 }
 
@@ -2043,11 +2065,200 @@ function refresh(){
     .then(function(){document.getElementById('priceSpinner').style.display='none';});
 }
 
+var demoPrices = {
+  'BTCUSDT': 67000, 'ETHUSDT': 3400, 'SOLUSDT': 170, 'BNBUSDT': 580, 'XRPUSDT': 0.62,
+  'DOGEUSDT': 0.12, 'ADAUSDT': 0.45, 'AVAXUSDT': 35, 'LINKUSDT': 14, 'DOTUSDT': 7,
+  'LTCUSDT': 80, 'UNIUSDT': 6, 'ATOMUSDT': 9, 'NEARUSDT': 5, 'APTUSDT': 8
+};
+
+function startDemoMode() {
+  addLog('SYS', '🧪 DEMO MODE başlatıldı – Gerçek para kullanılmaz');
+  S.connected = true;
+  S.running = true;
+  S.mode = 'sim';
+  
+  document.getElementById('hbConn').textContent = 'DEMO';
+  document.getElementById('hbConn').className = 'hbadge live';
+  document.getElementById('hbMode').textContent = 'DEMO';
+  document.getElementById('hbMode').className = 'hbadge sim';
+  document.getElementById('stopBtn').disabled = false;
+  document.getElementById('btnLong').disabled = false;
+  document.getElementById('btnShort').disabled = false;
+  
+  renderSlots();
+  updateCompound();
+  updateDailyBar();
+  updateTradePreview();
+  updateScalpStats();
+  
+  // Periyodik demo güncellemesi başlat
+  S.refreshTimer = setInterval(demoRefresh, S.heartbeatInterval);
+  S.hbTimer = setInterval(function() { updateDailyBar(); }, 5000);
+  
+  // İlk veriyi hemen oluştur
+  demoRefresh();
+  
+  // Scanner'ı da demo veri ile besle
+  setTimeout(runDemoScan, 1000);
+  switchTab(0);
+}
+
+function demoRefresh() {
+  // Tüm coinler için fiyat güncelle
+  Object.keys(demoPrices).forEach(function(sym) {
+    var change = (Math.random() - 0.5) * 0.002; // ±0.1%
+    demoPrices[sym] *= (1 + change);
+    if (demoPrices[sym] <= 0) demoPrices[sym] = 0.01;
+  });
+  
+  // Eğer mevcut pair demoPrices'ta yoksa ekle
+  if (!demoPrices[S.pair]) demoPrices[S.pair] = 100;
+  
+  // Sahte ticker
+  var fakeTicker = {
+    symbol: S.pair,
+    lastPrice: demoPrices[S.pair],
+    priceChange: demoPrices[S.pair] * (Math.random() - 0.5) * 0.001,
+    priceChangePercent: (Math.random() - 0.5) * 0.1,
+    highPrice: demoPrices[S.pair] * 1.002,
+    lowPrice: demoPrices[S.pair] * 0.998,
+    quoteVolume: Math.random() * 1000000
+  };
+  updatePrice(fakeTicker);
+  
+  // Sahte klines oluştur (120 mum)
+  var fakeKlines = [];
+  var basePrice = demoPrices[S.pair] * 0.9;
+  for (var i = 0; i < 120; i++) {
+    var open = basePrice;
+    var close = open * (1 + (Math.random() - 0.5) * 0.01);
+    var high = Math.max(open, close) * (1 + Math.random() * 0.005);
+    var low = Math.min(open, close) * (1 - Math.random() * 0.005);
+    var vol = Math.random() * 1000 + 500;
+    fakeKlines.push([
+      Date.now() - (119 - i) * 60000, // zaman
+      open.toFixed(2), high.toFixed(2), low.toFixed(2), close.toFixed(2), vol.toFixed(2)
+    ]);
+    basePrice = close;
+  }
+  S.klines = fakeKlines;
+  
+  var closes = fakeKlines.map(function(k) { return parseFloat(k[4]); });
+  S.chartData.prices = closes.slice(-60);
+  S.chartData.ema9 = ema(closes, 9).slice(-60);
+  S.chartData.ema21 = ema(closes, 21).slice(-60);
+  S.fib = calcFib(fakeKlines, 20);
+  drawChart();
+  if (S.fib) updateFibUI(closes[closes.length - 1], S.fib);
+  
+  var ind = calcAll(closes, fakeKlines);
+  S.indicators = ind;
+  var score = scoreSignal(ind);
+  S.score = score;
+  updateIndicators(ind, score);
+  updateSignal(score);
+  
+  checkSLTP();
+  renderSlots();
+  updateTradePreview();
+  updateScalpStats();
+  if (S.scalpEnabled) updateScalpPreview();
+  
+  // Multi ticker
+  fetchMultiDemo();
+}
+
+function fetchMultiDemo() {
+  var syms = Object.keys(demoPrices);
+  var inner = document.getElementById('tickerInner');
+  var items = [];
+  syms.forEach(function(sym) {
+    var price = demoPrices[sym];
+    items.push({ symbol: sym, lastPrice: price });
+    items.push({ symbol: sym, lastPrice: price });
+  });
+  var html = items.map(function(d) {
+    return '<div class="ti-item"><span class="ti-s">' + d.symbol.replace('USDT', '/U') + '</span><span class="ti-p">$' + d.lastPrice.toFixed(4) + '</span></div>';
+  }).join('');
+  inner.innerHTML = html;
+}
+
+function runDemoScan() {
+  // Demo için sahte scan sonuçları oluştur
+  var results = [];
+  var allPairs = S.signalMode === 'agg' ? S.scanPairs : AUTO_PAIRS;
+  allPairs.forEach(function(sym) {
+    if (!demoPrices[sym]) demoPrices[sym] = sym.includes('BTC') ? 60000 : sym.includes('ETH') ? 3000 : 100;
+    var price = demoPrices[sym];
+    var bull = Math.floor(Math.random() * 15) + 5;
+    var bear = Math.floor(Math.random() * 15) + 5;
+    var neut = Math.floor(Math.random() * 5);
+    var total = bull + bear + neut;
+    var conf = Math.round(Math.max(bull, bear) / total * 100);
+    var signal = bull > bear ? 'LONG' : (bear > bull ? 'SHORT' : 'WAIT');
+    results.push({
+      symbol: sym,
+      price: price,
+      signal: signal,
+      atr: price * 0.01,
+      atrPct: 0.01,
+      sc5: { bull: bull, bear: bear, conf: conf }
+    });
+  });
+  S.scanResults = results;
+  classifyTiers();
+  renderScanTable();
+  renderTierCards();
+  updateBestPair();
+  
+  if (S.signalMode === 'agg' && S.scalpEnabled && !S.scalpOnBreak && !circuitBreakerActive) {
+    // Agresif modda uygun coinlere otomatik scalp dene
+    autoScalpByScan();
+  }
+  
+  addLog('SCAN', 'Demo tarama: ' + S.tierHigh.length + 'H ' + S.tierMed.length + 'M ' + S.tierLow.length + 'L');
+}
+
+function autoScalpByScan() {
+  // HIGH/MED tier'dan uygun olan ilk 2 coine scalp aç
+  var candidates = S.tierHigh.concat(S.tierMed);
+  if (candidates.length === 0) return;
+  
+  var opened = 0;
+  for (var i = 0; i < candidates.length && opened < 2; i++) {
+    var sig = candidates[i];
+    if (S.positions.find(function(p) { return p.pair === sig.symbol; })) continue;
+    if (S.positions.length >= MAX_SLOTS) break;
+    if (!canOpenToday() || circuitBreakerActive) break;
+    
+    // Geçici olarak seçili pair'i değiştirip scalp başlat
+    var prevPair = S.pair;
+    S.pair = sig.symbol;
+    setPair(document.querySelector('.pair-chip[data-sym="' + sig.symbol + '"]') || document.querySelector('.pair-chip'), sig.symbol);
+    S.price = demoPrices[sig.symbol];
+    
+    startPendingScalp(sig.signal);
+    S.pair = prevPair;
+    opened++;
+  }
+}
+
+
+
 // ═══════════════════════════════════════════════════
 // BAĞLANTI
 // ═══════════════════════════════════════════════════
 function connect(){
   WORKER=document.getElementById('workerUrl').value.trim().replace(/\/$/,'');
+
+  // DEMO MODU
+  if (WORKER === 'demo' || WORKER === '') {
+    WORKER = 'demo';
+    startDemoMode();
+    return;
+    }
+  
+  
   if(!WORKER){addLog('WARN','Worker URL gerekli!');return;}
   S.mode=document.getElementById('tradeMode').value;
   S.capital=parseFloat(document.getElementById('capital').value)||50;
