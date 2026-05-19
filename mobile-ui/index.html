@@ -1088,16 +1088,17 @@ function tickScalpBreak() {
   setTimeout(tickScalpBreak,1000);
 }
 function updateScalpStats() {
-  document.getElementById('scalpDayPnl').textContent=(S.scalpDayPnl>=0?'+':'')+'$'+S.scalpDayPnl.toFixed(2);
-  document.getElementById('scalpDayCount').textContent=S.scalpDayCount;
-  document.getElementById('scalpWinLoss').textContent=S.scalpWin+'/'+S.scalpLoss;
-  document.getElementById('statScalpPnl').textContent=(S.scalpDayPnl>=0?'+':'')+'$'+S.scalpDayPnl.toFixed(2);
-  document.getElementById('statScalpCount').textContent=S.scalpDayCount+' scalp';
-  document.getElementById('scalpTotalPnl').textContent=(S.scalpTotalPnl>=0?'+':'')+'$'+S.scalpTotalPnl.toFixed(2);
-  document.getElementById('scalpTotalCount').textContent=S.scalpTotalCount;
-  var wr=S.scalpTotalCount>0?((S.scalpTotalWin/S.scalpTotalCount)*100).toFixed(0)+'%':'—';
-  document.getElementById('scalpWinRate').textContent=wr;
-  document.getElementById('dbScalpStat').textContent='$'+S.scalpDayPnl.toFixed(2)+'/'+S.scalpBreakTarget;
+  document.getElementById('scalpDayPnl').textContent = (S.scalpDayPnl >= 0 ? '+' : '') + '$' + S.scalpDayPnl.toFixed(2);
+  document.getElementById('scalpDayCount').textContent = S.scalpDayCount;
+  document.getElementById('scalpWinLoss').textContent = S.scalpWin + '/' + S.scalpLoss;
+  // Aşağıdaki iki satır hatalıydı, kaldırıldı:
+  // document.getElementById('statScalpPnl').textContent = ...
+  // document.getElementById('statScalpCount').textContent = ...
+  document.getElementById('scalpTotalPnl').textContent = (S.scalpTotalPnl >= 0 ? '+' : '') + '$' + S.scalpTotalPnl.toFixed(2);
+  document.getElementById('scalpTotalCount').textContent = S.scalpTotalCount;
+  var wr = S.scalpTotalCount > 0 ? ((S.scalpTotalWin / S.scalpTotalCount) * 100).toFixed(0) + '%' : '—';
+  document.getElementById('scalpWinRate').textContent = wr;
+  document.getElementById('dbScalpStat').textContent = '$' + S.scalpDayPnl.toFixed(2) + '/' + S.scalpBreakTarget;
 }
 
 // ═══════════════════════════════════════════════════
