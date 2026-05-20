@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>APEX PRO · Kararlı Sürüm</title>
+  <title>APEX PRO v8 · Gerçek Emir</title>
   <style>
     :root {
       --bg: #030711; --panel: #060f1e; --border: #131f38;
@@ -11,7 +11,7 @@
       --warn: #f5a623; --text: #c0cde0; --dim: #5a6a80; --deep: #2a3348;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; }
+    body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; }
     header { background:var(--panel); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
     .logo { font-weight:700; font-size:20px; color:var(--acc); }
     .badge { font-size:10px; padding:3px 8px; border-radius:3px; background:var(--deep); color:var(--dim); margin-left:6px; }
@@ -71,7 +71,7 @@
     </div>
 
     <div id="signal" class="tab-content active">
-      <div class="pair-select" id="pairSelect">
+      <div class="pair-select">
         <button class="pair-btn active" onclick="setPair('BTCUSDT')">BTC</button>
         <button class="pair-btn" onclick="setPair('ETHUSDT')">ETH</button>
         <button class="pair-btn" onclick="setPair('SOLUSDT')">SOL</button>
@@ -103,8 +103,8 @@
       <div class="grid-2">
         <div><label>Strateji</label><select id="strategy"><option value="trend">Trend</option><option value="mean">Mean Rev</option><option value="breakout">Breakout</option></select></div>
         <div><label>Risk</label><select id="riskModel"><option value="kelly">Kelly</option><option value="fixed">Sabit %2</option><option value="atr">ATR</option></select></div>
-        <div><label>Max DD %</label><input id="maxDailyDD" value="5" type="number"></div>
-        <div><label>Zaman UTC</label><input id="timeFilter" placeholder="02:00-07:00"></div>
+        <div><label>Kaldıraç</label><select id="leverage"><option value="2">2x</option><option value="3">3x</option><option value="5">5x</option></select></div>
+        <div><label>İşlem $</label><input id="tradeSize" value="15" type="number"></div>
       </div>
       <div class="flex-row" style="margin-top:12px;">
         <button class="btn btn-acc" id="btnEngine" onclick="toggleEngine()">Motoru Başlat</button>
@@ -140,19 +140,18 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// APEX PRO v7 — STABLE (İlk kod + yeni özellikler)
+// APEX PRO v8 — BINANCE'A GERÇEK EMİR İLETİMİ
 // ═══════════════════════════════════════════════════════
 const MAX_POS = 3;
 const COMM = 0.0004;
 
 let WORKER = '';
-let mode = 'demo'; // 'demo' | 'live'
+let mode = 'demo';
 let engineRunning = false;
 let balance = 50, startBalance = 50, peakBalance = 50;
 let positions = [], trades = [];
 let posId = 1;
 let dailyPnL = 0;
-let kellyFraction = 0.10;
 let currentPair = 'BTCUSDT';
 let klines = [], indicators = {};
 let signal = 'WAIT';
@@ -162,7 +161,6 @@ const DEMO = {
   BTCUSDT:68000, ETHUSDT:3500, SOLUSDT:180, BNBUSDT:590, XRPUSDT:0.65
 };
 
-// ── LOG ──────────────────────────────────────────
 function log(msg) {
   const b = document.getElementById('logBox');
   const t = new Date().toLocaleTimeString('tr-TR');
@@ -170,7 +168,6 @@ function log(msg) {
   b.scrollTop = b.scrollHeight;
 }
 
-// ── UI ────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
@@ -196,9 +193,8 @@ function updateUI() {
   });
   document.getElementById('posList').innerHTML = posHtml || 'Açık pozisyon yok';
 
-  const disabled = (mode !== 'demo' && !WORKER);
-  document.getElementById('btnLong').disabled = disabled;
-  document.getElementById('btnShort').disabled = disabled;
+  document.getElementById('btnLong').disabled = (mode === 'live' && !WORKER);
+  document.getElementById('btnShort').disabled = (mode === 'live' && !WORKER);
 }
 
 function currentPrice(sym) {
@@ -208,7 +204,6 @@ function currentPrice(sym) {
   return DEMO[sym] || 100;
 }
 
-// ── PAIR ──────────────────────────────────────────
 function setPair(pair) {
   currentPair = pair;
   document.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('active'));
@@ -268,7 +263,6 @@ function computeIndicators(kl) {
     volumeRatio:kl.slice(-5).reduce((s,k)=>s+k.volume,0)/kl.slice(-20).reduce((s,k)=>s+k.volume,0)*4};
 }
 
-// ── SİNYAL ────────────────────────────────────────
 function generateSignal(ind, kl, strat='trend') {
   let b=0, s=0, r=[];
   const {rsi,ema9,ema21,macd,adx,plusDI,minusDI,poc,last,volumeRatio}=ind;
@@ -282,59 +276,140 @@ function generateSignal(ind, kl, strat='trend') {
   return {signal:sig,conf,reasons:r.join(',')};
 }
 
-// ── EMİR ──────────────────────────────────────────
-function openPosition(side, pair, price, size, ind) {
-  if(positions.length>=MAX_POS) return log('⛔ Max pozisyon');
-  if(positions.some(p=>p.pair===pair)) return log(`⛔ ${pair} zaten açık`);
-  const lev=2, pv=Math.min(size,balance*0.4), qty=pv/price*lev;
-  const sl=side==='LONG'?price-ind.atr*1.5:price+ind.atr*1.5;
-  const tp=side==='LONG'?price+ind.atr*2.5:price-ind.atr*2.5;
-  positions.push({id:posId++,pair,side,entry:price,qty,lev,sl,tp,posValue:pv,comm:pv*COMM});
-  dailyPnL-=pv*COMM; balance-=pv*COMM;
-  log(`✅ ${side} ${pair.replace('USDT','')} @${price.toFixed(2)} TP:${tp.toFixed(2)} SL:${sl.toFixed(2)} $${pv.toFixed(0)}`);
-}
-function manualTrade(side) { if(!indicators.last) return log('⛔ Veri yok'); openPosition(side,currentPair,indicators.last, balance*0.02/(indicators.atr||50)*indicators.last, indicators); }
-function checkPositions() {
-  positions.forEach(p=>{
-    const pr=currentPrice(p.pair);
-    const mult=(p.side==='LONG'||p.side==='BUY')?1:-1;
-    const pnl=(pr-p.entry)*mult*p.qty-(p.comm||0);
-    if(pnl>0&&pr>=p.tp) closePos(p,'TP');
-    else if(pnl<0&&pr<=p.sl) closePos(p,'SL');
-  });
-}
-function closePos(pos, reason) {
-  const pr=currentPrice(pos.pair);
-  const mult=(pos.side==='LONG'||pos.side==='BUY')?1:-1;
-  const pnl=(pr-pos.entry)*mult*pos.qty-(pos.comm||0);
-  balance+=pnl+pos.posValue; dailyPnL+=pnl;
-  trades.push({pair:pos.pair,side:pos.side,pnl,reason});
-  positions=positions.filter(p=>p.id!==pos.id);
-  log(`${reason==='TP'?'🟢':'🔴'} ${pos.pair.replace('USDT','')} ${pos.side} PnL:$${pnl.toFixed(2)} Bal:$${balance.toFixed(2)}`);
-  if(balance>peakBalance)peakBalance=balance;
+// ═══════════════════ GERÇEK EMİR GÖNDERME ═══════════════════
+async function sendOrderToWorker(side, symbol, usdAmount, leverage, tp, sl) {
+  if (!WORKER) return { success: false, error: 'Worker URL yok' };
+  try {
+    const res = await fetch(WORKER + '/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol,
+        side,
+        usdAmount,
+        leverage,
+        tp: parseFloat(tp.toFixed(2)),
+        sl: parseFloat(sl.toFixed(2))
+      })
+    });
+    const data = await res.json();
+    return data; // { success: true, quantity, price } veya { success: false, error }
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
 }
 
-// ── CHART (DÜZELTİLDİ) ───────────────────────────
+async function closeOrderOnWorker(symbol, side) {
+  if (!WORKER) return { success: false, error: 'Worker URL yok' };
+  try {
+    const res = await fetch(WORKER + '/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, side })
+    });
+    const data = await res.json();
+    return data;
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ── EMİR ──────────────────────────────────────────
+async function openPosition(side, pair, price, size, ind, auto = false) {
+  if (positions.length >= MAX_POS) return log('⛔ Max pozisyon');
+  if (positions.some(p => p.pair === pair)) return log(`⛔ ${pair} zaten açık`);
+
+  const lev = parseInt(document.getElementById('leverage').value) || 2;
+  const tradeSizeUSD = parseFloat(document.getElementById('tradeSize').value) || 15;
+  const pv = Math.min(size || tradeSizeUSD, balance * 0.4);
+  const qty = pv / price * lev;
+  const sl = side === 'LONG' ? price - ind.atr * 1.5 : price + ind.atr * 1.5;
+  const tp = side === 'LONG' ? price + ind.atr * 2.5 : price - ind.atr * 2.5;
+
+  // Önce simülasyon pozisyonu oluştur
+  const posObj = {
+    id: posId++, pair, side, entry: price, qty, lev, sl, tp,
+    posValue: pv, comm: pv * COMM, auto
+  };
+  positions.push(posObj);
+  dailyPnL -= pv * COMM;
+  balance -= pv * COMM;
+
+  log(`✅ ${side} ${pair.replace('USDT','')} @${price.toFixed(2)} TP:${tp.toFixed(2)} SL:${sl.toFixed(2)} $${pv.toFixed(0)}`);
+
+  // Canlı modda Binance'a gerçek emir gönder
+  if (mode === 'live' && WORKER) {
+    log('📡 Binance emri gönderiliyor...');
+    const result = await sendOrderToWorker(side, pair, tradeSizeUSD, lev, tp, sl);
+    if (result.success) {
+      log('✅ Binance: ' + side + ' ' + pair + ' qty:' + result.quantity + ' @' + result.price);
+    } else {
+      log('❌ Binance emir HATASI: ' + (result.error || 'bilinmeyen'));
+      // Emir başarısız olursa pozisyonu geri al
+      positions = positions.filter(p => p.id !== posObj.id);
+      balance += pv * COMM;
+      dailyPnL += pv * COMM;
+    }
+  }
+}
+
+async function manualTrade(side) {
+  if (!indicators.last) return log('⛔ Veri yok');
+  const size = parseFloat(document.getElementById('tradeSize').value) || 15;
+  await openPosition(side, currentPair, indicators.last, size, indicators, false);
+}
+
+async function closePos(pos, reason) {
+  const pr = currentPrice(pos.pair);
+  const mult = (pos.side === 'LONG' || pos.side === 'BUY') ? 1 : -1;
+  const pnl = (pr - pos.entry) * mult * pos.qty - (pos.comm || 0);
+  balance += pnl + pos.posValue;
+  dailyPnL += pnl;
+  trades.push({ pair: pos.pair, side: pos.side, pnl, reason });
+  positions = positions.filter(p => p.id !== pos.id);
+  log(`${reason === 'TP' ? '🟢' : '🔴'} ${pos.pair.replace('USDT','')} ${pos.side} PnL:$${pnl.toFixed(2)} Bal:$${balance.toFixed(2)}`);
+
+  // Canlı modda Binance'ta pozisyon kapat
+  if (mode === 'live' && WORKER) {
+    log('📡 Binance kapatma emri gönderiliyor...');
+    const result = await closeOrderOnWorker(pos.pair, pos.side);
+    if (result.success) {
+      log('✅ Binance kapatıldı: ' + pos.pair + ' qty:' + (result.closedQty || result.quantity));
+    } else {
+      log('❌ Binance kapatma HATASI: ' + (result.error || 'bilinmeyen'));
+    }
+  }
+
+  if (balance > peakBalance) peakBalance = balance;
+}
+
+async function checkPositions() {
+  for (const p of positions) {
+    const pr = currentPrice(p.pair);
+    const mult = (p.side === 'LONG' || p.side === 'BUY') ? 1 : -1;
+    const pnl = (pr - p.entry) * mult * p.qty - (p.comm || 0);
+    if (pnl > 0 && pr >= p.tp) await closePos(p, 'TP');
+    else if (pnl < 0 && pr <= p.sl) await closePos(p, 'SL');
+  }
+}
+
+// ── CHART ─────────────────────────────────────────
 let chartCtx;
 function initChart() { chartCtx = document.getElementById('chart').getContext('2d'); }
 function drawChart() {
   if (!chartCtx || !klines.length) return;
   const w = chartCtx.canvas.width = chartCtx.canvas.offsetWidth;
   const h = chartCtx.canvas.height = 180;
-  chartCtx.clearRect(0, 0, w, h); // <-- DÜZELTME BURADA
+  chartCtx.clearRect(0, 0, w, h);
   const closes = klines.map(k => k.close);
-  const min = Math.min(...closes) * 0.999;
-  const max = Math.max(...closes) * 1.001;
-  const rng = max - min;
+  const min = Math.min(...closes) * 0.999, max = Math.max(...closes) * 1.001, rng = max - min;
   const pad = {l:20, r:10, t:10, b:20};
-  const cw = w - pad.l - pad.r;
-  const ch = h - pad.t - pad.b;
   chartCtx.beginPath();
   chartCtx.strokeStyle = '#00e0a0';
   chartCtx.lineWidth = 2;
   closes.forEach((v, i) => {
-    const x = pad.l + i / (closes.length - 1) * cw;
-    const y = pad.t + (max - v) / rng * ch;
+    const x = pad.l + i / (closes.length - 1) * (w - pad.l - pad.r);
+    const y = pad.t + (max - v) / rng * (h - pad.t - pad.b);
     i === 0 ? chartCtx.moveTo(x, y) : chartCtx.lineTo(x, y);
   });
   chartCtx.stroke();
@@ -350,32 +425,20 @@ async function fetchLiveData() {
     ]);
     if (pr && pr.success && pr.data) {
       const p = parseFloat(pr.data.lastPrice || pr.data.price);
-      if (p) {
-        indicators.last = p;
-        // Ticker'ı da güncelle
-        updateTickerLive(pr.data.symbol, p);
-      }
+      if (p) { indicators.last = p; updateTickerLive(pr.data.symbol, p); }
     }
     if (kl && kl.success && Array.isArray(kl.data) && kl.data.length > 50) {
-      klines = kl.data.map(k => ({
-        time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5]
-      }));
+      klines = kl.data.map(k => ({time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5]}));
       indicators = computeIndicators(klines);
       const sig = generateSignal(indicators, klines, document.getElementById('strategy').value);
       signal = sig.signal;
       updateSignalUI(sig);
-    } else {
-      log('⚠️ Kline verisi yetersiz');
     }
-  } catch(e) {
-    log('⚠️ Veri çekme hatası: ' + e.message);
-  }
+  } catch(e) { log('⚠️ Veri çekme hatası: ' + e.message); }
 }
 
 function updateTickerLive(sym, price) {
-  // Basit ticker güncellemesi
-  const ticker = document.getElementById('ticker');
-  ticker.innerHTML = `<span>${(sym||currentPair).replace('USDT','')} $${price.toFixed(2)}</span>` + ticker.innerHTML.split('</span>').slice(0,4).join('</span>') + '</span>';
+  document.getElementById('ticker').innerHTML = `<span>${(sym||currentPair).replace('USDT','')} $${price.toFixed(2)}</span>`;
 }
 
 function updateSignalUI(sig) {
@@ -403,6 +466,7 @@ async function connect() {
       startBalance = balance; peakBalance = balance;
       document.getElementById('connBadge').textContent = 'LIVE';
       document.getElementById('connBadge').className = 'badge live';
+      document.getElementById('modeBadge').textContent = 'LIVE';
       log('✅ Canlı bağlantı kuruldu');
       if (loopTimer) clearTimeout(loopTimer);
       mainLoop();
@@ -418,6 +482,7 @@ function switchToDemo() {
   startBalance = balance; peakBalance = balance;
   document.getElementById('connBadge').textContent = 'DEMO';
   document.getElementById('connBadge').className = 'badge demo';
+  document.getElementById('modeBadge').textContent = 'SIM';
   log('🧪 Demo mod');
   if (loopTimer) clearTimeout(loopTimer);
   mainLoop();
@@ -453,17 +518,16 @@ async function mainLoop() {
     const sig = generateSignal(indicators, klines, document.getElementById('strategy').value);
     signal = sig.signal;
     updateSignalUI(sig);
-    updateTickerLive(currentPair, indicators.last);
   } else if (mode === 'live') {
     await fetchLiveData();
   }
 
   if (engineRunning && signal !== 'WAIT' && indicators.last) {
-    const size = balance * 0.02 / (indicators.atr || 50) * indicators.last;
-    openPosition(signal, currentPair, indicators.last, size, indicators);
+    const size = parseFloat(document.getElementById('tradeSize').value) || 15;
+    await openPosition(signal, currentPair, indicators.last, size, indicators, true);
   }
 
-  checkPositions();
+  await checkPositions();
   updateUI();
   loopTimer = setTimeout(mainLoop, 8000);
 }
@@ -479,7 +543,7 @@ window.onload = () => {
   initChart();
   document.getElementById('capital').value = balance;
   switchToDemo();
-  log('APEX PRO v7 · Kararlı sürüm');
+  log('APEX PRO v8 · Gerçek emir aktif');
 };
 </script>
 </body>
