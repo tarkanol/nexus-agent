@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>APEX PRO v9 · Onaylı İşlem</title>
+  <title>APEX PRO v10 · Akıllı Motor</title>
   <style>
     :root {
       --bg: #030711; --panel: #060f1e; --border: #131f38;
@@ -54,6 +54,12 @@
     .notification.success { background:rgba(0,230,118,0.15); border:1px solid var(--long); color:var(--long); }
     .notification.error { background:rgba(255,61,92,0.15); border:1px solid var(--short); color:var(--short); }
     .notification.info { background:rgba(255,184,48,0.15); border:1px solid var(--warn); color:var(--warn); }
+    .tp-sl-panel { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px; margin-top:8px; font-size:9px; }
+    .toggle-row { display:flex; align-items:center; gap:8px; margin:8px 0; }
+    .toggle { width:40px; height:20px; background:var(--deep); border-radius:10px; cursor:pointer; position:relative; transition:background .2s; }
+    .toggle.on { background:var(--acc); }
+    .toggle::after { content:''; position:absolute; width:16px; height:16px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left .2s; }
+    .toggle.on::after { left:22px; }
   </style>
 </head>
 <body>
@@ -66,9 +72,7 @@
   </div>
 </header>
 
-<!-- BİLDİRİM ALANI -->
 <div id="notifArea" style="padding:0 12px;"></div>
-
 <div class="ticker" id="ticker">⏳ Yükleniyor...</div>
 
 <main>
@@ -109,7 +113,7 @@
         <button class="btn btn-outline" onclick="runBacktest()">Backtest</button>
       </div>
       <div id="backtestResult" style="margin-top:8px;font-size:10px;color:var(--text2);min-height:18px;"></div>
-      <button class="btn btn-warn" id="btnBacktestTrade" style="display:none;margin-top:6px;width:100%;" onclick="confirmBacktestTrade()">📊 Backtest Sonucuyla İşlem Aç</button>
+      <button class="btn btn-warn" id="btnBacktestTrade" style="display:none;margin-top:6px;width:100%;" onclick="confirmBacktestTrade()">📊 Backtest ile İşlem Aç</button>
     </div>
 
     <!-- MOTOR SEKME -->
@@ -121,11 +125,39 @@
         <div><label>Kaldıraç</label><select id="leverage"><option value="2">2x</option><option value="3">3x</option><option value="5">5x</option></select></div>
         <div><label>İşlem $</label><input id="tradeSize" value="15" type="number"></div>
       </div>
+      <div class="grid-2" style="margin-top:8px;">
+        <div>
+          <label>Tarama Sıklığı</label>
+          <select id="scanInterval" onchange="updateScanInterval()">
+            <option value="8">8 saniye</option>
+            <option value="15">15 saniye</option>
+            <option value="30">30 saniye</option>
+            <option value="60">1 dakika</option>
+            <option value="120" selected>2 dakika</option>
+            <option value="300">5 dakika</option>
+            <option value="900">15 dakika</option>
+          </select>
+        </div>
+        <div>
+          <label>Tek Pozisyon Modu</label>
+          <div class="toggle-row">
+            <div class="toggle" id="singlePosToggle" onclick="toggleSinglePos()"></div>
+            <span style="font-size:9px;color:var(--text2);" id="singlePosLabel">Kapalı (çoklu)</span>
+          </div>
+        </div>
+      </div>
       <div class="flex-row" style="margin-top:12px;">
         <button class="btn btn-acc" id="btnEngine" onclick="toggleEngine()">Motoru Başlat</button>
         <button class="btn btn-outline" onclick="runBacktest()">Backtest</button>
       </div>
       <div id="engineSuggestion" style="margin-top:8px;font-size:10px;color:var(--warn);min-height:18px;"></div>
+
+      <!-- TP/SL Canlı Panel -->
+      <div class="tp-sl-panel" id="tpSlPanel">
+        <div style="color:var(--dim);margin-bottom:4px;">📌 AÇIK POZİSYON TP/SL</div>
+        <div id="tpSlContent" style="color:var(--text2);">Pozisyon yok</div>
+      </div>
+      <div id="commWarning" style="margin-top:6px;font-size:9px;color:var(--short);display:none;"></div>
     </div>
 
     <!-- PORTFÖY SEKME -->
@@ -158,7 +190,7 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// APEX PRO v9 — ONAYLI İŞLEM + NET BİLDİRİM
+// APEX PRO v10 — AKILLI MOTOR
 // ═══════════════════════════════════════════════════════
 const MAX_POS = 3;
 const COMM = 0.0004;
@@ -175,7 +207,8 @@ let klines = [], indicators = {};
 let signal = 'WAIT';
 let loopTimer = null;
 let lastBacktestResult = null;
-let pendingSignal = null;
+let singlePosMode = false; // Tek pozisyon modu
+let scanInterval = 120; // Varsayılan 2 dakika (saniye)
 
 const DEMO = {
   BTCUSDT:68000, ETHUSDT:3500, SOLUSDT:180, BNBUSDT:590, XRPUSDT:0.65
@@ -191,7 +224,6 @@ function showNotification(msg, type = 'info') {
   setTimeout(() => div.remove(), 4000);
 }
 
-// ── LOG ──────────────────────────────────────────
 function log(msg) {
   const b = document.getElementById('logBox');
   const t = new Date().toLocaleTimeString('tr-TR');
@@ -215,6 +247,7 @@ function updateUI() {
   const total = trades.length;
   document.getElementById('winRate').textContent = total ? (wins/total*100).toFixed(1)+'%' : '--';
 
+  // Pozisyon listesi
   let posHtml = '';
   positions.forEach(p => {
     const pr = currentPrice(p.pair);
@@ -224,8 +257,11 @@ function updateUI() {
   });
   document.getElementById('posList').innerHTML = posHtml || 'Açık pozisyon yok';
 
-  document.getElementById('btnLong').disabled = false;
-  document.getElementById('btnShort').disabled = false;
+  // TP/SL panelini güncelle
+  updateTpSlPanel();
+
+  // Komisyon uyarısı
+  updateCommWarning();
 
   // Öneri metni
   if (signal !== 'WAIT') {
@@ -235,6 +271,48 @@ function updateUI() {
   } else {
     document.getElementById('sigSuggestion').textContent = '';
     document.getElementById('engineSuggestion').textContent = '';
+  }
+}
+
+function updateTpSlPanel() {
+  const panel = document.getElementById('tpSlContent');
+  if (positions.length === 0) {
+    panel.innerHTML = '<span style="color:var(--text3);">Pozisyon yok</span>';
+    return;
+  }
+  let html = '';
+  positions.forEach(p => {
+    const tp = p.tp || p.tp1 || 0;
+    const sl = p.sl || 0;
+    const tpPct = tp > 0 ? ((tp - p.entry) / p.entry * 100).toFixed(2) : '--';
+    const slPct = sl > 0 ? ((p.entry - sl) / p.entry * 100).toFixed(2) : '--';
+    html += `<div style="margin:4px 0;display:flex;gap:12px;align-items:center;">
+      <span style="color:var(--text);">${p.pair.replace('USDT','')} ${p.side}</span>
+      <span style="color:var(--long);">TP: $${tp.toFixed(2)} (${tpPct}%)</span>
+      <span style="color:var(--short);">SL: $${sl.toFixed(2)} (${slPct}%)</span>
+    </div>`;
+  });
+  panel.innerHTML = html;
+}
+
+function updateCommWarning() {
+  const warn = document.getElementById('commWarning');
+  if (positions.length === 0) { warn.style.display = 'none'; return; }
+  // Her pozisyon için komisyon kontrolü
+  let warnings = [];
+  positions.forEach(p => {
+    const commCost = (p.posValue || 15) * COMM * 2; // açılış + kapanış
+    const tpDist = p.tp ? Math.abs(p.tp - p.entry) : 0;
+    const tpProfit = tpDist / p.entry * (p.posValue || 15) * (p.lev || 2);
+    if (tpProfit < commCost) {
+      warnings.push(`${p.pair}: TP kazancı ($${tpProfit.toFixed(3)}) < komisyon ($${commCost.toFixed(3)})`);
+    }
+  });
+  if (warnings.length) {
+    warn.style.display = 'block';
+    warn.textContent = '⚠️ ' + warnings.join(' | ');
+  } else {
+    warn.style.display = 'none';
   }
 }
 
@@ -317,54 +395,52 @@ function generateSignal(ind, kl, strat='trend') {
   return {signal:sig,conf,reasons:r.join(',')};
 }
 
-// ═══════════════════ GERÇEK EMİR ═══════════════════
+// ── GERÇEK EMİR ──────────────────────────────────
 async function sendOrderToWorker(side, symbol, usdAmount, leverage, tp, sl) {
   if (!WORKER) return { success: false, error: 'Worker URL yok' };
   try {
     const res = await fetch(WORKER + '/order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol, side, usdAmount, leverage, tp: parseFloat(tp.toFixed(2)), sl: parseFloat(sl.toFixed(2)) })
     });
     return await res.json();
   } catch(e) { return { success: false, error: e.message }; }
 }
-
 async function closeOrderOnWorker(symbol, side) {
   if (!WORKER) return { success: false, error: 'Worker URL yok' };
   try {
     const res = await fetch(WORKER + '/close', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol, side })
     });
     return await res.json();
   } catch(e) { return { success: false, error: e.message }; }
 }
 
-// ═══════════════════ İŞLEM ONAY ═══════════════════
+// ── İŞLEM ONAY ───────────────────────────────────
 function confirmTrade(side) {
   if (!indicators.last) return showNotification('⛔ Veri bekleniyor...', 'error');
-  const sig = signal;
-  const strat = document.getElementById('strategy').value;
-  const conf = indicators.conf || generateSignal(indicators, klines, strat).conf;
+  const conf = indicators.conf || generateSignal(indicators, klines, document.getElementById('strategy').value).conf;
   const msg = `${side} işlemi açılacak.\nPair: ${currentPair}\nFiyat: ${indicators.last.toFixed(2)}\nGüven: %${conf}\n\nOnaylıyor musunuz?`;
-  if (confirm(msg)) {
-    executeTrade(side);
-  }
+  if (confirm(msg)) executeTrade(side);
 }
-
 function confirmBacktestTrade() {
   if (!lastBacktestResult) return;
   const { signal: sig, conf } = lastBacktestResult;
-  if (sig === 'WAIT') return showNotification('Backtest sinyali WAIT, işlem açılmaz.', 'error');
-  const msg = `Backtest sonucuyla ${sig} işlemi açılacak.\nPair: ${currentPair}\nBacktest Güven: %${conf}\n\nOnaylıyor musunuz?`;
-  if (confirm(msg)) {
-    executeTrade(sig);
-  }
+  if (sig === 'WAIT') return showNotification('Backtest sinyali WAIT', 'error');
+  if (confirm(`Backtest ile ${sig} açılsın mı?\nGüven: %${conf}`)) executeTrade(sig);
 }
 
 async function executeTrade(side) {
+  // Tek pozisyon modu kontrolü
+  if (singlePosMode && positions.length > 0) {
+    showNotification('⛔ Tek Pozisyon Modu aktif — mevcut pozisyon kapanmadan yeni işlem açılmaz', 'error');
+    log('⛔ Tek Pozisyon Modu: yeni işlem engellendi');
+    return;
+  }
+  if (positions.length >= MAX_POS) return showNotification('⛔ Max pozisyon (3)', 'error');
+  if (positions.some(p => p.pair === currentPair)) return showNotification(`⛔ ${currentPair} zaten açık`, 'error');
+
   const lev = parseInt(document.getElementById('leverage').value) || 2;
   const tradeSizeUSD = parseFloat(document.getElementById('tradeSize').value) || 15;
   const price = indicators.last;
@@ -378,21 +454,20 @@ async function executeTrade(side) {
   positions.push(posObj);
   dailyPnL -= pv * COMM;
   balance -= pv * COMM;
-  showNotification(`✅ ${side} ${currentPair.replace('USDT','')} açıldı! @${price.toFixed(2)} TP:${tp.toFixed(2)} SL:${sl.toFixed(2)}`, 'success');
+  showNotification(`✅ ${side} ${currentPair.replace('USDT','')} açıldı! TP:$${tp.toFixed(2)} SL:$${sl.toFixed(2)}`, 'success');
   log(`✅ ${side} ${currentPair.replace('USDT','')} @${price.toFixed(2)} TP:${tp.toFixed(2)} SL:${sl.toFixed(2)} $${pv.toFixed(0)}`);
 
   if (mode === 'live' && WORKER) {
     showNotification('📡 Binance emri gönderiliyor...', 'info');
     const result = await sendOrderToWorker(side, currentPair, tradeSizeUSD, lev, tp, sl);
     if (result.success) {
-      showNotification('✅ Binance: Emir başarıyla iletildi! qty:' + result.quantity + ' @' + result.price, 'success');
-      log('✅ Binance: ' + side + ' ' + currentPair + ' qty:' + result.quantity + ' @' + result.price);
+      showNotification('✅ Binance: Emir iletildi!', 'success');
+      log('✅ Binance: ' + side + ' qty:' + result.quantity + ' @' + result.price);
     } else {
       showNotification('❌ Binance HATASI: ' + (result.error || 'bilinmeyen'), 'error');
-      log('❌ Binance emir HATASI: ' + (result.error || 'bilinmeyen'));
+      log('❌ Binance HATASI: ' + (result.error || 'bilinmeyen'));
       positions = positions.filter(p => p.id !== posObj.id);
-      balance += pv * COMM;
-      dailyPnL += pv * COMM;
+      balance += pv * COMM; dailyPnL += pv * COMM;
     }
   }
   updateUI();
@@ -406,19 +481,13 @@ async function closePos(pos, reason) {
   dailyPnL += pnl;
   trades.push({ pair: pos.pair, side: pos.side, pnl, reason });
   positions = positions.filter(p => p.id !== pos.id);
-  const emoji = reason === 'TP' ? '🟢' : '🔴';
-  showNotification(`${emoji} ${pos.pair.replace('USDT','')} ${pos.side} kapandı! PnL:$${pnl.toFixed(2)}`, pnl >= 0 ? 'success' : 'error');
-  log(`${emoji} ${pos.pair.replace('USDT','')} ${pos.side} PnL:$${pnl.toFixed(2)} Bal:$${balance.toFixed(2)}`);
+  showNotification(`${reason==='TP'?'🟢':'🔴'} ${pos.pair.replace('USDT','')} kapandı! PnL:$${pnl.toFixed(2)}`, pnl>=0?'success':'error');
+  log(`${reason==='TP'?'🟢':'🔴'} ${pos.pair.replace('USDT','')} PnL:$${pnl.toFixed(2)} Bal:$${balance.toFixed(2)}`);
 
   if (mode === 'live' && WORKER) {
     const result = await closeOrderOnWorker(pos.pair, pos.side);
-    if (result.success) {
-      showNotification('✅ Binance kapatıldı: ' + pos.pair, 'success');
-      log('✅ Binance kapatıldı: ' + pos.pair + ' qty:' + (result.closedQty || result.quantity));
-    } else {
-      showNotification('❌ Binance kapatma HATASI: ' + (result.error || 'bilinmeyen'), 'error');
-      log('❌ Binance kapatma HATASI: ' + (result.error || 'bilinmeyen'));
-    }
+    if (result.success) log('✅ Binance kapatıldı: ' + pos.pair);
+    else log('❌ Binance kapatma HATASI: ' + (result.error || ''));
   }
   if (balance > peakBalance) peakBalance = balance;
   updateUI();
@@ -455,17 +524,15 @@ function runBacktest() {
   }
   const wr = t ? (w/t*100).toFixed(1) : '0';
   const pnl = (sim - balance).toFixed(2);
-  const resultMsg = `Backtest [${strat}]: ${t} işlem Win:${w} %${wr} PnL:$${pnl}`;
+  const resultMsg = `Backtest: ${t} işlem Win:${w} %${wr} PnL:$${pnl}`;
   log(resultMsg);
   document.getElementById('backtestResult').textContent = '📊 ' + resultMsg;
-
-  // Backtest sonucu olumluysa işlem öner
   if (t > 0 && wr > 40 && pnl > 0) {
     const sig = generateSignal(indicators, klines, strat);
     if (sig.signal !== 'WAIT') {
       lastBacktestResult = { signal: sig.signal, conf: sig.conf };
       document.getElementById('btnBacktestTrade').style.display = 'block';
-      document.getElementById('btnBacktestTrade').textContent = `📊 Backtest ile ${sig.signal} Aç (%${sig.conf} güven, ${wr}% win rate)`;
+      document.getElementById('btnBacktestTrade').textContent = `📊 Backtest ile ${sig.signal} Aç (%${sig.conf} güven)`;
     } else {
       document.getElementById('btnBacktestTrade').style.display = 'none';
     }
@@ -485,9 +552,7 @@ function drawChart() {
   const closes = klines.map(k => k.close);
   const min = Math.min(...closes) * 0.999, max = Math.max(...closes) * 1.001, rng = max - min;
   const pad = {l:20, r:10, t:10, b:20};
-  chartCtx.beginPath();
-  chartCtx.strokeStyle = '#00e0a0';
-  chartCtx.lineWidth = 2;
+  chartCtx.beginPath(); chartCtx.strokeStyle = '#00e0a0'; chartCtx.lineWidth = 2;
   closes.forEach((v, i) => {
     const x = pad.l + i / (closes.length - 1) * (w - pad.l - pad.r);
     const y = pad.t + (max - v) / rng * (h - pad.t - pad.b);
@@ -512,17 +577,14 @@ async function fetchLiveData() {
       klines = kl.data.map(k => ({time: k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5]}));
       indicators = computeIndicators(klines);
       const sig = generateSignal(indicators, klines, document.getElementById('strategy').value);
-      signal = sig.signal;
-      indicators.conf = sig.conf;
+      signal = sig.signal; indicators.conf = sig.conf;
       updateSignalUI(sig);
     }
-  } catch(e) { log('⚠️ Veri çekme hatası: ' + e.message); }
+  } catch(e) { log('⚠️ Veri çekme: ' + e.message); }
 }
-
 function updateTickerLive(sym, price) {
   document.getElementById('ticker').innerHTML = `<span>${(sym||currentPair).replace('USDT','')} $${price.toFixed(2)}</span>`;
 }
-
 function updateSignalUI(sig) {
   document.getElementById('sigMain').textContent = sig.signal;
   document.getElementById('sigMain').className = 'signal-badge ' + sig.signal;
@@ -532,8 +594,7 @@ function updateSignalUI(sig) {
   document.getElementById('iAdx').textContent = indicators.adx.toFixed(1) + (indicators.adx>25?' Trend':' Side');
   document.getElementById('iVol').textContent = indicators.volumeRatio.toFixed(2);
   document.getElementById('iPoc').textContent = indicators.poc.toFixed(2);
-  drawChart();
-  updateUI();
+  drawChart(); updateUI();
 }
 
 // ── BAĞLANTI ──────────────────────────────────────
@@ -541,37 +602,51 @@ async function connect() {
   const url = document.getElementById('workerUrl').value.trim();
   if (!url) return log('❌ URL girin');
   try {
-    const r = await fetch(url + '/ping');
-    const d = await r.json();
+    const r = await fetch(url + '/ping'); const d = await r.json();
     if (d.success) {
       WORKER = url; mode = 'live';
       balance = parseFloat(document.getElementById('capital').value) || 50;
       startBalance = balance; peakBalance = balance;
-      document.getElementById('connBadge').textContent = 'LIVE';
-      document.getElementById('connBadge').className = 'badge live';
+      document.getElementById('connBadge').textContent = 'LIVE'; document.getElementById('connBadge').className = 'badge live';
       document.getElementById('modeBadge').textContent = 'LIVE';
-      showNotification('✅ Canlı bağlantı kuruldu! Emirler Binance\'a iletilecek.', 'success');
-      log('✅ Canlı bağlantı kuruldu');
+      showNotification('✅ Canlı bağlantı kuruldu!', 'success');
       if (loopTimer) clearTimeout(loopTimer);
       mainLoop();
-    } else {
-      showNotification('❌ Worker yanıt vermedi', 'error');
-      log('❌ Worker yanıt vermedi');
-    }
-  } catch(e) { showNotification('❌ Bağlantı hatası: ' + e.message, 'error'); log('❌ Bağlantı hatası: ' + e.message); }
+    } else { showNotification('❌ Worker yanıt vermedi', 'error'); }
+  } catch(e) { showNotification('❌ Bağlantı hatası: ' + e.message, 'error'); }
 }
-
 function switchToDemo() {
   mode = 'demo'; WORKER = '';
   balance = parseFloat(document.getElementById('capital').value) || 50;
   startBalance = balance; peakBalance = balance;
-  document.getElementById('connBadge').textContent = 'DEMO';
-  document.getElementById('connBadge').className = 'badge demo';
+  document.getElementById('connBadge').textContent = 'DEMO'; document.getElementById('connBadge').className = 'badge demo';
   document.getElementById('modeBadge').textContent = 'SIM';
-  showNotification('🧪 Demo mod aktif — emir gönderilmez', 'info');
-  log('🧪 Demo mod');
+  showNotification('🧪 Demo mod', 'info');
   if (loopTimer) clearTimeout(loopTimer);
   mainLoop();
+}
+
+// ── TEK POZİSYON MODU ─────────────────────────────
+function toggleSinglePos() {
+  singlePosMode = !singlePosMode;
+  const toggle = document.getElementById('singlePosToggle');
+  const label = document.getElementById('singlePosLabel');
+  if (singlePosMode) {
+    toggle.classList.add('on');
+    label.textContent = 'Açık (tek pozisyon)';
+    showNotification('🔒 Tek Pozisyon Modu: Sadece 1 işlem açık kalır', 'info');
+  } else {
+    toggle.classList.remove('on');
+    label.textContent = 'Kapalı (çoklu)';
+    showNotification('🔓 Çoklu Pozisyon Modu: 3 işleme kadar', 'info');
+  }
+}
+function updateScanInterval() {
+  scanInterval = parseInt(document.getElementById('scanInterval').value);
+  log('⏱ Tarama sıklığı: ' + scanInterval + 's');
+  // Döngüyü yeniden başlat
+  if (loopTimer) clearTimeout(loopTimer);
+  if (engineRunning || mode === 'live' || mode === 'demo') mainLoop();
 }
 
 // ── ANA DÖNGÜ ─────────────────────────────────────
@@ -580,27 +655,31 @@ async function mainLoop() {
     klines = generateKlines(currentPair, 100);
     indicators = computeIndicators(klines);
     const sig = generateSignal(indicators, klines, document.getElementById('strategy').value);
-    signal = sig.signal;
-    indicators.conf = sig.conf;
+    signal = sig.signal; indicators.conf = sig.conf;
     updateSignalUI(sig);
   } else if (mode === 'live') {
     await fetchLiveData();
   }
 
+  // Motor aktifse ve sinyal varsa ve tek pozisyon modu izin veriyorsa
   if (engineRunning && signal !== 'WAIT' && indicators.last) {
-    const size = parseFloat(document.getElementById('tradeSize').value) || 15;
-    await executeTrade(signal);
+    if (singlePosMode && positions.length > 0) {
+      log('⏳ Tek Pozisyon Modu: yeni sinyal beklemede');
+    } else {
+      const size = parseFloat(document.getElementById('tradeSize').value) || 15;
+      await executeTrade(signal);
+    }
   }
 
   await checkPositions();
   updateUI();
-  loopTimer = setTimeout(mainLoop, 8000);
+  loopTimer = setTimeout(mainLoop, scanInterval * 1000);
 }
 
 function toggleEngine() {
   engineRunning = !engineRunning;
   document.getElementById('btnEngine').textContent = engineRunning ? 'Durdur' : 'Başlat';
-  const msg = engineRunning ? '🚀 Motor çalıştı — otomatik işlem aktif' : '⏸️ Motor durdu';
+  const msg = engineRunning ? '🚀 Motor çalıştı (her ' + scanInterval + 'sn)' : '⏸️ Motor durdu';
   showNotification(msg, engineRunning ? 'success' : 'info');
   log(msg);
 }
@@ -609,8 +688,9 @@ function toggleEngine() {
 window.onload = () => {
   initChart();
   document.getElementById('capital').value = balance;
+  document.getElementById('scanInterval').value = scanInterval;
   switchToDemo();
-  log('APEX PRO v9 · Onaylı işlem sistemi');
+  log('APEX PRO v10 · Akıllı Motor');
 };
 </script>
 </body>
