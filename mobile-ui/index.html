@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>APEX PRO · Kurumsal Futures Terminal</title>
+  <title>APEX PRO · Kurumsal Futures Terminal v3</title>
   <style>
     :root {
       --bg: #030711; --panel: #060f1e; --border: #131f38;
@@ -144,7 +144,7 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// APEX PRO ENGINE v2 — CANLI VERİ + DÜZELTMELER
+// APEX PRO v3 — TÜM SORUNLAR ÇÖZÜLDÜ
 // ═══════════════════════════════════════════════════════
 const MAX_POS = 3;
 const COMM = 0.0004;
@@ -160,7 +160,8 @@ let kellyFraction = 0.10;
 let currentPair = 'BTCUSDT';
 let klines = [], indicators = {};
 let signal = 'WAIT';
-let connectAttempted = false;
+let mode = 'demo'; // 'demo' | 'live'
+let mainLoopTimer = null;
 
 const DEMO = {
   BTCUSDT:68000, ETHUSDT:3500, SOLUSDT:180, BNBUSDT:590, XRPUSDT:0.65
@@ -211,12 +212,13 @@ function updateUI() {
   const size = riskAmount / (atrVal * 1.5);
   document.getElementById('posSize').textContent = '$' + Math.min(size * currentPrice(), balance*0.4).toFixed(0);
 
-  document.getElementById('btnLong').disabled = !connected && WORKER!=='demo';
-  document.getElementById('btnShort').disabled = !connected && WORKER!=='demo';
+  const btnsDisabled = (mode !== 'demo' && !connected);
+  document.getElementById('btnLong').disabled = btnsDisabled;
+  document.getElementById('btnShort').disabled = btnsDisabled;
 }
 
 function currentPrice() {
-  if (WORKER === 'demo') return DEMO[currentPair] || 100;
+  if (mode === 'demo') return DEMO[currentPair] || 100;
   return indicators.last || (DEMO[currentPair] || 100);
 }
 
@@ -381,7 +383,7 @@ function manualTrade(side) {
 }
 function checkPositions() {
   positions.forEach(p=>{
-    const price=(WORKER==='demo'?DEMO[p.pair]:indicators.last)||p.entry;
+    const price=(mode==='demo'?DEMO[p.pair]:indicators.last)||p.entry;
     const mult=p.side==='LONG'?1:-1;
     const pnl=(price-p.entry)*mult*p.qty-p.comm;
     if(pnl>0&&price>=p.tp) closePosition(p,'TP');
@@ -389,7 +391,7 @@ function checkPositions() {
   });
 }
 function closePosition(pos, reason) {
-  const price=(WORKER==='demo'?DEMO[pos.pair]:indicators.last)||pos.entry;
+  const price=(mode==='demo'?DEMO[pos.pair]:indicators.last)||pos.entry;
   const mult=pos.side==='LONG'?1:-1;
   const pnl=(price-pos.entry)*mult*pos.qty-pos.comm;
   balance+=pnl+pos.posValue; dailyPnL+=pnl;
@@ -401,9 +403,9 @@ function closePosition(pos, reason) {
 
 // ═══════════════════════ BACKTEST ═════════════════
 function runBacktest() {
+  if (!klines || klines.length < 50) return addLog('⛔ Backtest için yeterli veri yok (min 50 mum gerekli)');
   const strat=document.getElementById('strategy').value;
-  const k=WORKER==='demo'?generateKlines(currentPair,200):klines.slice();
-  if(!k.length) return addLog('Backtest için veri yok');
+  const k = klines.slice();
   let simBal=balance, simPos=null, wins=0, total=0;
   for(let i=50;i<k.length;i++){
     const sl=k.slice(0,i+1), ind=computeIndicators(sl), sig=generateSignal(ind,strat);
@@ -437,120 +439,136 @@ function drawChart(){
   c.stroke();
 }
 
-// ═══════════════════════ BAĞLANTI ═════════════════
-async function fetchLivePrices() {
-  const pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
-  const results=[];
-  for(const sym of pairs){
-    try{
-      const r=await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${sym}`);
-      const d=await r.json();
-      if(d.price) results.push({symbol:sym,price:parseFloat(d.price)});
-    }catch(e){}
+// ═══════════════════════ VERİ ÇEKME (WORKER) ═════════════════
+async function fetchPricesFromWorker() {
+  if (!WORKER) return [];
+  const pairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
+  const results = [];
+  for (const sym of pairs) {
+    try {
+      const r = await fetch(`${WORKER}/price?symbol=${sym}`);
+      const d = await r.json();
+      if (d.success && d.data) results.push({symbol:sym, price:parseFloat(d.data.lastPrice||d.data.price)});
+    } catch(e) {}
   }
   return results;
 }
-async function fetchLiveKlines(sym,interval='15m',limit=100){
-  try{
-    const r=await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
-    const d=await r.json();
-    if(Array.isArray(d)) return d.map(k=>({time:k[0],open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5])}));
-  }catch(e){}
+
+async function fetchKlinesFromWorker(sym, interval='15m', limit=100) {
+  if (!WORKER) return null;
+  try {
+    const r = await fetch(`${WORKER}/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
+    const d = await r.json();
+    if (d.success && Array.isArray(d.data)) {
+      return d.data.map(k => ({
+        time: k[0], open: parseFloat(k[1]), high: parseFloat(k[2]),
+        low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5])
+      }));
+    }
+  } catch(e) {}
   return null;
 }
 
+// ═══════════════════════ BAĞLANTI ═════════════════
 async function connect() {
-  const url=document.getElementById('workerUrl').value.trim();
-  if(!url){switchToDemo();return;}
-  try{
-    const r=await fetch(url+'/ping'); const d=await r.json();
-    if(d.success){
-      WORKER=url; connected=true; connectAttempted=false;
-      balance=parseFloat(document.getElementById('capital').value)||50;
-      startBalance=balance; peakBalance=balance;
-      document.getElementById('connBadge').textContent='LIVE'; document.getElementById('connBadge').className='badge live';
-      document.getElementById('modeBadge').textContent='LIVE'; document.getElementById('modeBadge').className='badge live';
+  const url = document.getElementById('workerUrl').value.trim();
+  if (!url) { switchToDemo(); return; }
+  
+  try {
+    const r = await fetch(url + '/ping');
+    const d = await r.json();
+    if (d.success) {
+      WORKER = url;
+      mode = 'live';
+      connected = true;
+      balance = parseFloat(document.getElementById('capital').value) || 50;
+      startBalance = balance; peakBalance = balance;
+      document.getElementById('connBadge').textContent = 'LIVE';
+      document.getElementById('connBadge').className = 'badge live';
+      document.getElementById('modeBadge').textContent = 'LIVE';
+      document.getElementById('modeBadge').className = 'badge live';
       addLog('✅ Canlı bağlantı kuruldu');
-      await refreshLiveData();
+      // Canlı döngü başlat
+      if (mainLoopTimer) clearTimeout(mainLoopTimer);
+      mainLoop();
     }
-  }catch(e){addLog('❌ Worker bağlantı hatası: '+e.message);}
+  } catch(e) { addLog('❌ Worker bağlantı hatası: ' + e.message); }
 }
+
 function switchToDemo() {
-  WORKER='demo'; connected=true; connectAttempted=false;
-  balance=parseFloat(document.getElementById('capital').value)||50;
-  startBalance=balance; peakBalance=balance;
-  document.getElementById('connBadge').textContent='DEMO'; document.getElementById('connBadge').className='badge demo';
-  document.getElementById('modeBadge').textContent='SIM'; document.getElementById('modeBadge').className='badge demo';
+  WORKER = '';
+  mode = 'demo';
+  connected = false;
+  balance = parseFloat(document.getElementById('capital').value) || 50;
+  startBalance = balance; peakBalance = balance;
+  document.getElementById('connBadge').textContent = 'DEMO';
+  document.getElementById('connBadge').className = 'badge demo';
+  document.getElementById('modeBadge').textContent = 'SIM';
+  document.getElementById('modeBadge').className = 'badge demo';
   addLog('🧪 Demo mod aktif');
+  if (mainLoopTimer) clearTimeout(mainLoopTimer);
+  mainLoop();
 }
 
-async function refreshLiveData() {
-  if(!connected||WORKER==='demo') return;
-  try{
-    const [prices,kl]=await Promise.all([fetchLivePrices(),fetchLiveKlines(currentPair)]);
-    if(prices.length) updateTickerFromLive(prices);
-    if(kl&&kl.length>50){
-      klines=kl; indicators=computeIndicators(kl);
-      const sig=generateSignal(indicators,document.getElementById('strategy').value);
-      signal=sig.signal;
-      document.getElementById('sigMain').textContent=sig.signal;
-      document.getElementById('sigMain').className='signal-badge '+sig.signal;
-      document.getElementById('indRsi').textContent=indicators.rsi.toFixed(1);
-      document.getElementById('indMacd').textContent=indicators.macd.toFixed(4);
-      document.getElementById('indAtr').textContent=indicators.atr.toFixed(2);
-      document.getElementById('indAdx').textContent=indicators.adx.toFixed(1)+(indicators.adx>25?' Trend':' Sideways');
-      document.getElementById('indVol').textContent=indicators.volumeRatio.toFixed(2);
-      document.getElementById('indPoc').textContent=indicators.poc.toFixed(2);
-      drawChart();
-    }
-    checkPositions(); updateUI();
-  }catch(e){addLog('⚠️ Veri çekme hatası');}
-}
-
-// ═══════════════════════ DÖNGÜ ═══════════════════
-function mainLoop() {
-  if(WORKER==='demo'){
-    klines=generateKlines(currentPair,100);
-    indicators=computeIndicators(klines);
-    const sig=generateSignal(indicators,document.getElementById('strategy').value);
-    signal=sig.signal;
-    document.getElementById('sigMain').textContent=sig.signal;
-    document.getElementById('sigMain').className='signal-badge '+sig.signal;
-    document.getElementById('pairTitle').textContent=currentPair+' · 15m';
-    document.getElementById('indRsi').textContent=indicators.rsi.toFixed(1);
-    document.getElementById('indMacd').textContent=indicators.macd.toFixed(4);
-    document.getElementById('indAtr').textContent=indicators.atr.toFixed(2);
-    document.getElementById('indAdx').textContent=indicators.adx.toFixed(1)+(indicators.adx>25?' Trend':' Sideways');
-    document.getElementById('indVol').textContent=indicators.volumeRatio.toFixed(2);
-    document.getElementById('indPoc').textContent=indicators.poc.toFixed(2);
-    updateTickerDemo(); drawChart();
-    if(engineRunning&&signal!=='WAIT'){
-      const size=calculatePositionSize({signal},indicators);
-      openPosition(signal,currentPair,indicators.last,size,indicators);
-    }
-    checkPositions(); updateUI();
-  }else if(connected){
-    refreshLiveData();
-    if(engineRunning&&signal!=='WAIT'&&indicators.last){
-      const size=calculatePositionSize({signal},indicators);
-      openPosition(signal,currentPair,indicators.last,size,indicators);
-    }
+// ═══════════════════════ ANA DÖNGÜ ═══════════════
+async function mainLoop() {
+  if (mode === 'demo') {
+    klines = generateKlines(currentPair, 100);
+    indicators = computeIndicators(klines);
+    const sig = generateSignal(indicators, document.getElementById('strategy').value);
+    signal = sig.signal;
+    updateTickerDemo();
+  } else if (mode === 'live' && WORKER) {
+    try {
+      const prices = await fetchPricesFromWorker();
+      if (prices.length) updateTickerFromLive(prices);
+      const kl = await fetchKlinesFromWorker(currentPair);
+      if (kl && kl.length > 50) {
+        klines = kl;
+        indicators = computeIndicators(kl);
+        const sig = generateSignal(indicators, document.getElementById('strategy').value);
+        signal = sig.signal;
+      }
+    } catch(e) {}
   }
-  setTimeout(mainLoop,8000);
+
+  // UI güncelle
+  if (indicators.last) {
+    document.getElementById('sigMain').textContent = signal;
+    document.getElementById('sigMain').className = 'signal-badge ' + signal;
+    document.getElementById('pairTitle').textContent = currentPair + ' · 15m';
+    document.getElementById('indRsi').textContent = indicators.rsi.toFixed(1);
+    document.getElementById('indMacd').textContent = indicators.macd.toFixed(4);
+    document.getElementById('indAtr').textContent = indicators.atr.toFixed(2);
+    document.getElementById('indAdx').textContent = indicators.adx.toFixed(1) + (indicators.adx>25?' Trend':' Sideways');
+    document.getElementById('indVol').textContent = indicators.volumeRatio.toFixed(2);
+    document.getElementById('indPoc').textContent = indicators.poc.toFixed(2);
+    drawChart();
+  }
+
+  // Motor
+  if (engineRunning && signal !== 'WAIT' && indicators.last) {
+    const size = calculatePositionSize({signal}, indicators);
+    openPosition(signal, currentPair, indicators.last, size, indicators);
+  }
+
+  checkPositions();
+  updateUI();
+  mainLoopTimer = setTimeout(mainLoop, 8000);
 }
+
 function toggleEngine() {
-  engineRunning=!engineRunning;
-  document.getElementById('btnStartEngine').textContent=engineRunning?'Motoru Durdur':'Motoru Başlat';
-  addLog(engineRunning?'🚀 Pro motor çalıştı':'⏸️ Motor durdu');
+  engineRunning = !engineRunning;
+  document.getElementById('btnStartEngine').textContent = engineRunning ? 'Motoru Durdur' : 'Motoru Başlat';
+  addLog(engineRunning ? '🚀 Pro motor çalıştı' : '⏸️ Motor durdu');
 }
 
 // ═══════════════════════ BAŞLANGIÇ ═══════════════
-window.onload=()=>{
+window.onload = () => {
   initChart();
-  document.getElementById('capital').value=balance;
+  document.getElementById('capital').value = balance;
   switchToDemo();
-  addLog('APEX PRO v2 · Demo mod başladı');
-  mainLoop();
+  addLog('APEX PRO v3 · Demo mod başladı');
 };
 </script>
 </body>
