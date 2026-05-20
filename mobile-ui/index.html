@@ -54,10 +54,10 @@
 <header>
   <div class="logo">APEX PRO</div>
   <div class="status">
-    <span class="badge" id="connBadge">OFFLINE</span>
-    <span class="badge" id="modeBadge">DEMO</span>
+    <span class="badge demo" id="connBadge">DEMO</span>
+    <span class="badge demo" id="modeBadge">SIM</span>
     <span class="badge" id="posBadge">0/3</span>
-    <span class="badge" id="riskBadge">RISK OK</span>
+    <span class="badge" id="riskBadge" style="background:#0a2f1a">RISK OK</span>
   </div>
 </header>
 <div class="ticker" id="ticker">Fiyatlar yükleniyor...</div>
@@ -70,6 +70,8 @@
       <button class="tab" onclick="switchTab('portfolio')">Portföy</button>
       <button class="tab" onclick="switchTab('settings')">Ayarlar</button>
     </div>
+
+    <!-- Sinyal Sekmesi -->
     <div id="signal" class="tab-content active">
       <div class="flex-row" style="justify-content:space-between;align-items:center;">
         <h3 id="pairTitle">BTCUSDT · 15m</h3>
@@ -85,16 +87,18 @@
         <div><span class="metric-label">POC</span><div class="metric" id="indPoc">--</div></div>
       </div>
       <div class="flex-row" style="margin-top:10px;">
-        <button class="btn btn-long" id="btnLong" disabled>LONG</button>
-        <button class="btn btn-short" id="btnShort" disabled>SHORT</button>
+        <button class="btn btn-long" id="btnLong" onclick="manualTrade('LONG')">LONG</button>
+        <button class="btn btn-short" id="btnShort" onclick="manualTrade('SHORT')">SHORT</button>
         <button class="btn btn-outline" onclick="runBacktest()">Backtest</button>
       </div>
     </div>
+
+    <!-- Pro Motor Sekmesi -->
     <div id="engine" class="tab-content">
       <h3>Pro Trade Motoru</h3>
       <div class="grid-2">
         <div><label>Strateji</label><select id="strategy"><option value="trend">Trend İzleyen</option><option value="mean">Mean Reversion</option><option value="breakout">Breakout</option></select></div>
-        <div><label>Risk Modeli</label><select id="riskModel"><option value="kelly">Kelly Kriteri</option><option value="fixed">Sabit %</option><option value="atr">ATR Bazlı</option></select></div>
+        <div><label>Risk Modeli</label><select id="riskModel"><option value="kelly">Kelly Kriteri</option><option value="fixed">Sabit %2</option><option value="atr">ATR Bazlı</option></select></div>
         <div><label>Maks. Günlük DD %</label><input id="maxDailyDD" value="5" type="number"></div>
         <div><label>Zaman Filtresi (UTC)</label><input id="timeFilter" value="02:00-07:00" placeholder="Başlangıç-Bitiş"></div>
       </div>
@@ -108,6 +112,8 @@
         <div><span class="metric-label">Günlük DD</span><div class="metric" id="dailyDD">0%</div></div>
       </div>
     </div>
+
+    <!-- Portföy Sekmesi -->
     <div id="portfolio" class="tab-content">
       <h3>Portföy</h3>
       <div class="grid-3">
@@ -117,6 +123,8 @@
       </div>
       <div class="log-box" id="tradeLog" style="height:150px;"></div>
     </div>
+
+    <!-- Ayarlar Sekmesi -->
     <div id="settings" class="tab-content">
       <h3>Ayarlar</h3>
       <div class="grid-2">
@@ -130,36 +138,35 @@
 
 <script>
 // ═══════════════════════════════════════════════════════
-// PRO ENGINE v1.0
+// APEX PRO ENGINE v1.0 – OTOMATİK DEMO BAŞLANGIÇ
 // ═══════════════════════════════════════════════════════
 const MAX_POS = 3;
 const COMM = 0.0004;
 
 // State
 let WORKER = 'demo';
-let connected = false, engineRunning = false;
+let connected = true;   // demo modda hep true
+let engineRunning = false;
 let balance = 50, startBalance = 50;
 let positions = [], trades = [];
 let posId = 1;
 let dailyPnL = 0, peakBalance = 50;
-let kellyFraction = 0.15; // Kelly'nin %15'i (güvenli)
+let kellyFraction = 0.10; // Kelly'nin %10'u (güvenli)
 let currentPair = 'BTCUSDT';
-let currentInterval = '15m';
 let klines = [], indicators = {};
-let signal = 'WAIT', signalStrength = 0;
+let signal = 'WAIT';
 
-// Demo fiyatlar
+// Demo fiyat havuzu
 const DEMO = {
-  BTCUSDT:68000, ETHUSDT:3500, SOLUSDT:180, BNBUSDT:590, XRPUSDT:0.65,
-  DOGE:0.14, ADA:0.48
+  BTCUSDT:68000, ETHUSDT:3500, SOLUSDT:180, BNBUSDT:590, XRPUSDT:0.65
 };
 
-// ═══════════════════════════ UI ════════════════════
+// ═══════════════════════ UI YARDIMCILARI ════════════
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  event.target.classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
   if (id === 'signal') drawChart();
 }
 
@@ -171,27 +178,30 @@ function updateUI() {
   document.getElementById('riskBadge').textContent = dailyDD > 5 ? 'RISK HIGH' : 'RISK OK';
   document.getElementById('riskBadge').style.background = dailyDD > 5 ? '#3a1a1a' : '#0a2f1a';
   if (balance > peakBalance) peakBalance = balance;
-  // Win rate
+
   const wins = trades.filter(t => t.pnl > 0).length;
   const total = trades.length;
   document.getElementById('winRate').textContent = total ? (wins/total*100).toFixed(1)+'%' : '--';
   document.getElementById('openPnl').textContent = (dailyPnL >= 0 ? '+':'') + '$' + dailyPnL.toFixed(2);
-  // Kelly
+
   if (total >= 10) {
     const avgWin = trades.filter(t=>t.pnl>0).reduce((s,t)=>s+t.pnl,0) / (wins||1);
     const avgLoss = Math.abs(trades.filter(t=>t.pnl<0).reduce((s,t)=>s+t.pnl,0) / ((total-wins)||1));
     const wr = wins/total;
     const kelly = avgLoss > 0 ? (wr - (1-wr)/(avgWin/avgLoss)) : 0;
-    kellyFraction = Math.max(0.05, Math.min(0.25, kelly * 0.15));
+    kellyFraction = Math.max(0.05, Math.min(0.20, kelly * 0.10));
     document.getElementById('kellyPct').textContent = (kellyFraction*100).toFixed(1)+'%';
   } else {
     document.getElementById('kellyPct').textContent = 'veri yok';
   }
-  // Pozisyon büyüklüğü
-  const atr = indicators.atr || 50;
+
+  const atrVal = indicators.atr || 50;
   const riskAmount = balance * kellyFraction * 0.1;
-  const size = riskAmount / (atr * 1.5);
+  const size = riskAmount / (atrVal * 1.5);
   document.getElementById('posSize').textContent = '$' + Math.min(size * currentPrice(), balance*0.5).toFixed(0);
+
+  document.getElementById('btnLong').disabled = !connected;
+  document.getElementById('btnShort').disabled = !connected;
 }
 
 function currentPrice() {
@@ -206,18 +216,18 @@ function addLog(msg) {
   box.scrollTop = box.scrollHeight;
 }
 
-// ═══════════════════════════ TICKER ════════════════
+// ═══════════════════════ TICKER ═══════════════════
 function updateTicker() {
   const pairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
   let html = '';
   pairs.forEach(sym => {
-    const p = WORKER==='demo' ? DEMO[sym] : (indicators.last || 0);
+    const p = DEMO[sym] || 0;
     html += `<span>${sym.replace('USDT','')} $${p.toFixed(2)}</span>`;
   });
   document.getElementById('ticker').innerHTML = html;
 }
 
-// ═══════════════════════════ DEMO DATA ═════════════
+// ═══════════════════════ DEMO DATA ═════════════════
 function generateKlines(sym, count=100) {
   let base = DEMO[sym] || 100;
   const k = [];
@@ -234,7 +244,7 @@ function generateKlines(sym, count=100) {
   return k;
 }
 
-// ═══════════════════════════ İNDİKATÖRLER ══════════
+// ═══════════════════════ İNDİKATÖRLER ═════════════
 function ema(data, period) {
   const k = 2/(period+1);
   let ema = [data[0]];
@@ -286,7 +296,6 @@ function volumeProfile(klines) {
   return poc.close;
 }
 
-// Ana hesaplama
 function computeIndicators(klines) {
   const closes = klines.map(k=>k.close);
   const r = rsi(closes);
@@ -306,36 +315,28 @@ function computeIndicators(klines) {
   };
 }
 
-// ═══════════════════════════ SİNYAL ═══════════════
+// ═══════════════════════ SİNYAL MOTORU ═════════════
 function generateSignal(ind, strategy='trend') {
   let bull=0, bear=0, reasons=[];
   const {rsi, ema9, ema21, macd, adx, plusDI, minusDI, poc, last, volumeRatio} = ind;
   
-  // Rejim filtresi
-  if (adx < 20) { // sideways - mean reversion
+  if (adx < 20) {
     if (strategy === 'mean' || strategy === 'trend') {
       if (rsi < 35 && last < poc) { bull += 2; reasons.push('RSI OS + POC altı'); }
       if (rsi > 65 && last > poc) { bear += 2; reasons.push('RSI OB + POC üstü'); }
     }
-  } else { // trending
+  } else {
     if (plusDI > minusDI && ema9 > ema21) { bull += 3; reasons.push('Trend yukarı'); }
     if (minusDI > plusDI && ema9 < ema21) { bear += 3; reasons.push('Trend aşağı'); }
   }
-
-  // MACD
   if (macd > 0) bull += 1; else if (macd < 0) bear += 1;
-
-  // Hacim onayı
   if (volumeRatio > 1.5) { if (bull>bear) bull+=1; else bear+=1; reasons.push('Vol spike'); }
-
-  // Breakout stratejisi
   if (strategy === 'breakout') {
     const high20 = Math.max(...klines.slice(-20).map(k=>k.high));
     const low20 = Math.min(...klines.slice(-20).map(k=>k.low));
     if (last > high20) { bull += 2; reasons.push('Breakout yukarı'); }
     if (last < low20) { bear += 2; reasons.push('Breakout aşağı'); }
   }
-
   const total = Math.max(1, bull + bear);
   const conf = Math.round(Math.max(bull, bear) / total * 100);
   let signal = 'WAIT';
@@ -344,25 +345,19 @@ function generateSignal(ind, strategy='trend') {
   return { signal, conf, reasons: reasons.join(', ') };
 }
 
-// ═══════════════════════════ RİSK YÖNETİMİ ═════════
-function calculatePositionSize(signal, ind) {
+// ═══════════════════════ RİSK YÖNETİMİ ═══════════
+function calculatePositionSize(sig, ind) {
   const riskModel = document.getElementById('riskModel').value;
   const atrVal = ind.atr || 50;
-  let riskAmount = balance * 0.02; // default %2
-
-  if (riskModel === 'kelly') {
-    riskAmount = balance * kellyFraction * 0.1;
-  } else if (riskModel === 'atr') {
-    riskAmount = balance * 0.01; // ATR başına %1 risk
-  }
-
+  let riskAmount = balance * 0.02;
+  if (riskModel === 'kelly') riskAmount = balance * kellyFraction * 0.1;
+  else if (riskModel === 'atr') riskAmount = balance * 0.01;
   const slDistance = atrVal * 1.5;
   const qty = riskAmount / slDistance;
   const positionValue = qty * ind.last;
   return Math.min(positionValue, balance * 0.4);
 }
 
-// ═══════════════════════════ ZAMAN FİLTRESİ ════════
 function isTradingAllowed() {
   const filter = document.getElementById('timeFilter').value;
   if (!filter) return true;
@@ -375,13 +370,12 @@ function isTradingAllowed() {
   return utcHour >= endH && utcHour < startH;
 }
 
-// ═══════════════════════════ KORELASYON ═══════════
 function hasCorrelatedPosition(pair) {
-  const correlated = { BTCUSDT: ['ETHUSDT'], ETHUSDT: ['BTCUSDT'], SOLUSDT: [] };
+  const correlated = { BTCUSDT: ['ETHUSDT'], ETHUSDT: ['BTCUSDT'] };
   return positions.some(p => correlated[pair]?.includes(p.pair) && p.side === positions.find(x=>x.pair===pair)?.side);
 }
 
-// ═══════════════════════════ EMİR İCRASI ═══════════
+// ═══════════════════════ EMİR İCRASI ═════════════
 function openPosition(side, pair, price, size, ind) {
   if (positions.length >= MAX_POS) return addLog('⛔ Max pozisyon');
   if (!isTradingAllowed()) return addLog('⏰ Zaman filtresi aktif');
@@ -402,9 +396,17 @@ function openPosition(side, pair, price, size, ind) {
   addLog(`✅ ${side} ${pair} @${price.toFixed(2)} SL:${sl.toFixed(2)} TP:${tp.toFixed(2)} Size:$${posValue.toFixed(0)}`);
 }
 
+function manualTrade(side) {
+  if (!connected) return addLog('⛔ Bağlantı yok');
+  const ind = indicators;
+  if (!ind || !ind.last) return addLog('⛔ Veri bekleniyor');
+  const size = calculatePositionSize({signal:side}, ind);
+  openPosition(side, currentPair, ind.last, size, ind);
+}
+
 function checkPositions() {
   positions.forEach(p => {
-    const price = WORKER==='demo' ? DEMO[p.pair] : indicators.last;
+    const price = DEMO[p.pair] || indicators.last;
     if (!price) return;
     const multiplier = p.side === 'LONG' ? 1 : -1;
     const pnl = (price - p.entry) * multiplier * p.qty - p.comm;
@@ -414,7 +416,7 @@ function checkPositions() {
 }
 
 function closePosition(pos, reason) {
-  const price = WORKER==='demo' ? DEMO[pos.pair] : indicators.last;
+  const price = DEMO[pos.pair] || indicators.last;
   const multiplier = pos.side === 'LONG' ? 1 : -1;
   const pnl = (price - pos.entry) * multiplier * pos.qty - pos.comm;
   balance += pnl + pos.posValue;
@@ -425,7 +427,7 @@ function closePosition(pos, reason) {
   if (balance > peakBalance) peakBalance = balance;
 }
 
-// ═══════════════════════════ BACKTEST ═════════════
+// ═══════════════════════ BACKTEST ═════════════════
 function runBacktest() {
   const k = generateKlines(currentPair, 200);
   let simBalance = balance;
@@ -459,7 +461,7 @@ function runBacktest() {
   alert(result);
 }
 
-// ═══════════════════════════ CHART ════════════════
+// ═══════════════════════ CHART ═══════════════════
 let chartCtx;
 function initChart() { chartCtx = document.getElementById('chart').getContext('2d'); }
 function drawChart() {
@@ -474,7 +476,6 @@ function drawChart() {
   const pad = {l:20, r:10, t:10, b:20};
   const xScale = (w-pad.l-pad.r) / (closes.length-1);
   const yScale = (h-pad.t-pad.b) / range;
-  
   ctx.beginPath();
   ctx.strokeStyle = '#00e0a0';
   ctx.lineWidth = 2;
@@ -485,85 +486,85 @@ function drawChart() {
   ctx.stroke();
 }
 
-// ═══════════════════════════ BAĞLANTI ═════════════
-async function connect() {
+// ═══════════════════════ BAĞLANTI ═══════════════
+function connect() {
   const url = document.getElementById('workerUrl').value.trim();
   if (!url || url === 'demo') {
     WORKER = 'demo'; connected = true;
+    balance = parseFloat(document.getElementById('capital').value) || 50;
+    startBalance = balance; peakBalance = balance;
     document.getElementById('connBadge').textContent = 'DEMO';
     document.getElementById('connBadge').className = 'badge demo';
-    balance = parseFloat(document.getElementById('capital').value) || 50;
-    startBalance = balance;
-    addLog('🧪 Demo mod başlatıldı');
-    mainLoop();
+    document.getElementById('modeBadge').textContent = 'SIM';
+    document.getElementById('modeBadge').className = 'badge demo';
+    addLog('🧪 Demo mod aktif (otomatik)');
     return;
   }
-  try {
-    const res = await fetch(url + '/ping');
-    const data = await res.json();
-    if (data.success) {
-      WORKER = url; connected = true;
-      document.getElementById('connBadge').textContent = 'LIVE';
-      document.getElementById('connBadge').className = 'badge live';
-      document.getElementById('modeBadge').textContent = 'LIVE';
-      addLog('✅ Canlı bağlantı kuruldu');
-      mainLoop();
-    }
-  } catch(e) { addLog('❌ Bağlantı hatası'); }
+  fetch(url + '/ping')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        WORKER = url; connected = true;
+        document.getElementById('connBadge').textContent = 'LIVE';
+        document.getElementById('connBadge').className = 'badge live';
+        document.getElementById('modeBadge').textContent = 'LIVE';
+        document.getElementById('modeBadge').className = 'badge live';
+        addLog('✅ Canlı bağlantı kuruldu');
+      }
+    }).catch(() => addLog('❌ Bağlantı hatası'));
 }
 
-// ═══════════════════════════ ANA DÖNGÜ ═══════════
+// ═══════════════════════ ANA DÖNGÜ ═══════════════
 function mainLoop() {
-  if (!connected) return;
-  // Demo mod
-  if (WORKER === 'demo') {
-    klines = generateKlines(currentPair, 100);
-    indicators = computeIndicators(klines);
-    const sig = generateSignal(indicators, document.getElementById('strategy').value);
-    signal = sig.signal;
-    document.getElementById('sigMain').textContent = sig.signal;
-    document.getElementById('sigMain').className = 'signal-badge ' + sig.signal;
-    document.getElementById('pairTitle').textContent = currentPair + ' · 15m';
-    document.getElementById('indRsi').textContent = indicators.rsi.toFixed(1);
-    document.getElementById('indMacd').textContent = indicators.macd.toFixed(4);
-    document.getElementById('indAtr').textContent = indicators.atr.toFixed(2);
-    document.getElementById('indAdx').textContent = indicators.adx.toFixed(1) + (indicators.adx>25?' Trend':' Sideways');
-    document.getElementById('indVol').textContent = indicators.volumeRatio.toFixed(2);
-    document.getElementById('indPoc').textContent = indicators.poc.toFixed(2);
-    updateTicker();
-    drawChart();
-    
-    // Engine
-    if (engineRunning && sig.signal !== 'WAIT') {
-      const size = calculatePositionSize(sig, indicators);
-      openPosition(sig.signal, currentPair, indicators.last, size, indicators);
-    }
-    checkPositions();
+  if (!connected) return setTimeout(mainLoop, 1000);
+  
+  // Demo veri üret
+  klines = generateKlines(currentPair, 100);
+  indicators = computeIndicators(klines);
+  const sig = generateSignal(indicators, document.getElementById('strategy').value);
+  signal = sig.signal;
+  
+  // UI güncelle
+  document.getElementById('sigMain').textContent = sig.signal;
+  document.getElementById('sigMain').className = 'signal-badge ' + sig.signal;
+  document.getElementById('pairTitle').textContent = currentPair + ' · 15m';
+  document.getElementById('indRsi').textContent = indicators.rsi.toFixed(1);
+  document.getElementById('indMacd').textContent = indicators.macd.toFixed(4);
+  document.getElementById('indAtr').textContent = indicators.atr.toFixed(2);
+  document.getElementById('indAdx').textContent = indicators.adx.toFixed(1) + (indicators.adx>25?' Trend':' Sideways');
+  document.getElementById('indVol').textContent = indicators.volumeRatio.toFixed(2);
+  document.getElementById('indPoc').textContent = indicators.poc.toFixed(2);
+  updateTicker();
+  drawChart();
+  
+  // Motor aktifse otomatik işlem
+  if (engineRunning && sig.signal !== 'WAIT') {
+    const size = calculatePositionSize(sig, indicators);
+    openPosition(sig.signal, currentPair, indicators.last, size, indicators);
   }
+  
+  checkPositions();
   updateUI();
   setTimeout(mainLoop, 8000);
 }
 
-// Engine toggle
 function toggleEngine() {
   engineRunning = !engineRunning;
   document.getElementById('btnStartEngine').textContent = engineRunning ? 'Motoru Durdur' : 'Motoru Başlat';
   addLog(engineRunning ? '🚀 Pro motor çalıştı' : '⏸️ Motor durdu');
 }
 
-// Pair değiştirme
-function changePair(pair) {
-  currentPair = pair;
-  if (WORKER === 'demo') { klines = generateKlines(pair, 100); indicators = computeIndicators(klines); drawChart(); }
-}
-
+// ═══════════════════════ BAŞLANGIÇ ═══════════════
 window.onload = () => {
   initChart();
   document.getElementById('capital').value = balance;
-  // Demo başlangıç
+  // Otomatik demo başlat
   WORKER = 'demo'; connected = true;
   document.getElementById('connBadge').textContent = 'DEMO';
   document.getElementById('connBadge').className = 'badge demo';
+  document.getElementById('modeBadge').textContent = 'SIM';
+  document.getElementById('modeBadge').className = 'badge demo';
+  addLog('🧪 Demo mod otomatik başlatıldı');
   mainLoop();
 };
 </script>
