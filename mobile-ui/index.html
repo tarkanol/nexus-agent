@@ -1522,17 +1522,13 @@ function mainLoop(){
 }
 
 // ════════════════════════════════════
-// INIT
+// INIT — DÜZELTİLDİ: inline stil atamaları kaldırıldı
 // ════════════════════════════════════
 window.onload=function(){
   initChart();
-  // Tüm tab pane'leri gizle
-  for(var i=0;i<4;i++){
-    var pages=['signal','pos','engine','settings'];
-    var el=document.getElementById('page-'+pages[i]);
-    if(el) el.style.display='none';
-  }
-  document.getElementById('page-signal').style.display='flex';
+  // Sayfalar zaten HTML'de "active" sınıfı ile doğru şekilde başlıyor
+  // Ekstra hiçbir inline style müdahalesi yapmıyoruz.
+  // Sadece demo modunu başlat ve log mesajlarını göster.
   switchToDemo();
   log('APEX PRO v11 — Demo modda başlatıldı','info');
   log('💡 Canlı için Ayarlar → Worker URL gir → Bağlan','info');
