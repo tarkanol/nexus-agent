@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+#<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -1654,10 +1654,14 @@ async function mainLoop() {
 
 window.onload = () => {
   initChart();
-  startDemo();
+  switchToDemo();
   addLog('APEX PRO v13 — Market Structure + S/D + Fibonacci + Geniş SL', 'info');
   addLog('Sinyal motoru: HTF trend → MTF yapı → LTF giriş → R:R filtresi', 'info');
 };
+window.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&mode==='live')fetchLive().catch(function(){});
+});
+
 </script>
 </body>
 </html>
