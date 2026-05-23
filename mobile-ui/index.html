@@ -1237,41 +1237,100 @@ function updatePositionsUI() {
   if (!positions.length) {
     posHtml = '<div style="text-align:center;padding:24px;color:var(--dim)">Açık pozisyon yok</div>';
   } else {
-    positions.forEach(p => {
+    positions.forEach(function(p) {
       const pr = (pData[p.pair] && pData[p.pair].price) || p.entry;
       const mult = p.side === 'LONG' ? 1 : -1;
-      const pnl = (pr - p.entry) * mult * p.qty;
-      const pnlPct = (pnl / p.posValue * 100).toFixed(2);
-      const slDist = Math.abs(p.sl - p.entry), tpDist = Math.abs(p.tp1 - p.entry);
-      const prog = p.side === 'LONG'
-        ? Math.max(0, Math.min(100, ((pr - p.sl) / (tpDist + slDist)) * 100))
-        : Math.max(0, Math.min(100, ((p.sl - pr) / (tpDist + slDist)) * 100));
-      const tp1Hit = p.side==='LONG' ? pr >= p.tp1 : pr <= p.tp1;
-      const tp2Hit = p.side==='LONG' ? pr >= p.tp2 : pr <= p.tp2;
+      const rawPnl  = (pr - p.entry) * mult * p.qty;
+      const pnl = p.fromBinance ? (p.unrealPnl || rawPnl) : rawPnl;
+      const pnlPct  = p.posValue > 0 ? (pnl / p.posValue * 100).toFixed(2) : '0.00';
 
-      posHtml += `<div class="pos-card ${p.side.toLowerCase()}">
-        <div class="pos-head">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span class="pos-sym">${p.pair.replace('USDT','')}</span>
-            <span class="pos-side ${p.side}">${p.side}</span>
-            <span style="font-size:9px;color:var(--dim)">${p.lev}x${p.auto?' · AUTO':''}</span>
-          </div>
-          <div><span class="pos-pnl ${pnl>=0?'up':'dn'}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</span><span style="font-size:9px;color:var(--dim);margin-left:3px;">(${pnlPct}%)</span></div>
-        </div>
-        <div class="pos-grid">
-          <div class="pos-item"><div class="pos-item-lbl">Entry</div><div class="pos-item-val">$${fp(p.entry)}</div></div>
-          <div class="pos-item"><div class="pos-item-lbl">Anlık</div><div class="pos-item-val" style="color:${pnl>=0?'var(--long)':'var(--short)'}">$${fp(pr)}</div></div>
-          <div class="pos-item"><div class="pos-item-lbl">SL</div><div class="pos-item-val" style="color:var(--short)">$${fp(p.sl)}</div></div>
-          <div class="pos-item" style="background:${tp1Hit?'rgba(0,230,118,.15)':''}"><div class="pos-item-lbl">TP1 ${tp1Hit?'✅':''}</div><div class="pos-item-val" style="color:#4ade80">$${fp(p.tp1)}</div></div>
-          <div class="pos-item" style="background:${tp2Hit?'rgba(0,230,118,.1)':''}"><div class="pos-item-lbl">TP2 ${tp2Hit?'✅':''}</div><div class="pos-item-val" style="color:#22c55e">$${fp(p.tp2)}</div></div>
-          <div class="pos-item"><div class="pos-item-lbl">TP3</div><div class="pos-item-val" style="color:#16a34a">$${fp(p.tp3)}</div></div>
-        </div>
-        <div class="pos-bar"><div class="pos-fill" style="width:${prog}%;background:${pnl>=0?'var(--long)':'var(--short)'}"></div></div>
-        <div class="pos-actions">
-          <button class="btn btn-outline" style="font-size:10px;padding:6px 12px;min-height:34px;" onclick="closePos(${p.id},'Manuel',1)">✕ Tümünü Kapat</button>
-          <button class="btn btn-outline" style="font-size:10px;padding:6px 12px;min-height:34px;border-color:rgba(0,230,118,.4);color:var(--long);" onclick="closePos(${p.id},'TP1 Manuel',0.5)">50% Kapat</button>
-        </div>
-      </div>`;
+      // İlerleme çubuğu (SL → TP1 arasındaki konum)
+      const slDist  = p.sl  ? Math.abs(p.entry - p.sl)  : Math.abs(pr - p.entry) * 3;
+      const tp1Dist = p.tp1 ? Math.abs(p.tp1 - p.entry) : slDist * 1.5;
+      const total   = slDist + tp1Dist;
+      const moved   = p.side === 'LONG' ? pr - p.entry : p.entry - pr;
+      const prog    = Math.max(0, Math.min(100, ((moved + slDist) / total) * 100));
+      const progCol = pnl >= 0 ? 'var(--long)' : 'var(--short)';
+
+      // TP hit durumları
+      const tp1Hit = p.tp1 && (p.side==='LONG' ? pr >= p.tp1 : pr <= p.tp1);
+      const tp2Hit = p.tp2 && (p.side==='LONG' ? pr >= p.tp2 : pr <= p.tp2);
+
+      // Advice: mevcut analysis yoksa yeniden hesapla
+      let adv = p.advice;
+      if (!adv && p.entry) {
+        adv = calcPositionAdvice(p.pair, p.side, p.entry, p.qty, p.lev || 2, p.posValue || 15);
+        p.advice = adv; p.sl = adv.sl; p.tp1 = adv.tp1; p.tp2 = adv.tp2; p.tp3 = adv.tp3;
+      }
+
+      // Likidisyon uyarısı
+      const liqWarning = p.liquidationPrice && p.liquidationPrice > 0 &&
+        ((p.side==='LONG'  && p.liquidationPrice > pr * 0.93) ||
+         (p.side==='SHORT' && p.liquidationPrice < pr * 1.07));
+
+      const dp = pr > 1000 ? 2 : pr > 10 ? 3 : pr > 1 ? 4 : 5;
+
+      posHtml += '<div class="pos-card ' + p.side.toLowerCase() + '">';
+      // Başlık
+      posHtml += '<div class="pos-head">';
+      posHtml += '<div style="display:flex;align-items:center;gap:6px;">';
+      posHtml += '<span class="pos-sym">' + p.pair.replace('USDT','') + '</span>';
+      posHtml += '<span class="pos-side ' + p.side + '">' + p.side + '</span>';
+      posHtml += '<span style="font-size:9px;color:var(--dim)">' + (p.lev||2) + 'x' + (p.fromBinance?' · 📥BNB':p.auto?' · AUTO':'') + '</span>';
+      if (liqWarning) posHtml += '<span style="font-size:9px;color:var(--short);background:rgba(255,61,92,.15);padding:1px 5px;border-radius:2px;">⚠️ LIQ</span>';
+      posHtml += '</div>';
+      posHtml += '<div><span class="pos-pnl ' + (pnl>=0?'up':'dn') + '">' + (pnl>=0?'+':'') + '$' + pnl.toFixed(2) + '</span>';
+      posHtml += '<span style="font-size:9px;color:var(--dim);margin-left:3px;">(' + pnlPct + '%)</span></div>';
+      posHtml += '</div>';
+
+      // Grid — fiyat bilgileri
+      posHtml += '<div class="pos-grid">';
+      posHtml += '<div class="pos-item"><div class="pos-item-lbl">Entry</div><div class="pos-item-val">$' + fp(p.entry) + '</div></div>';
+      posHtml += '<div class="pos-item"><div class="pos-item-lbl">Anlık</div><div class="pos-item-val" style="color:' + (pnl>=0?'var(--long)':'var(--short)') + '">$' + fp(pr) + '</div></div>';
+      posHtml += '<div class="pos-item" style="background:rgba(255,61,92,.07)"><div class="pos-item-lbl">SL</div><div class="pos-item-val" style="color:var(--short)">$' + fp(p.sl) + '</div></div>';
+      posHtml += '<div class="pos-item" style="background:' + (tp1Hit?'rgba(0,230,118,.15)':'') + '"><div class="pos-item-lbl">TP1 ' + (tp1Hit?'✅':'') + '</div><div class="pos-item-val" style="color:#4ade80">$' + fp(p.tp1) + '</div></div>';
+      posHtml += '<div class="pos-item" style="background:' + (tp2Hit?'rgba(0,230,118,.1)':'') + '"><div class="pos-item-lbl">TP2 ' + (tp2Hit?'✅':'') + '</div><div class="pos-item-val" style="color:#22c55e">$' + fp(p.tp2) + '</div></div>';
+      posHtml += '<div class="pos-item"><div class="pos-item-lbl">TP3</div><div class="pos-item-val" style="color:#16a34a">$' + fp(p.tp3) + '</div></div>';
+      posHtml += '</div>';
+
+      // İlerleme çubuğu
+      posHtml += '<div class="pos-bar"><div class="pos-fill" style="width:' + prog + '%;background:' + progCol + '"></div></div>';
+
+      // ROE & Liq bilgisi (Binance'dan gelenlerde)
+      if (p.fromBinance && p.roe) {
+        posHtml += '<div style="display:flex;gap:10px;margin-top:5px;font-size:9px;color:var(--dim);">';
+        posHtml += '<span>ROE: <span style="color:' + (p.roe>=0?'var(--long)':'var(--short)') + ';font-weight:700">' + (p.roe>=0?'+':'') + p.roe.toFixed(2) + '%</span></span>';
+        if (p.liquidationPrice > 0) posHtml += '<span>Liq: <span style="color:var(--short)">$' + fp(p.liquidationPrice) + '</span></span>';
+        posHtml += '</div>';
+      }
+
+      // 🤖 ASİSTAN ÖNERİSİ PANELİ
+      if (adv) {
+        const advBg  = adv.status==='TP1_YAKLAŞTI' ? 'rgba(245,166,35,.08)' :
+                       adv.status==='KARDA'         ? 'rgba(0,230,118,.06)' :
+                       adv.status==='ZARARDA'        ? 'rgba(255,61,92,.06)' : 'rgba(255,255,255,.03)';
+        const advBrd = adv.status==='TP1_YAKLAŞTI' ? 'rgba(245,166,35,.3)' :
+                       adv.status==='KARDA'         ? 'rgba(0,230,118,.25)' :
+                       adv.status==='ZARARDA'        ? 'rgba(255,61,92,.25)' : 'rgba(255,255,255,.08)';
+        posHtml += '<div style="background:' + advBg + ';border:1px solid ' + advBrd + ';border-radius:4px;padding:8px 10px;margin-top:8px;">';
+        posHtml += '<div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:5px;">🤖 ASİSTAN ANALİZİ</div>';
+        posHtml += '<div style="font-size:11px;margin-bottom:6px;">' + adv.advice + '</div>';
+        // TP1 notu
+        if (adv.tp1Note) posHtml += '<div style="font-size:9px;color:var(--dim);margin-bottom:2px;">📍 TP1 neden: ' + adv.tp1Note + '</div>';
+        // SL notu
+        if (adv.slNote)  posHtml += '<div style="font-size:9px;color:var(--dim);margin-bottom:5px;">🛡 SL neden: ' + adv.slNote + '</div>';
+        // R:R
+        posHtml += '<div style="font-size:9px;color:var(--warn);">R:R = ' + adv.rrRatio.toFixed(2) + ':1' + (adv.rrRatio < 1.5 ? ' ⚠️ Düşük' : adv.rrRatio >= 2 ? ' ✅ İyi' : '') + '</div>';
+        posHtml += '</div>';
+      }
+
+      // Butonlar
+      posHtml += '<div class="pos-actions" style="margin-top:8px;">';
+      posHtml += '<button class="btn btn-outline" style="font-size:10px;padding:6px 12px;min-height:34px;" onclick="closePos(' + p.id + ',\'Manuel\',1)">✕ Tümünü Kapat</button>';
+      posHtml += '<button class="btn btn-outline" style="font-size:10px;padding:6px 12px;min-height:34px;border-color:rgba(0,230,118,.4);color:var(--long);" onclick="closePos(' + p.id + ',\'TP1 Manuel\',0.5)">50% Kapat</button>';
+      posHtml += '<button class="btn btn-outline" style="font-size:10px;padding:6px 12px;min-height:34px;border-color:rgba(245,166,35,.4);color:var(--warn);" onclick="refreshPosAdvice(' + p.id + ')">🔄 Yenile</button>';
+      posHtml += '</div>';
+      posHtml += '</div>'; // pos-card
     });
   }
   document.getElementById('posList').innerHTML = posHtml;
@@ -1618,22 +1677,224 @@ async function fetchLive() {
 }
 
 // ═══════════════════════════════════════
-// BALANCE SYNC
+// LIVE SYNC — Bakiye + Pozisyonlar
 // ═══════════════════════════════════════
 async function syncBalance() {
   if (!WORKER || appMode === 'demo') { notify('Canlı modda çalışır', 'info'); return; }
   try {
-    const r = await fetch(`${WORKER}/balance`).then(x=>x.json());
-    if (r.success && r.balance) {
-      futBal = parseFloat(r.balance.balance || r.balance.availableBalance || 0);
+    // Bakiye + açık pozisyonları paralel çek
+    const [balR, posR] = await Promise.all([
+      fetch(`${WORKER}/balance`).then(x=>x.json()).catch(()=>null),
+      fetch(`${WORKER}/positions/live`).then(x=>x.json()).catch(()=>null),
+    ]);
+
+    // Bakiye
+    if (balR && balR.success && balR.balance) {
+      futBal = parseFloat(balR.balance.balance || balR.balance.availableBalance || 0);
       balance = futBal;
       lastSyncTs = new Date();
       document.getElementById('lastSync').textContent = 'Sync: ' + lastSyncTs.toLocaleTimeString('tr-TR');
-      notify('✅ Bakiye: $' + futBal.toFixed(2), 'success');
-      addLog('🔄 Bakiye sync: $' + futBal.toFixed(2), 'ok');
-      updatePositionsUI();
-    } else { notify('Bakiye alınamadı', 'error'); }
-  } catch(e) { addLog('❌ Sync: ' + e.message, 'err'); }
+      addLog('🔄 Bakiye: $' + futBal.toFixed(2), 'ok');
+    }
+
+    // Binance pozisyonlarını import et
+    if (posR && posR.success && posR.positions && posR.positions.length > 0) {
+      let imported = 0;
+      posR.positions.forEach(function(bp) {
+        // Zaten takip ettiğimiz pozisyon mu?
+        const exists = positions.find(function(p) {
+          return p.pair === bp.symbol && p.fromBinance;
+        });
+        if (exists) {
+          // Mevcut pozisyonu güncelle (PnL vs)
+          exists.unrealPnl = bp.unrealizedPnl;
+          return;
+        }
+        // Yeni import
+        const entry = bp.entryPrice;
+        const sym   = bp.symbol;
+        const side  = bp.side; // 'LONG' veya 'SHORT'
+        const qty   = Math.abs(bp.positionAmt);
+        const lev   = bp.leverage || 2;
+        const notional = bp.notional || (entry * qty);
+        const posVal   = notional / lev;
+
+        // ATR bazlı TP/SL öneri hesapla
+        const advice = calcPositionAdvice(sym, side, entry, qty, lev, posVal);
+
+        positions.push({
+          id: posId++,
+          pair: sym,
+          side: side,
+          entry: entry,
+          qty: qty,
+          lev: lev,
+          posValue: posVal,
+          comm: 0,
+          auto: false,
+          fromBinance: true,           // Binance'dan geldi işareti
+          openTime: Date.now(),
+          tp1: advice.tp1,
+          tp2: advice.tp2,
+          tp3: advice.tp3,
+          sl:  advice.sl,
+          slNote: advice.slNote,
+          tp1Note: advice.tp1Note,
+          advice: advice,
+          tp1Hit: false,
+          tp2Hit: false,
+          unrealPnl: bp.unrealizedPnl || 0,
+          liquidationPrice: bp.liquidationPrice || 0,
+          roe: bp.roe || 0,
+        });
+        imported++;
+        addLog('📥 Import: ' + side + ' ' + sym.replace('USDT','') + ' entry:$' + fp(entry), 'ok');
+      });
+      if (imported > 0) {
+        notify('📥 ' + imported + ' pozisyon Binance\'dan import edildi', 'success');
+      } else if (posR.positions.length > 0) {
+        notify('ℹ️ ' + posR.positions.length + ' pozisyon zaten takipte', 'info');
+      }
+    } else if (posR && posR.success) {
+      addLog('ℹ️ Binance\'da açık pozisyon yok', 'info');
+    }
+
+    notify('✅ Senkronize edildi', 'success');
+    updatePositionsUI();
+  } catch(e) { addLog('❌ Sync hatası: ' + e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════
+// POZİSYON ANALİZ MOTORU — Asistan önerisi
+// Mevcut pozisyonu okur, ATR + swing + Fib ile TP/SL önerir
+// ═══════════════════════════════════════
+function calcPositionAdvice(sym, side, entry, qty, lev, posVal) {
+  const pd  = pData[sym];
+  const kl1h  = pd && pd.kl1h  ? pd.kl1h  : [];
+  const kl15m = pd && pd.kl15m ? pd.kl15m : [];
+  const price = (pd && pd.price) || entry;
+
+  // ATR hesapla (1h yoksa 15m kullan)
+  const atr1h  = kl1h.length  > 15 ? atr(kl1h,  14) : null;
+  const atr15m = kl15m.length > 15 ? atr(kl15m, 14) : null;
+  const atrUse = atr1h || atr15m || entry * 0.012;
+
+  // Swing seviyeleri
+  const sw = kl1h.length > 20 ? findSwings(kl1h, 2) : {highs:[], lows:[]};
+  const fib4h = pd && pd.kl4h && pd.kl4h.length > 30 ? fibCalc(pd.kl4h, Math.min(pd.kl4h.length, 60)) : null;
+
+  let sl, tp1, tp2, tp3, slNote, tp1Note, status, advice;
+
+  const isLong = side === 'LONG';
+  const pnl = (price - entry) * (isLong ? 1 : -1) * qty;
+  const pnlPct = entry > 0 ? (price - entry) / entry * 100 * (isLong ? 1 : -1) : 0;
+
+  if (isLong) {
+    // SL: Son swing low'un ATR*0.5 altı (yapısal)
+    const swLow = sw.lows.length ? sw.lows[sw.lows.length-1].price : entry - atrUse * 2;
+    sl = Math.min(swLow - atrUse * 0.5, entry - atrUse * 2.5);
+    // Fib 0.786 desteği varsa ve daha mantıklıysa kullan
+    if (fib4h && fib4h.r786 < entry && fib4h.r786 > sl) sl = fib4h.r786 - atrUse * 0.3;
+
+    const slDist = entry - sl;
+    tp1 = entry + slDist * 1.5;    // R:R 1.5 — erken kâr
+    tp2 = entry + slDist * 2.5;    // R:R 2.5
+    tp3 = entry + slDist * 4.0;    // R:R 4.0 — büyük hedef
+
+    // Fib dirençlerine göre TP'leri ayarla
+    if (fib4h) {
+      if (fib4h.r382 > entry && fib4h.r382 < tp2) tp1 = Math.min(tp1, fib4h.r382 * 0.999);
+      if (fib4h.r236 > entry && fib4h.r236 < tp3) tp2 = Math.min(tp2, fib4h.r236 * 0.999);
+    }
+    // Swing high varsa TP1'i limitlemek yerine referans al
+    if (sw.highs.length) {
+      const nearHigh = sw.highs[sw.highs.length-1].price;
+      if (nearHigh > entry && nearHigh < tp1 * 1.02) tp1 = nearHigh * 0.998;
+    }
+  } else {
+    // SHORT
+    const swHigh = sw.highs.length ? sw.highs[sw.highs.length-1].price : entry + atrUse * 2;
+    sl = Math.max(swHigh + atrUse * 0.5, entry + atrUse * 2.5);
+    if (fib4h && fib4h.r786 > entry && fib4h.r786 < sl) sl = fib4h.r786 + atrUse * 0.3;
+
+    const slDist = sl - entry;
+    tp1 = entry - slDist * 1.5;
+    tp2 = entry - slDist * 2.5;
+    tp3 = entry - slDist * 4.0;
+
+    if (fib4h) {
+      if (fib4h.r618 < entry && fib4h.r618 > tp2) tp1 = Math.max(tp1, fib4h.r618 * 1.001);
+    }
+    if (sw.lows.length) {
+      const nearLow = sw.lows[sw.lows.length-1].price;
+      if (nearLow < entry && nearLow > tp1 * 0.98) tp1 = nearLow * 1.002;
+    }
+  }
+
+  // Pozisyon durumu analizi
+  const slDist  = Math.abs(entry - sl);
+  const tp1Dist = Math.abs(tp1 - entry);
+  const rrRatio = slDist > 0 ? tp1Dist / slDist : 0;
+
+  if (isLong) {
+    if (pnlPct > tp1Dist / entry * 100 * 0.8) {
+      status = 'TP1_YAKLAŞTI';
+      advice = '🟡 TP1 bölgesinde. %50 kapatıp SL\'yi entry\'e çekmeyi düşün.';
+    } else if (pnlPct > 0.5) {
+      status = 'KARDA';
+      advice = '🟢 Karda. SL\'yi en azından entry\'e yakın tutmak riski sıfırlar.';
+    } else if (pnlPct < -1.5) {
+      status = 'ZARARDA';
+      advice = '🔴 Zararda. SL korunmuyorsa spread+komisyon önce hesapla. İlave girmeden önce bekle.';
+    } else {
+      status = 'NÖTR';
+      advice = '⚪ Pozisyon gelişiyor. TP1\'e ulaşıncaya kadar bekle, SL\'yi koru.';
+    }
+    slNote  = 'Swing Low + buffer · Yapısal kırılma noktası';
+    tp1Note = 'R:R ' + rrRatio.toFixed(1) + ':1 · ' + (fib4h && fib4h.r382 > entry ? 'Fib 0.382 direnci yakın' : 'Swing High referanslı');
+  } else {
+    if (pnlPct > tp1Dist / entry * 100 * 0.8) {
+      status = 'TP1_YAKLAŞTI';
+      advice = '🟡 TP1 bölgesinde. %50 kapatıp SL\'yi entry\'e çekmeyi düşün.';
+    } else if (pnlPct > 0.5) {
+      status = 'KARDA';
+      advice = '🟢 Karda. SL\'yi entry\'e çekerek riski sıfırla.';
+    } else if (pnlPct < -1.5) {
+      status = 'ZARARDA';
+      advice = '🔴 Zararda. HTF trend hâlâ SHORT mı kontrol et. Değilse çıkışı değerlendir.';
+    } else {
+      status = 'NÖTR';
+      advice = '⚪ Pozisyon gelişiyor. TP1\'i bekle, SL\'yi koru.';
+    }
+    slNote  = 'Swing High + buffer · Yapısal kırılma noktası';
+    tp1Note = 'R:R ' + rrRatio.toFixed(1) + ':1 · Swing Low referanslı';
+  }
+
+  return {
+    sl:  parseFloat(sl.toFixed(8)),
+    tp1: parseFloat(tp1.toFixed(8)),
+    tp2: parseFloat(tp2.toFixed(8)),
+    tp3: parseFloat(tp3.toFixed(8)),
+    rrRatio, slNote, tp1Note, status, advice,
+    atrUsed: atrUse,
+  };
+}
+
+// fibCalc alias (analyzeMarket içindeki fib fonksiyonuyla aynı)
+function fibCalc(kl, n) {
+  n = n || 60;
+  if (!kl || kl.length < 5) return null;
+  if (n > kl.length) n = kl.length;
+  const rec = kl.slice(-n);
+  const sh = Math.max.apply(null, rec.map(function(k){return k.h;}));
+  const sl = Math.min.apply(null, rec.map(function(k){return k.l;}));
+  const rng = sh - sl;
+  if (rng <= 0) return null;
+  return {
+    sh:sh, sl:sl, rng:rng,
+    r236: sh - rng*0.236, r382: sh - rng*0.382,
+    r500: sh - rng*0.5,   r618: sh - rng*0.618, r786: sh - rng*0.786,
+  };
 }
 
 // ═══════════════════════════════════════
