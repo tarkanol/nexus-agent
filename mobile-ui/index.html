@@ -227,16 +227,20 @@ input:focus,select:focus{border-color:var(--acc);}
         <div class="sig-edge" id="sigEdge"></div>
       </div>
       <canvas id="chart" height="165"></canvas>
+      <!-- Yapısal seviyeleri grafik altına koyuyoruz -->
       <div id="structureLevels" style="margin-top:8px;"></div>
     </div>
 
+    <!-- Sinyal bileşenleri -->
     <div class="card" id="signalDetailCard">
       <div class="card-title">📊 Sinyal Analizi</div>
       <div class="reason-grid" id="reasonGrid"></div>
     </div>
 
+    <!-- İşlem planı -->
     <div id="tradePlanWrap"></div>
 
+    <!-- Manuel işlem -->
     <div class="card">
       <div class="card-title">Manuel İşlem</div>
       <div class="btn-row">
@@ -304,6 +308,7 @@ input:focus,select:focus{border-color:var(--acc);}
       </div>
     </div>
 
+    <!-- NASIL ÇALIŞIR -->
     <div class="card">
       <div class="card-title">⚙️ Motor Nasıl Çalışır?</div>
       <div class="how-step">
@@ -350,6 +355,7 @@ input:focus,select:focus{border-color:var(--acc);}
       </div>
     </div>
 
+    <!-- AYARLAR -->
     <div class="card">
       <div class="card-title">Motor Ayarları</div>
       <div class="form-row">
@@ -389,21 +395,21 @@ input:focus,select:focus{border-color:var(--acc);}
         </div>
       </div>
       <div class="toggle-row">
-        <div class="tog on" id="togAutoClose" onclick="togAutoClose=!togAutoClose;this.classList.toggle('on',togAutoClose);document.getElementById('togAutoCloseDesc').textContent=togAutoClose?'TP/SL gelince otomatik kapat':'Manuel kapatıyorsun'"></div>
+        <div class="tog on" id="togAutoClose" onclick="doTogAutoClose()"></div>
         <div class="tog-body">
           <div class="tog-lbl">Otomatik TP/SL</div>
           <div class="tog-desc" id="togAutoCloseDesc">TP/SL gelince otomatik kapat</div>
         </div>
       </div>
       <div class="toggle-row">
-        <div class="tog" id="togTrail" onclick="togTrailStop=!togTrailStop;this.classList.toggle('on',togTrailStop);document.getElementById('togTrailDesc').textContent=togTrailStop?'TP1 sonrası SL kayar, kârı kilitler':'Sabit SL'"></div>
+        <div class="tog" id="togTrail" onclick="doTogTrail()"></div>
         <div class="tog-body">
           <div class="tog-lbl">Trailing Stop (TP1 sonrası)</div>
           <div class="tog-desc" id="togTrailDesc">Sabit SL</div>
         </div>
       </div>
       <div class="toggle-row">
-        <div class="tog" id="togSingle" onclick="togSinglePos=!togSinglePos;this.classList.toggle('on',togSinglePos);document.getElementById('togSingleDesc').textContent=togSinglePos?'Tek coin aynı anda':'Maks 3 coin paralel'"></div>
+        <div class="tog" id="togSingle" onclick="doTogSingle()"></div>
         <div class="tog-body">
           <div class="tog-lbl">Tek Pozisyon Modu</div>
           <div class="tog-desc" id="togSingleDesc">Maks 3 coin paralel</div>
@@ -463,7 +469,7 @@ let futBal = null, lastSyncTs = null;
 let positions = [], trades = [], posId = 1;
 let currentPair = 'BTCUSDT', scanSec = 120;
 let togAutoClose = true, togTrailStop = false, togSinglePos = false;
-let engineOn = false, engineOpenedCount = 0;
+let engineOn = false;
 let loopTimer = null, cdTimer = null, cdLeft = 0;
 
 const PAIRS = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
@@ -482,12 +488,23 @@ PAIRS.forEach(s => {
 // UTILITIES
 // ═══════════════════════════════════════
 function switchPage(p) {
-  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-  document.getElementById('page-' + p).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.nav-btn[onclick*="switchPage('${p}')"]`).classList.add('active');
+  // Tüm sayfaları gizle
+  document.querySelectorAll('.page').forEach(function(x) {
+    x.classList.remove('active');
+    x.style.display = 'none';
+  });
+  // Tüm nav butonlarını pasif yap
+  document.querySelectorAll('.nav-btn').forEach(function(x) {
+    x.classList.remove('active');
+  });
+  // Seçili sayfayı göster
+  var pg = document.getElementById('page-' + p);
+  if (pg) { pg.classList.add('active'); pg.style.display = 'flex'; }
+  // Nav butonunu aktif yap
+  var nb = document.getElementById('nav-' + p);
+  if (nb) nb.classList.add('active');
+  // Chart yeniden çiz
   if (p === 'signal') setTimeout(drawChart, 50);
-  if (p === 'pos') syncBalance();
 }
 
 function notify(msg, type = 'info') {
@@ -519,7 +536,7 @@ function fp(p) {
 function pct(a, b) { return b > 0 ? ((a - b) / b * 100).toFixed(2) : '0'; }
 
 // ═══════════════════════════════════════
-// MATH INDICATORS (kısa versiyon - tam çalışır)
+// MATH INDICATORS
 // ═══════════════════════════════════════
 function ema(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.slice() : [];
@@ -594,7 +611,7 @@ function volRatio(kl, p = 20) {
   return avg > 0 ? v[v.length-1]/avg : 1;
 }
 
-// Swing High/Low tespiti
+// Swing High/Low tespiti (gerçek yapısal seviyeler)
 function findSwings(kl, lookback = 5) {
   const highs = [], lows = [];
   for (let i = lookback; i < kl.length - lookback; i++) {
@@ -619,20 +636,24 @@ function detectStructure(kl, swings) {
   const prevSwingH = swings.highs.length >= 2 ? swings.highs[swings.highs.length-2] : null;
   const prevSwingL = swings.lows.length >= 2 ? swings.lows[swings.lows.length-2] : null;
 
+  // Higher Highs / Higher Lows = uptrend
   const hhhl = prevSwingH && prevSwingL &&
     lastSwingH.price > prevSwingH.price &&
     lastSwingL.price > prevSwingL.price;
 
+  // Lower Lows / Lower Highs = downtrend
   const lllh = prevSwingH && prevSwingL &&
     lastSwingL.price < prevSwingL.price &&
     lastSwingH.price < prevSwingH.price;
 
   let trend = hhhl ? 'LONG' : lllh ? 'SHORT' : 'NEUTRAL';
 
+  // BOS: Fiyat son swing high/low'u kırdı, trend devam
   let bos = null;
   if (c > lastSwingH.price && trend === 'LONG') bos = 'LONG';
   if (c < lastSwingL.price && trend === 'SHORT') bos = 'SHORT';
 
+  // CHoCH: Karşı swing kırıldı — trend değişimi uyarısı
   let choch = null;
   if (trend === 'LONG' && prevSwingL && c < prevSwingL.price) choch = 'BEARISH_CHOCH';
   if (trend === 'SHORT' && prevSwingH && c > prevSwingH.price) choch = 'BULLISH_CHOCH';
@@ -640,18 +661,19 @@ function detectStructure(kl, swings) {
   return {bos, choch, trend, lastSwingH, lastSwingL};
 }
 
-// Supply & Demand zone
+// Supply & Demand zone tespiti (hacim yoğunluğu)
 function findSDZones(kl, n = 40) {
   if (!kl || kl.length < n) return {demand:null, supply:null};
   const rec = kl.slice(-n);
   const last = kl[kl.length-1].c;
   const atrV = atr(kl, 14);
 
+  // Demand zone: Son güçlü yukarı hareketin başlangıcı (büyük yeşil mum tabanı)
   let demandZone = null;
   for (let i = rec.length - 2; i >= 5; i--) {
     const candle = rec[i];
     const bodySize = Math.abs(candle.c - candle.o);
-    const isStrong = candle.c > candle.o && bodySize > atrV * 0.7;
+    const isStrong = candle.c > candle.o && bodySize > atrV * 0.7; // Güçlü yeşil mum
     const highVol = candle.v > rec.slice(Math.max(0,i-5),i).reduce((a,b)=>a+b.v,0)/5 * 1.3;
     if (isStrong && highVol && candle.l < last) {
       demandZone = {top: candle.o, bottom: candle.l, strength: bodySize/atrV};
@@ -659,11 +681,12 @@ function findSDZones(kl, n = 40) {
     }
   }
 
+  // Supply zone: Son güçlü aşağı hareketin başlangıcı
   let supplyZone = null;
   for (let i = rec.length - 2; i >= 5; i--) {
     const candle = rec[i];
     const bodySize = Math.abs(candle.c - candle.o);
-    const isStrong = candle.c < candle.o && bodySize > atrV * 0.7;
+    const isStrong = candle.c < candle.o && bodySize > atrV * 0.7; // Güçlü kırmızı mum
     const highVol = candle.v > rec.slice(Math.max(0,i-5),i).reduce((a,b)=>a+b.v,0)/5 * 1.3;
     if (isStrong && highVol && candle.h > last) {
       supplyZone = {top: candle.h, bottom: candle.o, strength: bodySize/atrV};
@@ -674,7 +697,7 @@ function findSDZones(kl, n = 40) {
   return {demand: demandZone, supply: supplyZone};
 }
 
-// Fibonacci
+// Fibonacci seviyeleri (son swing'e göre)
 function fib(kl, n = 60) {
   if (!kl || kl.length < n) n = kl ? kl.length : 0;
   if (n < 5) return null;
@@ -692,7 +715,7 @@ function fib(kl, n = 60) {
 }
 
 // ═══════════════════════════════════════
-// ANA SİNYAL MOTORU
+// ANA SİNYAL MOTORU — Market Structure + S/D + Fib
 // ═══════════════════════════════════════
 function analyzeMarket(sym) {
   const pd = pData[sym];
@@ -707,7 +730,7 @@ function analyzeMarket(sym) {
 
   const price = pd.price || kl15m[kl15m.length-1].c;
 
-  // 4h HTF TREND
+  // ── ADIM 1: 4h HTF TREND ──────────────────────────────
   const c4h = kl4h.map(k => k.c);
   const e50_4h = ema(c4h, 50), e200_4h = ema(c4h, 200);
   const le50_4h = e50_4h[e50_4h.length-1], le200_4h = e200_4h[e200_4h.length-1];
@@ -715,6 +738,7 @@ function analyzeMarket(sym) {
   const sw4h = findSwings(kl4h, 4);
   const struct4h = detectStructure(kl4h, sw4h);
 
+  // HTF trend belirleme
   let htfTrend = 'NEUTRAL';
   let htfScore = 0;
   if (le50_4h && price > le50_4h) htfScore++;
@@ -733,9 +757,11 @@ function analyzeMarket(sym) {
     if (adx4h.adx > 20 && adx4h.mDI > adx4h.pDI) bearScore++;
     if (bearScore >= 3) htfTrend = 'SHORT';
   }
+
+  // ADX < 15: trendsiz, motor bekler
   if (adx4h.adx < 15) htfTrend = 'NEUTRAL';
 
-  // 1h YAPI ANALİZİ
+  // ── ADIM 2: 1h YAPI ANALİZİ ──────────────────────────
   const sw1h = findSwings(kl1h, 3);
   const struct1h = detectStructure(kl1h, sw1h);
   const atr1h = atr(kl1h, 14);
@@ -744,7 +770,7 @@ function analyzeMarket(sym) {
   const rsi1h = rsi(c1h, 14);
   const macd1h = macd(c1h);
 
-  // 15m GİRİŞ TETİKLEYİCİ
+  // ── ADIM 3: 15m GİRİŞ TETİKLEYİCİ ───────────────────
   const c15m = kl15m.map(k => k.c);
   const sw15m = findSwings(kl15m, 3);
   const sd15m = findSDZones(kl15m, 40);
@@ -757,10 +783,10 @@ function analyzeMarket(sym) {
   const le9_15m = e9_15m[e9_15m.length-1], le21_15m = e21_15m[e21_15m.length-1];
   const pe9_15m = e9_15m[e9_15m.length-2], pe21_15m = e21_15m[e21_15m.length-2];
 
-  // Fibonacci confluence
+  // Fibonacci confluence tespiti (4h fib + 15m fiyat)
   let fibConf = null, fibLevel = null;
   if (fib4hLevels) {
-    const tol = price * 0.004;
+    const tol = price * 0.004; // %0.4 tolerans
     const fibLevs = [
       {name:'Fib 0.786', val:fib4hLevels.r786, type:'sup'},
       {name:'Fib 0.618', val:fib4hLevels.r618, type:'sup'},
@@ -776,29 +802,34 @@ function analyzeMarket(sym) {
     }
   }
 
-  // PUAN SİSTEMİ
+  // ── PUAN SİSTEMİ ──────────────────────────────────────
   let bull = 0, bear = 0, reasons = {};
 
+  // 1. HTF trend (ağırlık: kritik — karşı gidilmez)
   if (htfTrend === 'LONG') { bull += 25; reasons.htf = {v:'LONG', cls:'bull', lbl:'HTF Trend', desc:'4h yukarı trend aktif'}; }
   else if (htfTrend === 'SHORT') { bear += 25; reasons.htf = {v:'SHORT', cls:'bear', lbl:'HTF Trend', desc:'4h aşağı trend aktif'}; }
   else { reasons.htf = {v:'NÖTR', cls:'neut', lbl:'HTF Trend', desc:'Trendsiz, bekle'}; }
 
+  // 2. Market structure 1h (ağırlık: yüksek)
   if (struct1h.bos === 'LONG') { bull += 20; reasons.struct = {v:'BOS↑', cls:'bull', lbl:'1h Yapı', desc:'Yüksek kırıldı (BOS Long)'}; }
   else if (struct1h.bos === 'SHORT') { bear += 20; reasons.struct = {v:'BOS↓', cls:'bear', lbl:'1h Yapı', desc:'Düşük kırıldı (BOS Short)'}; }
   else if (struct1h.choch === 'BULLISH_CHOCH') { bull += 12; reasons.struct = {v:'CHoCH↑', cls:'bull', lbl:'1h Yapı', desc:'Trend değişimi (Long)'}; }
   else if (struct1h.choch === 'BEARISH_CHOCH') { bear += 12; reasons.struct = {v:'CHoCH↓', cls:'bear', lbl:'1h Yapı', desc:'Trend değişimi (Short)'}; }
   else { reasons.struct = {v:'YOK', cls:'neut', lbl:'1h Yapı', desc:'Yapısal sinyal yok'}; }
 
+  // 3. S/D Zone (ağırlık: orta-yüksek)
   const inDemand = sd15m.demand && price >= sd15m.demand.bottom * 0.999 && price <= sd15m.demand.top * 1.001;
   const inSupply = sd15m.supply && price >= sd15m.supply.bottom * 0.999 && price <= sd15m.supply.top * 1.001;
   if (inDemand) { bull += 15; reasons.sd = {v:'DEMAND', cls:'bull', lbl:'S/D Zone', desc:'Demand zone içinde'}; }
   else if (inSupply) { bear += 15; reasons.sd = {v:'SUPPLY', cls:'bear', lbl:'S/D Zone', desc:'Supply zone içinde'}; }
   else { reasons.sd = {v:'DIŞINDA', cls:'neut', lbl:'S/D Zone', desc:'Zone dışında'}; }
 
+  // 4. Fibonacci confluence (bonus)
   if (fibConf === 'sup') { bull += 12; reasons.fib = {v:fibLevel.name, cls:'bull', lbl:'Fibonacci', desc:'Destek bölgesi yakın'}; }
   else if (fibConf === 'res') { bear += 12; reasons.fib = {v:fibLevel.name, cls:'bear', lbl:'Fibonacci', desc:'Direnç bölgesi yakın'}; }
   else { reasons.fib = {v:'UZAK', cls:'neut', lbl:'Fibonacci', desc:'Kritik seviyeden uzak'}; }
 
+  // 5. MACD acceleration (momentum)
   const macdBull = macd15m.hist > 0 && macd15m.hist > macd15m.prevHist && macd15m.macd > 0;
   const macdBear = macd15m.hist < 0 && macd15m.hist < macd15m.prevHist && macd15m.macd < 0;
   if (macdBull) { bull += 8; reasons.macd = {v:'MACD↑↑', cls:'bull', lbl:'MACD (15m)', desc:'Histogram ivmelenme yukarı'}; }
@@ -807,24 +838,32 @@ function analyzeMarket(sym) {
   else if (macd15m.hist < 0) { bear += 4; reasons.macd = {v:'MACD-', cls:'bear', lbl:'MACD (15m)', desc:'Negatif histogram'}; }
   else { reasons.macd = {v:'NÖTR', cls:'neut', lbl:'MACD (15m)', desc:'Yön belirsiz'}; }
 
+  // 6. RSI momentum (15m)
+  const rsiBull = rsi15m > 45 && rsi15m < 65;
+  const rsiBear = rsi15m < 55 && rsi15m > 35;
   if (rsi15m < 30) { bull += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Aşırı satım — dönüş potansiyeli'}; }
   else if (rsi15m > 70) { bear += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Aşırı alım — düşüş potansiyeli'}; }
-  else if (rsi15m > 45 && rsi15m < 65) { bull += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Momentum bölgesi (long)'}; }
-  else if (rsi15m < 55 && rsi15m > 35) { bear += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Momentum bölgesi (short)'}; }
+  else if (rsiBull) { bull += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Momentum bölgesi (long)'}; }
+  else if (rsiBear) { bear += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Momentum bölgesi (short)'}; }
   else { reasons.rsi = {v:rsi15m.toFixed(1), cls:'neut', lbl:'RSI (15m)', desc:'Nötr bölge'}; }
 
+  // 7. Volume confirmation
   if (vr15m > 1.5 && bull > bear) { bull += 8; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bull', lbl:'Hacim', desc:'Hacim artışı + yükseliş'}; }
   else if (vr15m > 1.5 && bear > bull) { bear += 8; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bear', lbl:'Hacim', desc:'Hacim artışı + düşüş'}; }
   else { reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'neut', lbl:'Hacim', desc:vr15m > 1 ? 'Normal' : 'Düşük hacim'}; }
 
+  // 8. EMA alignment 15m (giriş zamanlaması)
   if (pe9_15m <= pe21_15m && le9_15m > le21_15m) { bull += 6; reasons.ema = {v:'GX ↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'Golden cross — alım sinyali'}; }
   else if (pe9_15m >= pe21_15m && le9_15m < le21_15m) { bear += 6; reasons.ema = {v:'DX ↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'Death cross — satım sinyali'}; }
   else if (le9_15m > le21_15m && price > le9_15m) { bull += 3; reasons.ema = {v:'EMA↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı yukarı'}; }
   else if (le9_15m < le21_15m && price < le9_15m) { bear += 3; reasons.ema = {v:'EMA↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı aşağı'}; }
   else { reasons.ema = {v:'KARMIK', cls:'neut', lbl:'EMA 9/21 (15m)', desc:'Hizasız'}; }
 
+  // ── FİLTRELER ─────────────────────────────────────────
   const total = bull + bear || 1;
   const conf = Math.round(Math.max(bull, bear) / total * 100);
+
+  // Hassasiyet eşikleri
   const sens = document.getElementById('selSens') ? document.getElementById('selSens').value : 'med';
   const thresholds = {high:{minScore:60,minConf:72}, med:{minScore:45,minConf:62}, low:{minScore:35,minConf:52}};
   const th = thresholds[sens] || thresholds.med;
@@ -833,10 +872,12 @@ function analyzeMarket(sym) {
   let edgeText = '';
   const minRR = parseFloat(document.getElementById('inpMinRR') ? document.getElementById('inpMinRR').value : 2);
 
+  // Kritik kural: HTF trendsiz ise bekle
   if (htfTrend === 'NEUTRAL') {
     signal = 'WAIT';
     edgeText = 'HTF trend belirsiz — bekliyor';
   }
+  // Kritik kural: Sinyal HTF trendine karşı ise bekle
   else if (bull > bear && htfTrend === 'SHORT') {
     signal = 'WAIT';
     edgeText = 'LONG sinyali var ama HTF SHORT trend — geç';
@@ -847,33 +888,41 @@ function analyzeMarket(sym) {
   }
   else if (bull > bear && bull >= th.minScore && conf >= th.minConf) {
     signal = 'LONG';
-    edgeText = fibConf === 'sup' ? '🎯 Fib confluence + demand + yapı' : inDemand ? '📦 Demand zone + yapı onaylı' : '📈 Yapısal LONG sinyali';
+    edgeText = fibConf === 'sup' ? '🎯 Fib confluence + demand + yapı' :
+               inDemand ? '📦 Demand zone + yapı onaylı' :
+               '📈 Yapısal LONG sinyali';
   }
   else if (bear > bull && bear >= th.minScore && conf >= th.minConf) {
     signal = 'SHORT';
-    edgeText = fibConf === 'res' ? '🎯 Fib confluence + supply + yapı' : inSupply ? '📦 Supply zone + yapı onaylı' : '📉 Yapısal SHORT sinyali';
+    edgeText = fibConf === 'res' ? '🎯 Fib confluence + supply + yapı' :
+               inSupply ? '📦 Supply zone + yapı onaylı' :
+               '📉 Yapısal SHORT sinyali';
   }
   else {
     edgeText = `Eşiğe ulaşmadı (${Math.max(bull,bear)}/${th.minScore}, conf ${conf}/${th.minConf})`;
   }
 
-  // TP/SL HESAPLA
+  // ── TP / SL HESAPLA (geniş — yapısal) ────────────────
   let sl, tp1, tp2, tp3, posAtr;
   posAtr = atr1h || atr15m;
 
   if (signal === 'LONG') {
+    // SL: Son swing low'un ATR*0.5 altı
     const swLow = sw1h.lows.length ? sw1h.lows[sw1h.lows.length-1].price : price - posAtr * 2;
     sl = swLow - posAtr * 0.5;
+    // Demand zone varsa ve daha yakınsa onu kullan
     if (sd15m.demand && sd15m.demand.bottom < swLow && sd15m.demand.bottom > price - posAtr * 4) {
       sl = sd15m.demand.bottom - posAtr * 0.3;
     }
     const slDist = price - sl;
-    tp1 = price + slDist * 1.5;
-    tp2 = price + slDist * 2.5;
-    tp3 = price + slDist * 4.0;
+    tp1 = price + slDist * 1.5;  // R:R 1.5
+    tp2 = price + slDist * 2.5;  // R:R 2.5
+    tp3 = price + slDist * 4.0;  // R:R 4.0
+    // Sonraki swing high varsa TP1'i onunla sınırla
     if (sw1h.highs.length && sw1h.highs[sw1h.highs.length-1].price > price) {
       tp1 = Math.min(tp1, sw1h.highs[sw1h.highs.length-1].price * 0.998);
     }
+    // Fib direnci varsa TP2'yi ayarla
     if (fib4hLevels && fib4hLevels.r382 > price) {
       tp2 = Math.min(tp2, fib4hLevels.r382 * 0.999);
     }
@@ -895,6 +944,7 @@ function analyzeMarket(sym) {
     }
   }
 
+  // R:R kontrolü
   let rrRatio = null;
   if (signal !== 'WAIT' && sl && tp1) {
     rrRatio = Math.abs(tp1 - price) / Math.abs(price - sl);
@@ -913,6 +963,7 @@ function analyzeMarket(sym) {
   };
 }
 
+// Tüm pairları analiz et
 function analyzeAll() {
   PAIRS.forEach(sym => {
     if (!pData[sym]) return;
@@ -941,6 +992,7 @@ function drawChart() {
   const cl = k.map(x => x.c);
   const allH = k.map(x => x.h), allL = k.map(x => x.l);
 
+  // Analysis verisi varsa TP/SL ekle
   const an = pd.analysis;
   let mn = Math.min(...allL) * 0.9993, mx = Math.max(...allH) * 1.0007;
   if (an && an.sl) { mn = Math.min(mn, an.sl * 0.999); mx = Math.max(mx, an.tp3 ? an.tp3 * 1.001 : mx); }
@@ -948,6 +1000,7 @@ function drawChart() {
   const toY = v => H - 6 - ((v - mn) / rng) * (H - 12);
   const cw = W / n;
 
+  // Grid
   ctx.strokeStyle = '#0e1e35'; ctx.lineWidth = 1;
   for (let i = 0; i < 4; i++) {
     const y = 6 + (H - 12) * i / 3;
@@ -956,6 +1009,7 @@ function drawChart() {
     ctx.fillText(fp(mx - rng * i / 3), 2, y - 2);
   }
 
+  // EMA 9, 21
   const e9 = ema(cl, 9), e21 = ema(cl, 21);
   const drawLine = (arr, col, dash=[]) => {
     ctx.beginPath(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.globalAlpha = .7; ctx.setLineDash(dash);
@@ -965,6 +1019,7 @@ function drawChart() {
   drawLine(e21, '#f5a623', [3,3]);
   drawLine(e9, '#00e0a0');
 
+  // Fiyat mumu çizgisi (basit)
   const isUp = cl[cl.length-1] >= cl[0];
   ctx.beginPath(); ctx.moveTo(.5 * cw, toY(cl[0]));
   cl.forEach((v, i) => ctx.lineTo((i+.5)*cw, toY(v)));
@@ -974,6 +1029,7 @@ function drawChart() {
   cl.forEach((v, i) => ctx.lineTo((i+.5)*cw, toY(v)));
   ctx.strokeStyle = isUp ? 'var(--long)' : 'var(--short)'; ctx.lineWidth = 1.5; ctx.stroke();
 
+  // TP/SL çizgileri
   if (an && an.signal !== 'WAIT') {
     const drawHL = (price, col, label) => {
       if (!price || price < mn || price > mx) return;
@@ -988,6 +1044,7 @@ function drawChart() {
     if (an.sl)  drawHL(an.sl, '#ff3d5c', 'SL');
   }
 
+  // Anlık fiyat
   const lp = cl[cl.length-1];
   ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
   ctx.beginPath(); ctx.moveTo(0, toY(lp)); ctx.lineTo(W, toY(lp)); ctx.stroke();
@@ -997,12 +1054,13 @@ function drawChart() {
 }
 
 // ═══════════════════════════════════════
-// UI GÜNCELLEMELERİ
+// UI GÜNCELLEMELERI
 // ═══════════════════════════════════════
 function updateSignalUI() {
   const an = pData[currentPair] && pData[currentPair].analysis;
   const price = (pData[currentPair] && pData[currentPair].price) || DEMO_BASE[currentPair];
 
+  // Badge
   const sig = an ? an.signal : 'WAIT';
   const conf = an ? an.conf : 0;
   document.getElementById('sigBadge').textContent = sig;
@@ -1012,11 +1070,13 @@ function updateSignalUI() {
     'Analiz bekleniyor...';
   document.getElementById('sigEdge').textContent = an ? an.edgeText : '';
 
+  // HTF badge
   const htf = an ? an.htfTrend : '--';
   const hbadge = document.getElementById('trendBadge');
   hbadge.textContent = 'HTF:' + htf;
   hbadge.className = 'badge ' + (htf==='LONG'?'sig-long':htf==='SHORT'?'sig-short':'');
 
+  // Reason grid
   if (an && an.reasons) {
     const rg = document.getElementById('reasonGrid');
     const entries = Object.values(an.reasons);
@@ -1030,58 +1090,68 @@ function updateSignalUI() {
   }
 
   // Structure levels
-  const el = document.getElementById('structureLevels');
-  if (an && an.signal !== 'WAIT') {
-    let html = '<div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:5px;">YAPISAL SEVİYELER</div>';
-    const levels = [];
-    if (an.sw1h) {
-      an.sw1h.highs.slice(-2).forEach(h => levels.push({price:h.price, type:'res', label:'Swing H'}));
-      an.sw1h.lows.slice(-2).forEach(l => levels.push({price:l.price, type:'sup', label:'Swing L'}));
-    }
-    if (an.sd15m.demand) levels.push({price:an.sd15m.demand.top, type:'sup', label:'Demand Zone'});
-    if (an.sd15m.supply) levels.push({price:an.sd15m.supply.bottom, type:'res', label:'Supply Zone'});
-    if (an.fib4h) {
-      [{n:'Fib 0.618',v:an.fib4h.r618},{n:'Fib 0.786',v:an.fib4h.r786},{n:'Fib 0.382',v:an.fib4h.r382}].forEach(f =>
-        levels.push({price:f.v, type:'fib', label:f.n}));
-    }
-    levels.sort((a,b) => b.price - a.price);
-    levels.forEach(lv => {
-      const dist = ((price - lv.price) / price * 100).toFixed(2);
-      html += `<div class="level-row ${lv.type}">
-        <span class="level-label">${lv.label}</span>
-        <span class="level-price">$${fp(lv.price)}</span>
-        <span class="level-dist">${dist > 0 ? '+':'' }${dist}%</span>
-      </div>`;
-    });
-    el.innerHTML = html;
-  } else el.innerHTML = '';
+  renderStructureLevels(an, price);
 
   // Trade plan
-  const tpWrap = document.getElementById('tradePlanWrap');
-  if (an && an.signal !== 'WAIT') {
-    const s = an.signal;
-    const cls = s.toLowerCase();
-    const slPct = an.sl ? ((Math.abs(price - an.sl) / price) * 100).toFixed(2) : '--';
-    const t1Pct = an.tp1 ? ((Math.abs(an.tp1 - price) / price) * 100).toFixed(2) : '--';
-    const t2Pct = an.tp2 ? ((Math.abs(an.tp2 - price) / price) * 100).toFixed(2) : '--';
-    const t3Pct = an.tp3 ? ((Math.abs(an.tp3 - price) / price) * 100).toFixed(2) : '--';
-    const rrTxt = an.rrRatio ? an.rrRatio.toFixed(2) + ':1' : '--';
-    tpWrap.innerHTML = `
-      <div class="trade-plan card" style="padding:0;overflow:hidden;margin-bottom:8px;">
-        <div class="tp-header ${cls}">İŞLEM PLANI — ${s} ${currentPair.replace('USDT','')}</div>
-        <div class="tp-body">
-          <div class="tp-row"><span class="tp-key">Giriş (şimdiki fiyat)</span><span class="tp-val entry">$${fp(price)}</span></div>
-          <div class="tp-row"><span class="tp-key">TP1 · %50 kapat (+${t1Pct}%)</span><span class="tp-val tp1">$${fp(an.tp1)}</span></div>
-          <div class="tp-row"><span class="tp-key">TP2 · %30 kapat (+${t2Pct}%)</span><span class="tp-val tp2">$${fp(an.tp2)}</span></div>
-          <div class="tp-row"><span class="tp-key">TP3 · %20 kapat (+${t3Pct}%)</span><span class="tp-val tp3">$${fp(an.tp3)}</span></div>
-          <div class="tp-row"><span class="tp-key">Stop Loss (-${slPct}%)</span><span class="tp-val sl">$${fp(an.sl)}</span></div>
-          <div class="tp-row"><span class="tp-key">Risk:Ödül (TP1 bazlı)</span><span class="tp-val rr">${rrTxt}</span></div>
-          <div class="tp-row" style="font-size:9px;"><span class="tp-key" style="color:var(--acc)">📌 TP1 kapanınca SL'yi entry'e çek</span><span style="color:var(--dim)">risk=0</span></div>
-        </div>
-      </div>`;
-  } else tpWrap.innerHTML = '';
+  renderTradePlan(an, price);
 
+  // Chart
   drawChart();
+}
+
+function renderStructureLevels(an, price) {
+  const el = document.getElementById('structureLevels');
+  if (!an || an.signal === 'WAIT') { el.innerHTML = ''; return; }
+  let html = '<div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:5px;">YAPISAL SEVİYELER</div>';
+  const levels = [];
+  // Swing highs/lows
+  if (an.sw1h) {
+    an.sw1h.highs.slice(-2).forEach(h => levels.push({price:h.price, type:'res', label:'Swing H'}));
+    an.sw1h.lows.slice(-2).forEach(l => levels.push({price:l.price, type:'sup', label:'Swing L'}));
+  }
+  // S/D zones
+  if (an.sd15m.demand) levels.push({price:an.sd15m.demand.top, type:'sup', label:'Demand Zone'});
+  if (an.sd15m.supply) levels.push({price:an.sd15m.supply.bottom, type:'res', label:'Supply Zone'});
+  // Fib
+  if (an.fib4h) {
+    [{n:'Fib 0.618',v:an.fib4h.r618},{n:'Fib 0.786',v:an.fib4h.r786},{n:'Fib 0.382',v:an.fib4h.r382}].forEach(f =>
+      levels.push({price:f.v, type:'fib', label:f.n}));
+  }
+  levels.sort((a,b) => b.price - a.price);
+  levels.forEach(lv => {
+    const dist = ((price - lv.price) / price * 100).toFixed(2);
+    html += `<div class="level-row ${lv.type}">
+      <span class="level-label">${lv.label}</span>
+      <span class="level-price">$${fp(lv.price)}</span>
+      <span class="level-dist">${dist > 0 ? '+':'' }${dist}%</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderTradePlan(an, price) {
+  const el = document.getElementById('tradePlanWrap');
+  if (!an || an.signal === 'WAIT') { el.innerHTML = ''; return; }
+  const s = an.signal;
+  const cls = s.toLowerCase();
+  const slPct = an.sl ? ((Math.abs(price - an.sl) / price) * 100).toFixed(2) : '--';
+  const t1Pct = an.tp1 ? ((Math.abs(an.tp1 - price) / price) * 100).toFixed(2) : '--';
+  const t2Pct = an.tp2 ? ((Math.abs(an.tp2 - price) / price) * 100).toFixed(2) : '--';
+  const t3Pct = an.tp3 ? ((Math.abs(an.tp3 - price) / price) * 100).toFixed(2) : '--';
+  const rrTxt = an.rrRatio ? an.rrRatio.toFixed(2) + ':1' : '--';
+  el.innerHTML = `
+    <div class="trade-plan card" style="padding:0;overflow:hidden;margin-bottom:8px;">
+      <div class="tp-header ${cls}">İŞLEM PLANI — ${s} ${currentPair.replace('USDT','')}</div>
+      <div class="tp-body">
+        <div class="tp-row"><span class="tp-key">Giriş (şimdiki fiyat)</span><span class="tp-val entry">$${fp(price)}</span></div>
+        <div class="tp-row"><span class="tp-key">TP1 · %50 kapat (+${t1Pct}%)</span><span class="tp-val tp1">$${fp(an.tp1)}</span></div>
+        <div class="tp-row"><span class="tp-key">TP2 · %30 kapat (+${t2Pct}%)</span><span class="tp-val tp2">$${fp(an.tp2)}</span></div>
+        <div class="tp-row"><span class="tp-key">TP3 · %20 kapat (+${t3Pct}%)</span><span class="tp-val tp3">$${fp(an.tp3)}</span></div>
+        <div class="tp-row"><span class="tp-key">Stop Loss (-${slPct}%)</span><span class="tp-val sl">$${fp(an.sl)}</span></div>
+        <div class="tp-row"><span class="tp-key">Risk:Ödül (TP1 bazlı)</span><span class="tp-val rr">${rrTxt}</span></div>
+        <div class="tp-row" style="font-size:9px;"><span class="tp-key" style="color:var(--acc)">📌 TP1 kapanınca SL'yi entry'e çek</span><span style="color:var(--dim)">risk=0</span></div>
+      </div>
+    </div>`;
 }
 
 function updatePairScroll() {
@@ -1115,7 +1185,6 @@ function updateTicker() {
     const chgPct = ((p - prev) / prev * 100).toFixed(2);
     if (el) { el.textContent = '$' + fp(p); el.style.color = p >= prev ? 'var(--long)' : 'var(--short)'; }
     if (cel) { cel.textContent = (chgPct >= 0 ? '+' : '') + chgPct + '%'; cel.style.color = chgPct >= 0 ? 'var(--long)' : 'var(--short)'; }
-    prevP[sym] = p;
   });
 }
 
@@ -1139,6 +1208,7 @@ function updatePositionsUI() {
 
   document.getElementById('posBadge').textContent = positions.length + '/3';
 
+  // Position cards
   let posHtml = '';
   if (!positions.length) {
     posHtml = '<div style="text-align:center;padding:24px;color:var(--dim)">Açık pozisyon yok</div>';
@@ -1182,6 +1252,7 @@ function updatePositionsUI() {
   }
   document.getElementById('posList').innerHTML = posHtml;
 
+  // Stats
   const wins = trades.filter(t => t.pnl > 0).length, total = trades.length;
   const wr = total ? ((wins/total)*100).toFixed(1)+'%' : '--';
   document.getElementById('mWr').textContent = wr;
@@ -1193,6 +1264,7 @@ function updatePositionsUI() {
   document.getElementById('sStat4').textContent = avgRR;
   document.getElementById('sStat5').textContent = peakBalance > 0 ? ((peakBalance - balance)/peakBalance*100).toFixed(1)+'%' : '0%';
 
+  // Risk segs
   const maxL = parseFloat(document.getElementById('inpMaxLoss') ? document.getElementById('inpMaxLoss').value : 10);
   const rp = Math.min(1, Math.abs(Math.min(0, dailyPnL)) / maxL);
   for (let i = 1; i <= 5; i++) {
@@ -1201,6 +1273,7 @@ function updatePositionsUI() {
   }
   document.getElementById('riskTxt').textContent = rp===0?'Düşük risk':rp<.4?'Orta risk':rp<.7?'⚠️ Yüksek risk':'🚨 Günlük kayıp limitine yakın!';
 
+  // Trade history
   document.getElementById('tradeHist').innerHTML = trades.slice(-6).reverse().map(t =>
     `<div class="th-row">
       <span>${t.pair.replace('USDT','')} ${t.side} <span style="color:var(--dim);font-size:9px;">${t.reason}</span></span>
@@ -1231,10 +1304,12 @@ async function openPos(sym, side, auto=false) {
   const price = (pData[sym] && pData[sym].price) || DEMO_BASE[sym];
   const posAtr = an ? an.posAtr : price * 0.01;
 
+  // SL/TP: analiz varsa kullan, yoksa ATR bazlı fallback
   let sl, tp1, tp2, tp3;
   if (an && an.sl && an.signal === side) {
     sl = an.sl; tp1 = an.tp1; tp2 = an.tp2; tp3 = an.tp3;
   } else {
+    // Geniş SL: ATR × 2.5
     if (side === 'LONG') {
       sl = price - posAtr * 2.5; tp1 = price + posAtr * 3.75; tp2 = price + posAtr * 6.25; tp3 = price + posAtr * 10;
     } else {
@@ -1291,6 +1366,7 @@ async function closePos(id, reason, fraction=1) {
   dailyPnL += net; balance += net + pos.posValue * fraction;
   if (balance > peakBalance) peakBalance = balance;
 
+  // R değeri hesapla
   const slDist = Math.abs(pos.entry - pos.sl);
   const pnlR = slDist > 0 ? net / (pos.posValue * COMM + slDist * pos.qty) : 0;
 
@@ -1320,38 +1396,44 @@ async function checkPositions() {
     const pr = (pData[p.pair] && pData[p.pair].price) || p.entry;
     if (!togAutoClose) continue;
 
+    // Trailing stop (TP1 sonrası)
     if (togTrailStop && p.tp1Hit) {
       if (p.side === 'LONG' && pr > p.tp1) {
-        p.sl = Math.max(p.sl, p.entry);
+        p.sl = Math.max(p.sl, p.entry); // SL'yi en az entry'e çek
       } else if (p.side === 'SHORT' && pr < p.tp1) {
         p.sl = Math.min(p.sl, p.entry);
       }
     }
 
+    // TP1 kontrolü (kademeli çıkış — %50 kapat)
     if (!p.tp1Hit && p.tp1) {
       if ((p.side==='LONG' && pr >= p.tp1) || (p.side==='SHORT' && pr <= p.tp1)) {
         p.tp1Hit = true;
         await closePos(p.id, 'TP1', 0.5);
+        // SL'yi entry'e çek
         const pos2 = positions.find(x => x.id === p.id);
         if (pos2) { pos2.sl = pos2.entry; addLog('📌 SL → Entry (risk sıfır)', 'info'); }
         continue;
       }
     }
 
+    // TP2 kontrolü (%30 kapat)
     if (p.tp1Hit && !p.tp2Hit && p.tp2) {
       if ((p.side==='LONG' && pr >= p.tp2) || (p.side==='SHORT' && pr <= p.tp2)) {
         p.tp2Hit = true;
-        await closePos(p.id, 'TP2', 0.6);
+        await closePos(p.id, 'TP2', 0.6); // kalan %50'nin %60'ı = orijinalin %30'u
         continue;
       }
     }
 
+    // TP3 tam çıkış
     if (p.tp2Hit && p.tp3) {
       if ((p.side==='LONG' && pr >= p.tp3) || (p.side==='SHORT' && pr <= p.tp3)) {
         await closePos(p.id, 'TP3', 1); continue;
       }
     }
 
+    // SL
     if ((p.side==='LONG' && pr <= p.sl) || (p.side==='SHORT' && pr >= p.sl)) {
       await closePos(p.id, 'SL', 1); continue;
     }
@@ -1368,20 +1450,14 @@ async function runEngine() {
 
   for (const sym of PAIRS) {
     const chk = canOpen(sym);
-    if (!chk.ok) { 
-      blocked.push(sym.replace('USDT','') + ':' + chk.reason); 
-      continue; 
-    }
+    if (!chk.ok) { blocked.push(sym.replace('USDT','')+':'+chk.reason); continue; }
 
     const an = pData[sym] && pData[sym].analysis;
     if (!an || an.signal === 'WAIT') continue;
 
     activeSigs.push(sym.replace('USDT','') + ':' + an.signal + '(' + an.conf + '%)');
     const ok = await openPos(sym, an.signal, true);
-    if (ok) { 
-      engCooldown[sym] = Date.now(); 
-      engineOpenedCount++; 
-    }
+    if (ok) { engCooldown[sym] = Date.now(); engineOpenedCount++; }
   }
 
   const now = new Date().toLocaleTimeString('tr-TR');
@@ -1392,14 +1468,15 @@ async function runEngine() {
   document.getElementById('estBlock').textContent = blocked.length ? blocked.join(', ') : '—';
 }
 
+let cdLeft2 = 0;
 function startCD() {
   if (cdTimer) clearInterval(cdTimer);
-  let c = scanSec;
+  cdLeft2 = scanSec;
   cdTimer = setInterval(() => {
-    c--;
+    cdLeft2--;
     const el = document.getElementById('estNext');
-    if (el) el.textContent = c > 0 ? c + 's' : 'Taranıyor...';
-    if (c <= 0) clearInterval(cdTimer);
+    if (el) el.textContent = cdLeft2 > 0 ? cdLeft2 + 's' : 'Taranıyor...';
+    if (cdLeft2 <= 0) clearInterval(cdTimer);
   }, 1000);
 }
 
@@ -1451,6 +1528,7 @@ function refreshDemo() {
     if (!pData[sym]) pData[sym] = {};
     pData[sym].price = p;
 
+    // Kline güncelle veya oluştur
     if (!pData[sym].lastKlBuild || now - pData[sym].lastKlBuild > 20000) {
       pData[sym].kl4h  = makeKlines(sym, 80, '4h');
       pData[sym].kl1h  = makeKlines(sym, 100, '1h');
@@ -1501,6 +1579,7 @@ async function fetchLive() {
     const k15= pk(kl15m); if (k15) pData[currentPair].kl15m = k15;
     const k5 = pk(kl5m);  if (k5) pData[currentPair].kl5m = k5;
 
+    // Diğer pairler için demo kline (eğer yoksa)
     PAIRS.filter(s => s !== currentPair).forEach(sym => {
       if (!pData[sym]) pData[sym] = {};
       if (!pData[sym].kl15m) {
@@ -1568,6 +1647,24 @@ function startDemo() {
   mainLoop();
 }
 
+
+// Toggle helpers (HTML attribute'dan tırnak kaçınmak için ayrıldı)
+function doTogAutoClose() {
+  togAutoClose = !togAutoClose;
+  document.getElementById('togAutoClose').classList.toggle('on', togAutoClose);
+  document.getElementById('togAutoCloseDesc').textContent = togAutoClose ? 'TP/SL gelince otomatik kapat' : 'Manuel kapatıyorsun';
+}
+function doTogTrail() {
+  togTrailStop = !togTrailStop;
+  document.getElementById('togTrail').classList.toggle('on', togTrailStop);
+  document.getElementById('togTrailDesc').textContent = togTrailStop ? 'TP1 sonrasi SL kayar, kari kilitler' : 'Sabit SL';
+}
+function doTogSingle() {
+  togSinglePos = !togSinglePos;
+  document.getElementById('togSingle').classList.toggle('on', togSinglePos);
+  document.getElementById('togSingleDesc').textContent = togSinglePos ? 'Tek coin ayni anda' : 'Maks 3 coin paralel';
+}
+
 // ═══════════════════════════════════════
 // MAIN LOOP
 // ═══════════════════════════════════════
@@ -1585,19 +1682,18 @@ async function mainLoop() {
   loopTimer = setTimeout(mainLoop, scanSec * 1000);
 }
 
-// ═══════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════
 window.onload = () => {
+  // Tüm sayfaları başta gizle, sadece signal'ı göster
+  document.querySelectorAll('.page').forEach(function(x) { x.style.display = 'none'; });
+  var firstPage = document.getElementById('page-signal');
+  if (firstPage) { firstPage.style.display = 'flex'; firstPage.classList.add('active'); }
+  var firstNav = document.getElementById('nav-signal');
+  if (firstNav) firstNav.classList.add('active');
   initChart();
   startDemo();
   addLog('APEX PRO v13 — Market Structure + S/D + Fibonacci + Geniş SL', 'info');
   addLog('Sinyal motoru: HTF trend → MTF yapı → LTF giriş → R:R filtresi', 'info');
 };
-
-window.addEventListener('visibilitychange', function() {
-  if (!document.hidden && appMode === 'live') fetchLive().catch(() => {});
-});
 </script>
 </body>
 </html>
