@@ -735,40 +735,53 @@ function analyzeMarket(sym) {
   const e50_4h = ema(c4h, 50), e200_4h = ema(c4h, 200);
   const le50_4h = e50_4h[e50_4h.length-1], le200_4h = e200_4h[e200_4h.length-1];
   const adx4h = adx(kl4h, 14);
-  const sw4h = findSwings(kl4h, 4);
+  const sw4h = findSwings(kl4h, 3);   // 4h: her iki yanda 3 mum yeterli
   const struct4h = detectStructure(kl4h, sw4h);
 
-  // HTF trend belirleme
+  // HTF trend belirleme — EMA200 yoksa EMA50 yeterli, ADX eşiği düşürüldü
   let htfTrend = 'NEUTRAL';
-  let htfScore = 0;
-  if (le50_4h && price > le50_4h) htfScore++;
-  if (le200_4h && price > le200_4h) htfScore++;
-  if (le50_4h && le200_4h && le50_4h > le200_4h) htfScore++;
-  if (struct4h.trend === 'LONG') htfScore++;
-  if (adx4h.adx > 20 && adx4h.pDI > adx4h.mDI) htfScore++;
+  let htfBull = 0, htfBear = 0;
 
-  if (htfScore >= 4) htfTrend = 'LONG';
-  else if (htfScore <= 1) htfTrend = 'SHORT';
-  else if (le50_4h && price < le50_4h) {
-    let bearScore = 0;
-    if (le200_4h && price < le200_4h) bearScore++;
-    if (le50_4h && le200_4h && le50_4h < le200_4h) bearScore++;
-    if (struct4h.trend === 'SHORT') bearScore++;
-    if (adx4h.adx > 20 && adx4h.mDI > adx4h.pDI) bearScore++;
-    if (bearScore >= 3) htfTrend = 'SHORT';
+  // EMA50 konumu (en kritik)
+  if (le50_4h && price > le50_4h * 1.001) htfBull += 2;
+  else if (le50_4h && price < le50_4h * 0.999) htfBear += 2;
+
+  // EMA200 varsa kullan (80 mumla hesaplanamayabilir, null olabilir)
+  if (le200_4h) {
+    if (price > le200_4h) htfBull++;
+    else htfBear++;
+    if (le50_4h > le200_4h) htfBull++;
+    else if (le50_4h < le200_4h) htfBear++;
   }
 
-  // ADX < 15: trendsiz, motor bekler
-  if (adx4h.adx < 15) htfTrend = 'NEUTRAL';
+  // Swing yapısı
+  if (struct4h.trend === 'LONG') htfBull++;
+  else if (struct4h.trend === 'SHORT') htfBear++;
+
+  // ADX yön (eşik 18'e düşürüldü)
+  if (adx4h.adx > 18 && adx4h.pDI > adx4h.mDI) htfBull++;
+  else if (adx4h.adx > 18 && adx4h.mDI > adx4h.pDI) htfBear++;
+
+  // Eşik: 3 veya üzeri yeterli (5 kriterden)
+  if (htfBull >= 3) htfTrend = 'LONG';
+  else if (htfBear >= 3) htfTrend = 'SHORT';
+
+  // ADX çok düşükse (< 12) trendsiz say — 15 çok katıydı
+  if (adx4h.adx < 12) htfTrend = 'NEUTRAL';
 
   // ── ADIM 2: 1h YAPI ANALİZİ ──────────────────────────
-  const sw1h = findSwings(kl1h, 3);
+  const sw1h = findSwings(kl1h, 2);   // 1h: her iki yanda 2 mum yeterli
   const struct1h = detectStructure(kl1h, sw1h);
   const atr1h = atr(kl1h, 14);
   const fib4hLevels = fib(kl4h, 60);
   const c1h = kl1h.map(k => k.c);
   const rsi1h = rsi(c1h, 14);
   const macd1h = macd(c1h);
+  // 1h EMA trend — BOS yoksa yedek yapı sinyali
+  const e21_1h = ema(c1h, 21), e50_1h = ema(c1h, 50);
+  const le21_1h = e21_1h[e21_1h.length-1], le50_1h = e50_1h[e50_1h.length-1];
+  const ema1hBull = le21_1h && le50_1h && le21_1h > le50_1h && price > le21_1h;
+  const ema1hBear = le21_1h && le50_1h && le21_1h < le50_1h && price < le21_1h;
 
   // ── ADIM 3: 15m GİRİŞ TETİKLEYİCİ ───────────────────
   const c15m = kl15m.map(k => k.c);
@@ -810,12 +823,14 @@ function analyzeMarket(sym) {
   else if (htfTrend === 'SHORT') { bear += 25; reasons.htf = {v:'SHORT', cls:'bear', lbl:'HTF Trend', desc:'4h aşağı trend aktif'}; }
   else { reasons.htf = {v:'NÖTR', cls:'neut', lbl:'HTF Trend', desc:'Trendsiz, bekle'}; }
 
-  // 2. Market structure 1h (ağırlık: yüksek)
-  if (struct1h.bos === 'LONG') { bull += 20; reasons.struct = {v:'BOS↑', cls:'bull', lbl:'1h Yapı', desc:'Yüksek kırıldı (BOS Long)'}; }
-  else if (struct1h.bos === 'SHORT') { bear += 20; reasons.struct = {v:'BOS↓', cls:'bear', lbl:'1h Yapı', desc:'Düşük kırıldı (BOS Short)'}; }
-  else if (struct1h.choch === 'BULLISH_CHOCH') { bull += 12; reasons.struct = {v:'CHoCH↑', cls:'bull', lbl:'1h Yapı', desc:'Trend değişimi (Long)'}; }
-  else if (struct1h.choch === 'BEARISH_CHOCH') { bear += 12; reasons.struct = {v:'CHoCH↓', cls:'bear', lbl:'1h Yapı', desc:'Trend değişimi (Short)'}; }
-  else { reasons.struct = {v:'YOK', cls:'neut', lbl:'1h Yapı', desc:'Yapısal sinyal yok'}; }
+  // 2. Market structure 1h (ağırlık: yüksek) — BOS yoksa EMA trend yedek
+  if (struct1h.bos === 'LONG')              { bull += 20; reasons.struct = {v:'BOS↑',    cls:'bull', lbl:'1h Yapı', desc:'Yüksek kırıldı (BOS Long)'}; }
+  else if (struct1h.bos === 'SHORT')        { bear += 20; reasons.struct = {v:'BOS↓',    cls:'bear', lbl:'1h Yapı', desc:'Düşük kırıldı (BOS Short)'}; }
+  else if (struct1h.choch === 'BULLISH_CHOCH') { bull += 14; reasons.struct = {v:'CHoCH↑', cls:'bull', lbl:'1h Yapı', desc:'Trend değişimi (Long)'}; }
+  else if (struct1h.choch === 'BEARISH_CHOCH') { bear += 14; reasons.struct = {v:'CHoCH↓', cls:'bear', lbl:'1h Yapı', desc:'Trend değişimi (Short)'}; }
+  else if (ema1hBull)  { bull += 8;  reasons.struct = {v:'EMA↑',    cls:'bull', lbl:'1h Yapı', desc:'1h EMA21 > EMA50, fiyat üstü'}; }
+  else if (ema1hBear)  { bear += 8;  reasons.struct = {v:'EMA↓',    cls:'bear', lbl:'1h Yapı', desc:'1h EMA21 < EMA50, fiyat altı'}; }
+  else                 { reasons.struct = {v:'YOK',    cls:'neut', lbl:'1h Yapı', desc:'Yapısal sinyal yok'}; }
 
   // 3. S/D Zone (ağırlık: orta-yüksek)
   const inDemand = sd15m.demand && price >= sd15m.demand.bottom * 0.999 && price <= sd15m.demand.top * 1.001;
@@ -863,43 +878,52 @@ function analyzeMarket(sym) {
   const total = bull + bear || 1;
   const conf = Math.round(Math.max(bull, bear) / total * 100);
 
-  // Hassasiyet eşikleri
+  // Hassasiyet eşikleri — gerçekçi değerler
+  // Max puan: HTF(25) + Struct(20) + SD(15) + Fib(12) + MACD(8) + RSI(8) + Vol(8) + EMA(6) = 102
+  // NEUTRAL HTF'de bile: Struct(20)+SD(15)+MACD(8)+RSI(8)+Vol(8)+EMA(6) = 65 mümkün
   const sens = document.getElementById('selSens') ? document.getElementById('selSens').value : 'med';
-  const thresholds = {high:{minScore:60,minConf:72}, med:{minScore:45,minConf:62}, low:{minScore:35,minConf:52}};
+  const thresholds = {
+    high: {minScore:55, minConf:68},   // Temkinli: yapı + en az 2-3 destekleyici
+    med:  {minScore:38, minConf:58},   // Dengeli: HTF + 1-2 destek
+    low:  {minScore:28, minConf:50},   // Aktif: daha fazla sinyal
+  };
   const th = thresholds[sens] || thresholds.med;
 
   let signal = 'WAIT';
   let edgeText = '';
   const minRR = parseFloat(document.getElementById('inpMinRR') ? document.getElementById('inpMinRR').value : 2);
 
-  // Kritik kural: HTF trendsiz ise bekle
+  // NEUTRAL HTF → WAIT (ama skoru yine de göster)
   if (htfTrend === 'NEUTRAL') {
     signal = 'WAIT';
-    edgeText = 'HTF trend belirsiz — bekliyor';
+    edgeText = `HTF trend belirsiz (ADX:${adx4h.adx.toFixed(0)}) — bekliyor`;
   }
-  // Kritik kural: Sinyal HTF trendine karşı ise bekle
+  // HTF trend karşı yönde sinyal → WAIT
   else if (bull > bear && htfTrend === 'SHORT') {
     signal = 'WAIT';
-    edgeText = 'LONG sinyali var ama HTF SHORT trend — geç';
+    edgeText = 'LONG sinyali var ama 4h SHORT trend — geç';
   }
   else if (bear > bull && htfTrend === 'LONG') {
     signal = 'WAIT';
-    edgeText = 'SHORT sinyali var ama HTF LONG trend — geç';
+    edgeText = 'SHORT sinyali var ama 4h LONG trend — geç';
   }
+  // LONG sinyal
   else if (bull > bear && bull >= th.minScore && conf >= th.minConf) {
     signal = 'LONG';
     edgeText = fibConf === 'sup' ? '🎯 Fib confluence + demand + yapı' :
-               inDemand ? '📦 Demand zone + yapı onaylı' :
-               '📈 Yapısal LONG sinyali';
+               inDemand          ? '📦 Demand zone + yapı onaylı' :
+                                   '📈 Yapısal LONG sinyali';
   }
+  // SHORT sinyal
   else if (bear > bull && bear >= th.minScore && conf >= th.minConf) {
     signal = 'SHORT';
     edgeText = fibConf === 'res' ? '🎯 Fib confluence + supply + yapı' :
-               inSupply ? '📦 Supply zone + yapı onaylı' :
-               '📉 Yapısal SHORT sinyali';
+               inSupply          ? '📦 Supply zone + yapı onaylı' :
+                                   '📉 Yapısal SHORT sinyali';
   }
   else {
-    edgeText = `Eşiğe ulaşmadı (${Math.max(bull,bear)}/${th.minScore}, conf ${conf}/${th.minConf})`;
+    const leadScore = Math.max(bull, bear);
+    edgeText = `Eşiğe ulaşmadı — skor ${leadScore}/${th.minScore}, conf ${conf}%/${th.minConf}%`;
   }
 
   // ── TP / SL HESAPLA (geniş — yapısal) ────────────────
@@ -1066,7 +1090,7 @@ function updateSignalUI() {
   document.getElementById('sigBadge').textContent = sig;
   document.getElementById('sigBadge').className = 'sig-badge ' + sig;
   document.getElementById('sigConf').textContent = an ?
-    `Güven: ${conf}%  ·  Bull: ${an.bull}  Bear: ${an.bear}  ·  HTF: ${an.htfTrend}` :
+    `Güven: ${conf}%  ·  Bull: ${an.bull}  Bear: ${an.bear}  ·  HTF: ${an.htfTrend}  ·  ADX: ${an.indicators ? an.indicators.adx.toFixed(0) : '--'}` :
     'Analiz bekleniyor...';
   document.getElementById('sigEdge').textContent = an ? an.edgeText : '';
 
@@ -1530,8 +1554,8 @@ function refreshDemo() {
 
     // Kline güncelle veya oluştur
     if (!pData[sym].lastKlBuild || now - pData[sym].lastKlBuild > 20000) {
-      pData[sym].kl4h  = makeKlines(sym, 80, '4h');
-      pData[sym].kl1h  = makeKlines(sym, 100, '1h');
+      pData[sym].kl4h  = makeKlines(sym, 220, '4h');  // EMA200 için 220 mum gerek
+      pData[sym].kl1h  = makeKlines(sym, 120, '1h');
       pData[sym].kl15m = makeKlines(sym, 120, '15m');
       pData[sym].kl5m  = makeKlines(sym, 100, '5m');
       pData[sym].lastKlBuild = now;
@@ -1557,8 +1581,8 @@ async function fetchLive() {
     );
     const [prices, kl4h, kl1h, kl15m, kl5m] = await Promise.all([
       Promise.all(proms),
-      fetch(`${WORKER}/klines?symbol=${currentPair}&interval=4h&limit=80`).then(r=>r.json()).catch(()=>null),
-      fetch(`${WORKER}/klines?symbol=${currentPair}&interval=1h&limit=100`).then(r=>r.json()).catch(()=>null),
+      fetch(`${WORKER}/klines?symbol=${currentPair}&interval=4h&limit=220`).then(r=>r.json()).catch(()=>null),
+      fetch(`${WORKER}/klines?symbol=${currentPair}&interval=1h&limit=120`).then(r=>r.json()).catch(()=>null),
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=15m&limit=120`).then(r=>r.json()).catch(()=>null),
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=5m&limit=100`).then(r=>r.json()).catch(()=>null),
     ]);
