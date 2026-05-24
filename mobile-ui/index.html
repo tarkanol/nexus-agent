@@ -818,163 +818,149 @@ function analyzeMarket(sym) {
   // ── PUAN SİSTEMİ ──────────────────────────────────────
   let bull = 0, bear = 0, reasons = {};
 
-  // 1. HTF trend (ağırlık: kritik — karşı gidilmez)
-  if (htfTrend === 'LONG') { bull += 25; reasons.htf = {v:'LONG', cls:'bull', lbl:'HTF Trend', desc:'4h yukarı trend aktif'}; }
+  // 1. HTF trend (25 puan)
+  if (htfTrend === 'LONG')  { bull += 25; reasons.htf = {v:'LONG',  cls:'bull', lbl:'HTF Trend', desc:'4h yukarı trend aktif'}; }
   else if (htfTrend === 'SHORT') { bear += 25; reasons.htf = {v:'SHORT', cls:'bear', lbl:'HTF Trend', desc:'4h aşağı trend aktif'}; }
-  else { reasons.htf = {v:'NÖTR', cls:'neut', lbl:'HTF Trend', desc:'Trendsiz, bekle'}; }
+  else { reasons.htf = {v:'NÖTR', cls:'neut', lbl:'HTF Trend', desc:`Trendsiz (ADX:${adx4h.adx.toFixed(0)})`}; }
 
-  // 2. Market structure 1h (ağırlık: yüksek) — BOS yoksa EMA trend yedek
-  if (struct1h.bos === 'LONG')              { bull += 20; reasons.struct = {v:'BOS↑',    cls:'bull', lbl:'1h Yapı', desc:'Yüksek kırıldı (BOS Long)'}; }
-  else if (struct1h.bos === 'SHORT')        { bear += 20; reasons.struct = {v:'BOS↓',    cls:'bear', lbl:'1h Yapı', desc:'Düşük kırıldı (BOS Short)'}; }
-  else if (struct1h.choch === 'BULLISH_CHOCH') { bull += 14; reasons.struct = {v:'CHoCH↑', cls:'bull', lbl:'1h Yapı', desc:'Trend değişimi (Long)'}; }
-  else if (struct1h.choch === 'BEARISH_CHOCH') { bear += 14; reasons.struct = {v:'CHoCH↓', cls:'bear', lbl:'1h Yapı', desc:'Trend değişimi (Short)'}; }
-  else if (ema1hBull)  { bull += 8;  reasons.struct = {v:'EMA↑',    cls:'bull', lbl:'1h Yapı', desc:'1h EMA21 > EMA50, fiyat üstü'}; }
-  else if (ema1hBear)  { bear += 8;  reasons.struct = {v:'EMA↓',    cls:'bear', lbl:'1h Yapı', desc:'1h EMA21 < EMA50, fiyat altı'}; }
-  else                 { reasons.struct = {v:'YOK',    cls:'neut', lbl:'1h Yapı', desc:'Yapısal sinyal yok'}; }
+  // 2. Market structure 1h (max 20 puan)
+  if      (struct1h.bos === 'LONG')           { bull += 20; reasons.struct = {v:'BOS↑',   cls:'bull', lbl:'1h Yapı', desc:'Yüksek kırıldı (BOS Long)'}; }
+  else if (struct1h.bos === 'SHORT')          { bear += 20; reasons.struct = {v:'BOS↓',   cls:'bear', lbl:'1h Yapı', desc:'Düşük kırıldı (BOS Short)'}; }
+  else if (struct1h.choch === 'BULLISH_CHOCH'){ bull += 14; reasons.struct = {v:'CHoCH↑', cls:'bull', lbl:'1h Yapı', desc:'Trend değişimi (Long)'}; }
+  else if (struct1h.choch === 'BEARISH_CHOCH'){ bear += 14; reasons.struct = {v:'CHoCH↓', cls:'bear', lbl:'1h Yapı', desc:'Trend değişimi (Short)'}; }
+  else if (ema1hBull) { bull += 10; reasons.struct = {v:'EMA↑', cls:'bull', lbl:'1h Yapı', desc:'EMA21>EMA50, fiyat üstü'}; }
+  else if (ema1hBear) { bear += 10; reasons.struct = {v:'EMA↓', cls:'bear', lbl:'1h Yapı', desc:'EMA21<EMA50, fiyat altı'}; }
+  else { reasons.struct = {v:'YOK', cls:'neut', lbl:'1h Yapı', desc:'Net yapı sinyali yok'}; }
 
-  // 3. S/D Zone (ağırlık: orta-yüksek)
-  const inDemand = sd15m.demand && price >= sd15m.demand.bottom * 0.999 && price <= sd15m.demand.top * 1.001;
-  const inSupply = sd15m.supply && price >= sd15m.supply.bottom * 0.999 && price <= sd15m.supply.top * 1.001;
-  if (inDemand) { bull += 15; reasons.sd = {v:'DEMAND', cls:'bull', lbl:'S/D Zone', desc:'Demand zone içinde'}; }
+  // 3. S/D Zone (15 puan) — tolerans genişletildi
+  if (inDemand)      { bull += 15; reasons.sd = {v:'DEMAND', cls:'bull', lbl:'S/D Zone', desc:'Demand zone içinde'}; }
   else if (inSupply) { bear += 15; reasons.sd = {v:'SUPPLY', cls:'bear', lbl:'S/D Zone', desc:'Supply zone içinde'}; }
-  else { reasons.sd = {v:'DIŞINDA', cls:'neut', lbl:'S/D Zone', desc:'Zone dışında'}; }
+  else {
+    // Zone dışındaysa fiyatın en yakın zone'a mesafesini göster
+    const dDist = sd15m.demand ? ((price-sd15m.demand.top)/price*100).toFixed(1)+'%' : '--';
+    const sDist = sd15m.supply ? ((sd15m.supply.bottom-price)/price*100).toFixed(1)+'%' : '--';
+    reasons.sd = {v:'DIŞINDA', cls:'neut', lbl:'S/D Zone', desc:`Demand'e: ${dDist} / Supply'e: ${sDist}`};
+  }
 
-  // 4. Fibonacci confluence (bonus)
-  if (fibConf === 'sup') { bull += 12; reasons.fib = {v:fibLevel.name, cls:'bull', lbl:'Fibonacci', desc:'Destek bölgesi yakın'}; }
-  else if (fibConf === 'res') { bear += 12; reasons.fib = {v:fibLevel.name, cls:'bear', lbl:'Fibonacci', desc:'Direnç bölgesi yakın'}; }
-  else { reasons.fib = {v:'UZAK', cls:'neut', lbl:'Fibonacci', desc:'Kritik seviyeden uzak'}; }
+  // 4. Fibonacci (12 puan)
+  if      (fibConf === 'sup') { bull += 12; reasons.fib = {v:fibLevel.name, cls:'bull', lbl:'Fibonacci', desc:'Fib destek bölgesi'}; }
+  else if (fibConf === 'res') { bear += 12; reasons.fib = {v:fibLevel.name, cls:'bear', lbl:'Fibonacci', desc:'Fib direnç bölgesi'}; }
+  else { reasons.fib = {v:'UZAK', cls:'neut', lbl:'Fibonacci', desc:'Kritik Fib seviyesinden uzak'}; }
 
-  // 5. MACD acceleration (momentum)
-  const macdBull = macd15m.hist > 0 && macd15m.hist > macd15m.prevHist && macd15m.macd > 0;
-  const macdBear = macd15m.hist < 0 && macd15m.hist < macd15m.prevHist && macd15m.macd < 0;
-  if (macdBull) { bull += 8; reasons.macd = {v:'MACD↑↑', cls:'bull', lbl:'MACD (15m)', desc:'Histogram ivmelenme yukarı'}; }
-  else if (macd15m.hist > 0) { bull += 4; reasons.macd = {v:'MACD+', cls:'bull', lbl:'MACD (15m)', desc:'Pozitif histogram'}; }
-  else if (macdBear) { bear += 8; reasons.macd = {v:'MACD↓↓', cls:'bear', lbl:'MACD (15m)', desc:'Histogram ivmelenme aşağı'}; }
-  else if (macd15m.hist < 0) { bear += 4; reasons.macd = {v:'MACD-', cls:'bear', lbl:'MACD (15m)', desc:'Negatif histogram'}; }
+  // 5. MACD (8 puan) — histogram yönü ve ivmesi
+  const macdBull = macd15m.hist > 0 && macd15m.hist > macd15m.prevHist;
+  const macdBear = macd15m.hist < 0 && macd15m.hist < macd15m.prevHist;
+  if      (macdBull && macd15m.macd > 0) { bull += 8; reasons.macd = {v:'MACD↑↑', cls:'bull', lbl:'MACD (15m)', desc:'İvme + pozitif hat'}; }
+  else if (macdBull)                      { bull += 5; reasons.macd = {v:'MACD↑',  cls:'bull', lbl:'MACD (15m)', desc:'Histogram ivmeleniyor'}; }
+  else if (macdBear && macd15m.macd < 0) { bear += 8; reasons.macd = {v:'MACD↓↓', cls:'bear', lbl:'MACD (15m)', desc:'İvme + negatif hat'}; }
+  else if (macdBear)                      { bear += 5; reasons.macd = {v:'MACD↓',  cls:'bear', lbl:'MACD (15m)', desc:'Histogram düşüyor'}; }
+  else if (macd15m.hist > 0)              { bull += 2; reasons.macd = {v:'MACD+',  cls:'bull', lbl:'MACD (15m)', desc:'Pozitif histogram'}; }
+  else if (macd15m.hist < 0)              { bear += 2; reasons.macd = {v:'MACD-',  cls:'bear', lbl:'MACD (15m)', desc:'Negatif histogram'}; }
   else { reasons.macd = {v:'NÖTR', cls:'neut', lbl:'MACD (15m)', desc:'Yön belirsiz'}; }
 
-  // 6. RSI momentum (15m)
-  const rsiBull = rsi15m > 45 && rsi15m < 65;
-  const rsiBear = rsi15m < 55 && rsi15m > 35;
-  if (rsi15m < 30) { bull += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Aşırı satım — dönüş potansiyeli'}; }
-  else if (rsi15m > 70) { bear += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Aşırı alım — düşüş potansiyeli'}; }
-  else if (rsiBull) { bull += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Momentum bölgesi (long)'}; }
-  else if (rsiBear) { bear += 4; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Momentum bölgesi (short)'}; }
-  else { reasons.rsi = {v:rsi15m.toFixed(1), cls:'neut', lbl:'RSI (15m)', desc:'Nötr bölge'}; }
+  // 6. RSI (8 puan)
+  if      (rsi15m < 30)              { bull += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Aşırı satım (<30)'}; }
+  else if (rsi15m > 70)              { bear += 8; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Aşırı alım (>70)'}; }
+  else if (rsi15m > 50 && rsi15m < 65) { bull += 5; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bull', lbl:'RSI (15m)', desc:'Momentum bölgesi (50-65)'}; }
+  else if (rsi15m < 50 && rsi15m > 35) { bear += 5; reasons.rsi = {v:rsi15m.toFixed(1), cls:'bear', lbl:'RSI (15m)', desc:'Momentum bölgesi (35-50)'}; }
+  else { reasons.rsi = {v:rsi15m.toFixed(1), cls:'neut', lbl:'RSI (15m)', desc:'Nötr bölge (45-55)'}; }
 
-  // 7. Volume confirmation
-  if (vr15m > 1.5 && bull > bear) { bull += 8; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bull', lbl:'Hacim', desc:'Hacim artışı + yükseliş'}; }
-  else if (vr15m > 1.5 && bear > bull) { bear += 8; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bear', lbl:'Hacim', desc:'Hacim artışı + düşüş'}; }
-  else { reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'neut', lbl:'Hacim', desc:vr15m > 1 ? 'Normal' : 'Düşük hacim'}; }
+  // 7. Hacim (6 puan)
+  if      (vr15m > 1.5 && bull > bear) { bull += 6; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bull', lbl:'Hacim', desc:'Güçlü hacim + yükseliş'}; }
+  else if (vr15m > 1.5 && bear > bull) { bear += 6; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bear', lbl:'Hacim', desc:'Güçlü hacim + düşüş'}; }
+  else if (vr15m > 1.2 && bull > bear) { bull += 3; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bull', lbl:'Hacim', desc:'Orta hacim artışı'}; }
+  else if (vr15m > 1.2 && bear > bull) { bear += 3; reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'bear', lbl:'Hacim', desc:'Orta hacim artışı'}; }
+  else { reasons.vol = {v:vr15m.toFixed(1)+'x', cls:'neut', lbl:'Hacim', desc:vr15m < 0.8 ? 'Hacim düşük — dikkat' : 'Normal hacim'}; }
 
-  // 8. EMA alignment 15m (giriş zamanlaması)
-  if (pe9_15m <= pe21_15m && le9_15m > le21_15m) { bull += 6; reasons.ema = {v:'GX ↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'Golden cross — alım sinyali'}; }
-  else if (pe9_15m >= pe21_15m && le9_15m < le21_15m) { bear += 6; reasons.ema = {v:'DX ↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'Death cross — satım sinyali'}; }
-  else if (le9_15m > le21_15m && price > le9_15m) { bull += 3; reasons.ema = {v:'EMA↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı yukarı'}; }
-  else if (le9_15m < le21_15m && price < le9_15m) { bear += 3; reasons.ema = {v:'EMA↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı aşağı'}; }
+  // 8. EMA 15m (6 puan)
+  if      (pe9_15m <= pe21_15m && le9_15m > le21_15m) { bull += 6; reasons.ema = {v:'GX↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'Golden cross'}; }
+  else if (pe9_15m >= pe21_15m && le9_15m < le21_15m) { bear += 6; reasons.ema = {v:'DX↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'Death cross'}; }
+  else if (le9_15m > le21_15m && price > le9_15m)     { bull += 3; reasons.ema = {v:'EMA↑', cls:'bull', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı yukarı'}; }
+  else if (le9_15m < le21_15m && price < le9_15m)     { bear += 3; reasons.ema = {v:'EMA↓', cls:'bear', lbl:'EMA 9/21 (15m)', desc:'EMA hizalı aşağı'}; }
   else { reasons.ema = {v:'KARMIK', cls:'neut', lbl:'EMA 9/21 (15m)', desc:'Hizasız'}; }
 
-  // ── FİLTRELER ─────────────────────────────────────────
+  // ── KARAR ──────────────────────────────────────────────
   const total = bull + bear || 1;
-  const conf = Math.round(Math.max(bull, bear) / total * 100);
+  const conf  = Math.round(Math.max(bull, bear) / total * 100);
 
-  // Hassasiyet eşikleri — gerçekçi değerler
-  // Max puan: HTF(25) + Struct(20) + SD(15) + Fib(12) + MACD(8) + RSI(8) + Vol(8) + EMA(6) = 102
-  // NEUTRAL HTF'de bile: Struct(20)+SD(15)+MACD(8)+RSI(8)+Vol(8)+EMA(6) = 65 mümkün
+  // Hassasiyet eşikleri (max puan ~100)
   const sens = document.getElementById('selSens') ? document.getElementById('selSens').value : 'med';
-  const thresholds = {
-    high: {minScore:55, minConf:68},   // Temkinli: yapı + en az 2-3 destekleyici
-    med:  {minScore:38, minConf:58},   // Dengeli: HTF + 1-2 destek
-    low:  {minScore:28, minConf:50},   // Aktif: daha fazla sinyal
+  const TH = {
+    high: {minScore:52, minConf:65},
+    med:  {minScore:36, minConf:56},
+    low:  {minScore:24, minConf:48},
   };
-  const th = thresholds[sens] || thresholds.med;
+  const th = TH[sens] || TH.med;
 
-  let signal = 'WAIT';
-  let edgeText = '';
-  const minRR = parseFloat(document.getElementById('inpMinRR') ? document.getElementById('inpMinRR').value : 2);
+  let signal = 'WAIT', edgeText = '';
 
-  // NEUTRAL HTF → WAIT (ama skoru yine de göster)
   if (htfTrend === 'NEUTRAL') {
-    signal = 'WAIT';
-    edgeText = `HTF trend belirsiz (ADX:${adx4h.adx.toFixed(0)}) — bekliyor`;
+    signal   = 'WAIT';
+    edgeText = `4h trend yok (ADX:${adx4h.adx.toFixed(0)}<12) — bekliyor`;
   }
-  // HTF trend karşı yönde sinyal → WAIT
   else if (bull > bear && htfTrend === 'SHORT') {
-    signal = 'WAIT';
-    edgeText = 'LONG sinyali var ama 4h SHORT trend — geç';
+    signal   = 'WAIT';
+    edgeText = `Long sinyali var ama HTF SHORT — trendle savaşma`;
   }
   else if (bear > bull && htfTrend === 'LONG') {
-    signal = 'WAIT';
-    edgeText = 'SHORT sinyali var ama 4h LONG trend — geç';
+    signal   = 'WAIT';
+    edgeText = `Short sinyali var ama HTF LONG — trendle savaşma`;
   }
-  // LONG sinyal
   else if (bull > bear && bull >= th.minScore && conf >= th.minConf) {
-    signal = 'LONG';
-    edgeText = fibConf === 'sup' ? '🎯 Fib confluence + demand + yapı' :
-               inDemand          ? '📦 Demand zone + yapı onaylı' :
-                                   '📈 Yapısal LONG sinyali';
+    signal   = 'LONG';
+    edgeText = fibConf==='sup' ? '🎯 Fib+Demand+Yapı confluence' :
+               inDemand        ? '📦 Demand zone + yapı' : '📈 Yapısal LONG';
   }
-  // SHORT sinyal
   else if (bear > bull && bear >= th.minScore && conf >= th.minConf) {
-    signal = 'SHORT';
-    edgeText = fibConf === 'res' ? '🎯 Fib confluence + supply + yapı' :
-               inSupply          ? '📦 Supply zone + yapı onaylı' :
-                                   '📉 Yapısal SHORT sinyali';
+    signal   = 'SHORT';
+    edgeText = fibConf==='res' ? '🎯 Fib+Supply+Yapı confluence' :
+               inSupply        ? '📦 Supply zone + yapı' : '📉 Yapısal SHORT';
   }
   else {
-    const leadScore = Math.max(bull, bear);
-    edgeText = `Eşiğe ulaşmadı — skor ${leadScore}/${th.minScore}, conf ${conf}%/${th.minConf}%`;
+    const lead = Math.max(bull, bear);
+    const dir  = bull > bear ? 'LONG' : 'SHORT';
+    edgeText = `${dir} yönelim: ${lead}/${th.minScore} puan, ${conf}%/${th.minConf}% güven — eşik altında`;
   }
 
-  // ── TP / SL HESAPLA (geniş — yapısal) ────────────────
+  // ── TP / SL (R:R filtresi YUMUŞATILDI: min 1.2, değil 2) ──
   let sl, tp1, tp2, tp3, posAtr;
-  posAtr = atr1h || atr15m;
+  posAtr = atr1h || atr15m || price * 0.01;
+  const minRR = 1.2; // Sabit 1.2 — UI'daki değer çok yüksek engel
 
   if (signal === 'LONG') {
-    // SL: Son swing low'un ATR*0.5 altı
-    const swLow = sw1h.lows.length ? sw1h.lows[sw1h.lows.length-1].price : price - posAtr * 2;
-    sl = swLow - posAtr * 0.5;
-    // Demand zone varsa ve daha yakınsa onu kullan
-    if (sd15m.demand && sd15m.demand.bottom < swLow && sd15m.demand.bottom > price - posAtr * 4) {
+    const swLow = sw1h.lows.length ? sw1h.lows[sw1h.lows.length-1].price : price - posAtr * 2.5;
+    sl = Math.min(swLow - posAtr * 0.5, price - posAtr * 2.5);
+    if (sd15m.demand && sd15m.demand.bottom < price && sd15m.demand.bottom > sl)
       sl = sd15m.demand.bottom - posAtr * 0.3;
-    }
     const slDist = price - sl;
-    tp1 = price + slDist * 1.5;  // R:R 1.5
-    tp2 = price + slDist * 2.5;  // R:R 2.5
-    tp3 = price + slDist * 4.0;  // R:R 4.0
-    // Sonraki swing high varsa TP1'i onunla sınırla
-    if (sw1h.highs.length && sw1h.highs[sw1h.highs.length-1].price > price) {
-      tp1 = Math.min(tp1, sw1h.highs[sw1h.highs.length-1].price * 0.998);
-    }
-    // Fib direnci varsa TP2'yi ayarla
-    if (fib4hLevels && fib4hLevels.r382 > price) {
-      tp2 = Math.min(tp2, fib4hLevels.r382 * 0.999);
-    }
+    if (slDist <= 0) { sl = price - posAtr * 2.5; }
+    const slD = price - sl;
+    tp1 = price + slD * 1.5;
+    tp2 = price + slD * 2.5;
+    tp3 = price + slD * 4.0;
+    // Fib direncine snap — ama tp1'i KÜÇÜLTME, büyütme
+    if (fib4hLevels && fib4hLevels.r382 > tp1 && fib4hLevels.r382 < tp2) tp2 = fib4hLevels.r382 * 0.999;
   } else if (signal === 'SHORT') {
-    const swHigh = sw1h.highs.length ? sw1h.highs[sw1h.highs.length-1].price : price + posAtr * 2;
-    sl = swHigh + posAtr * 0.5;
-    if (sd15m.supply && sd15m.supply.top > swHigh && sd15m.supply.top < price + posAtr * 4) {
+    const swHigh = sw1h.highs.length ? sw1h.highs[sw1h.highs.length-1].price : price + posAtr * 2.5;
+    sl = Math.max(swHigh + posAtr * 0.5, price + posAtr * 2.5);
+    if (sd15m.supply && sd15m.supply.top > price && sd15m.supply.top < sl)
       sl = sd15m.supply.top + posAtr * 0.3;
-    }
     const slDist = sl - price;
-    tp1 = price - slDist * 1.5;
-    tp2 = price - slDist * 2.5;
-    tp3 = price - slDist * 4.0;
-    if (sw1h.lows.length && sw1h.lows[sw1h.lows.length-1].price < price) {
-      tp1 = Math.max(tp1, sw1h.lows[sw1h.lows.length-1].price * 1.002);
-    }
-    if (fib4hLevels && fib4hLevels.r618 < price) {
-      tp2 = Math.max(tp2, fib4hLevels.r618 * 1.001);
-    }
+    if (slDist <= 0) { sl = price + posAtr * 2.5; }
+    const slD = sl - price;
+    tp1 = price - slD * 1.5;
+    tp2 = price - slD * 2.5;
+    tp3 = price - slD * 4.0;
+    if (fib4hLevels && fib4hLevels.r618 < tp1 && fib4hLevels.r618 > tp2) tp2 = fib4hLevels.r618 * 1.001;
   }
 
-  // R:R kontrolü
+  // R:R sadece bilgi amaçlı — 1.2 altında ise uyar ama WAIT'e döndürme
   let rrRatio = null;
   if (signal !== 'WAIT' && sl && tp1) {
     rrRatio = Math.abs(tp1 - price) / Math.abs(price - sl);
     if (rrRatio < minRR) {
-      signal = 'WAIT';
-      edgeText = `R:R ${rrRatio.toFixed(2)} < min ${minRR} — bekle`;
+      edgeText += ` ⚠️ R:R ${rrRatio.toFixed(2)} düşük`;
+      // Sinyali iptal ETME — sadece uyar
     }
   }
 
@@ -1635,45 +1621,63 @@ function refreshDemo() {
 async function fetchLive() {
   if (!WORKER) return;
   try {
-    const proms = PAIRS.map(sym =>
-      fetch(`${WORKER}/price?symbol=${sym}`).then(r=>r.json()).catch(()=>null)
+    const pk = d => d&&d.success&&Array.isArray(d.data)
+      ? d.data.map(k=>({t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})) : null;
+
+    // 1. Tüm pair fiyatları paralel
+    const priceResults = await Promise.all(
+      PAIRS.map(sym => fetch(`${WORKER}/price?symbol=${sym}`).then(r=>r.json()).catch(()=>null))
     );
-    const [prices, kl4h, kl1h, kl15m, kl5m] = await Promise.all([
-      Promise.all(proms),
+    PAIRS.forEach((sym, i) => {
+      const pr = priceResults[i];
+      if (pr && pr.success) {
+        const p = parseFloat(pr.data.lastPrice || pr.data.price);
+        if (p > 0) {
+          prevP[sym] = pState[sym].price;
+          pState[sym].price = p;
+          if (!pData[sym]) pData[sym] = {};
+          pData[sym].price = p;
+        }
+      }
+    });
+
+    // 2. currentPair için tam kline seti (4h+1h+15m+5m)
+    const [kl4h, kl1h, kl15m, kl5m] = await Promise.all([
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=4h&limit=220`).then(r=>r.json()).catch(()=>null),
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=1h&limit=120`).then(r=>r.json()).catch(()=>null),
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=15m&limit=120`).then(r=>r.json()).catch(()=>null),
       fetch(`${WORKER}/klines?symbol=${currentPair}&interval=5m&limit=100`).then(r=>r.json()).catch(()=>null),
     ]);
-
-    PAIRS.forEach((sym, i) => {
-      const pr = prices[i];
-      if (pr && pr.success) {
-        const p = parseFloat(pr.data.lastPrice || pr.data.price);
-        if (p > 0) { prevP[sym] = pState[sym].price; pState[sym].price = p; if (!pData[sym]) pData[sym]={}; pData[sym].price = p; }
-      }
-    });
-
-    const pk = d => d&&d.success&&Array.isArray(d.data)
-      ? d.data.map(k=>({t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})) : null;
     if (!pData[currentPair]) pData[currentPair] = {};
-    const k4 = pk(kl4h);  if (k4) pData[currentPair].kl4h = k4;
-    const k1 = pk(kl1h);  if (k1) pData[currentPair].kl1h = k1;
+    const k4 = pk(kl4h);  if (k4) pData[currentPair].kl4h  = k4;
+    const k1 = pk(kl1h);  if (k1) pData[currentPair].kl1h  = k1;
     const k15= pk(kl15m); if (k15) pData[currentPair].kl15m = k15;
-    const k5 = pk(kl5m);  if (k5) pData[currentPair].kl5m = k5;
+    const k5 = pk(kl5m);  if (k5) pData[currentPair].kl5m  = k5;
 
-    // Diğer pairler için demo kline (eğer yoksa)
-    PAIRS.filter(s => s !== currentPair).forEach(sym => {
+    // 3. Diğer 4 pair için 15m + 1h kline (sinyal için yeterli)
+    //    Demo kline KULLANMA — gerçek veri çek
+    const otherPairs = PAIRS.filter(s => s !== currentPair);
+    const otherKlines = await Promise.all(
+      otherPairs.flatMap(sym => [
+        fetch(`${WORKER}/klines?symbol=${sym}&interval=1h&limit=120`).then(r=>r.json()).catch(()=>null),
+        fetch(`${WORKER}/klines?symbol=${sym}&interval=15m&limit=120`).then(r=>r.json()).catch(()=>null),
+        fetch(`${WORKER}/klines?symbol=${sym}&interval=4h&limit=100`).then(r=>r.json()).catch(()=>null),
+      ])
+    );
+    otherPairs.forEach((sym, i) => {
       if (!pData[sym]) pData[sym] = {};
-      if (!pData[sym].kl15m) {
-        pData[sym].kl4h  = makeKlines(sym, 80, '4h');
-        pData[sym].kl1h  = makeKlines(sym, 100, '1h');
-        pData[sym].kl15m = makeKlines(sym, 120, '15m');
-        pData[sym].kl5m  = makeKlines(sym, 100, '5m');
-      }
+      const k1h_o  = pk(otherKlines[i*3]);
+      const k15m_o = pk(otherKlines[i*3+1]);
+      const k4h_o  = pk(otherKlines[i*3+2]);
+      if (k1h_o)  pData[sym].kl1h  = k1h_o;
+      if (k15m_o) pData[sym].kl15m = k15m_o;
+      if (k4h_o)  pData[sym].kl4h  = k4h_o;
+      // 5m yoksa 15m'yi kullan
+      if (!pData[sym].kl5m && k15m_o) pData[sym].kl5m = k15m_o;
     });
+
     analyzeAll();
-  } catch(e) { addLog('⚠️ ' + e.message, 'warn'); }
+  } catch(e) { addLog('⚠️ fetchLive: ' + e.message, 'warn'); }
 }
 
 // ═══════════════════════════════════════
