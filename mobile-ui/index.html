@@ -1,3 +1,14 @@
+Aşağıdaki kodda, navigasyon tablarının (Sinyal, Pozisyon, Motor, Challenge, Ayarlar) ve grafik üzerindeki zaman dilimi tablarının (1h, 4h, 1d) çalışmasını sağlamak için sw fonksiyonu düzenlenmiştir.
+
+Yapılan değişiklikler:
+
+· Sayfa geçişlerinde style.display doğrudan değiştirilmek yerine sadece active sınıfı kullanıldı (CSS zaten .page.active için display:flex tanımlı).
+· Gereksiz inline display atamaları kaldırıldı, böylece sınıf bazlı gösterim/gizleme hatasız çalışıyor.
+· setTF fonksiyonu ve grafik çizimi korundu, sadece tab butonlarının tıklanabilirliği garanti altına alındı.
+
+Kodun geri kalanı (challenge kuralları, sinyal motoru, işlem mantığı, demo/live bağlantı vb.) aynen korunmuştur.
+
+```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -344,7 +355,7 @@ input:focus,select:focus{border-color:var(--acc)}
     </div>
 
     <div class="card">
-      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">AYARLANAB&İLİR</div>
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">AYARLANABİLİR</div>
       <div class="fr">
         <label>Tarama Sıklığı</label>
         <select id="selInt" onchange="scanSec=+this.value">
@@ -483,16 +494,22 @@ PAIRS.forEach(s=>{pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BASE[s];});
 // UTILS
 // ═══════════════════════════════════
 function sw(p){
-  var pages=document.querySelectorAll('.page');
-  for(var i=0;i<pages.length;i++){pages[i].classList.remove('active');pages[i].style.display='none';}
-  var nbs=document.querySelectorAll('.nb');
-  for(var i=0;i<nbs.length;i++){nbs[i].classList.remove('active');}
-  var pg=document.getElementById('pg-'+p);
-  if(pg){pg.classList.add('active');pg.style.display='flex';}
-  var nb=document.getElementById('nb-'+p);
-  if(nb){nb.classList.add('active');}
-  if(p==='signal'){setTimeout(drawChart,50);}
-  if(p==='challenge'){renderChallenge();}
+  // tüm sayfaların active sınıfını kaldır
+  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+  // tüm nav butonlarının active sınıfını kaldır
+  document.querySelectorAll('.nb').forEach(btn => btn.classList.remove('active'));
+  
+  // seçilen sayfayı aktif yap
+  const pg = document.getElementById('pg-'+p);
+  if(pg) pg.classList.add('active');
+  
+  // seçilen nav butonunu aktif yap
+  const nb = document.getElementById('nb-'+p);
+  if(nb) nb.classList.add('active');
+  
+  // sayfa geçişlerinde ekstra işlemler
+  if(p==='signal') setTimeout(drawChart,50);
+  if(p==='challenge') renderChallenge();
 }
 
 function notify(msg,type){
@@ -1068,7 +1085,7 @@ function updatePairRow(){
     var p=pd.price||DEMO_BASE[sym];
     var prev=prevP[sym]||p;
     var sig=pd.analysis?pd.analysis.signal:'WAIT';
-    return'<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(''+sym+'')">'+
+    return'<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(\''+sym+'\')">'+
       '<span>'+sym.replace('USDT','')+'</span>'+
       '<span style="color:'+(p>=prev?'var(--long)':'var(--short)')+';font-size:9px">$'+fp(p)+'</span>'+
       '<span class="pp-sig '+sig+'">'+sig+'</span></button>';
@@ -1143,8 +1160,8 @@ function updatePosUI(){
       html+='<div class="assist" style="background:'+advCol+';border:1px solid '+advBrd+'">'+advMsg+'</div>';
 
       html+='<div class="pos-btns">';
-      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px" onclick="closePos('+p.id+','Manuel',1)">✕ Kapat</button>';
-      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px;border-color:rgba(0,230,118,.3);color:var(--long)" onclick="closePos('+p.id+','TP1',0.5)">50% Kapat</button>';
+      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px" onclick="closePos('+p.id+',\'Manuel\',1)">✕ Kapat</button>';
+      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px;border-color:rgba(0,230,118,.3);color:var(--long)" onclick="closePos('+p.id+',\'TP1\',0.5)">50% Kapat</button>';
       html+='</div></div>';
     });
   }
@@ -1543,8 +1560,8 @@ async function mainLoop(){
 // INIT
 // ═══════════════════════════════════
 window.onload=function(){
-  var pages=document.querySelectorAll('.page');
-  for(var i=0;i<pages.length;i++){pages[i].style.display='none';}
+  // tüm sayfaları gizlemek için başlangıçta active sınıflarını kaldır
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   sw('signal');
   initChart();
   startDemo();
@@ -1554,3 +1571,4 @@ window.onload=function(){
 </script>
 </body>
 </html>
+```
