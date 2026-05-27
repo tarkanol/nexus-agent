@@ -210,7 +210,7 @@ input:focus,select:focus{border-color:var(--acc)}
 </div>
 
 <!-- PAGE: SİNYAL -->
-<div class="page active" id="pg-signal">
+<div class="page" id="pg-signal">
   <div class="scroll">
     <div class="pairs" id="pairRow"></div>
     <div class="card">
@@ -261,7 +261,6 @@ input:focus,select:focus{border-color:var(--acc)}
 <!-- PAGE: POZİSYON -->
 <div class="page" id="pg-pos">
   <div class="scroll">
-    <!-- BAKİYE -->
     <div style="background:linear-gradient(135deg,rgba(251,191,36,.06),rgba(0,0,0,.2));border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:14px;margin-bottom:8px">
       <div style="font-size:9px;color:var(--dim)" id="balSrc">DEMO BAKİYE</div>
       <div style="font-size:28px;font-weight:700;color:var(--gold);margin:3px 0" id="dispBal">$62.50</div>
@@ -274,14 +273,13 @@ input:focus,select:focus{border-color:var(--acc)}
         <span style="font-size:9px;color:var(--dim)" id="lastSync"></span>
       </div>
     </div>
-    <!-- GÜNLÜK LİMİT -->
     <div class="card" style="padding:8px 10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-size:9px;color:var(--dim);letter-spacing:1px">GÜNLÜK LİMİT</span>
         <span style="font-size:9px;color:var(--dim)" id="dayTradeTxt">0/2 işlem</span>
       </div>
       <div style="height:3px;background:var(--brd);border-radius:2px;overflow:hidden;margin-bottom:5px">
-        <div style="height:100%;border-radius:2px;background:var(--gold);transition:width .4s" id="dayBar" style="width:0%"></div>
+        <div style="height:100%;border-radius:2px;background:var(--gold);transition:width .4s" id="dayBar"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim)">
         <span>Kayıp limiti: <span id="lossLimitTxt" style="color:var(--warn)">$0/$5</span></span>
@@ -318,7 +316,6 @@ input:focus,select:focus{border-color:var(--acc)}
       </div>
     </div>
 
-    <!-- CHALLENGE KURALLARI -->
     <div class="card" style="border-color:rgba(251,191,36,.3)">
       <div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">⚡ CHALLENGE KURALLARI (değiştirilemez)</div>
       <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
@@ -344,7 +341,7 @@ input:focus,select:focus{border-color:var(--acc)}
     </div>
 
     <div class="card">
-      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">AYARLANAB&İLİR</div>
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">AYARLANABİLİR</div>
       <div class="fr">
         <label>Tarama Sıklığı</label>
         <select id="selInt" onchange="scanSec=+this.value">
@@ -389,7 +386,7 @@ input:focus,select:focus{border-color:var(--acc)}
       <div style="font-size:32px;font-weight:700;color:var(--gold)" id="bigBal">$62.50</div>
       <div style="font-size:11px;color:var(--dim);margin-top:4px" id="bigPct">Başlangıç sermayesi</div>
       <div style="height:6px;background:var(--brd);border-radius:3px;margin:10px 0;overflow:hidden">
-        <div style="height:100%;background:linear-gradient(90deg,var(--gold),var(--acc));border-radius:3px;transition:width .8s" id="bigBar" style="width:0%"></div>
+        <div style="height:100%;background:linear-gradient(90deg,var(--gold),var(--acc));border-radius:3px;transition:width .8s" id="bigBar"></div>
       </div>
       <div style="font-size:10px;color:var(--dim)" id="bigSub">$62.50 → $100.00</div>
     </div>
@@ -452,11 +449,11 @@ const STAGES = [
   {from:90,    to:100, label:'Aşama 3'},
 ];
 const CHALLENGE_START = 62.5;
-const MAX_DAILY_TRADES = 2;   // günde max 2 işlem
-const MAX_DAILY_LOSS   = 5;   // günde max $5 kayıp
-const MAX_POS          = 1;   // aynı anda sadece 1 pozisyon
-const LEVERAGE         = 2;   // sabit 2x
-const MIN_RR           = 2.0; // minimum R:R
+const MAX_DAILY_TRADES = 2;
+const MAX_DAILY_LOSS   = 5;
+const MAX_POS          = 1;
+const LEVERAGE         = 2;
+const MIN_RR           = 2.0;
 const COMM             = 0.0004;
 
 const PAIRS = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
@@ -484,8 +481,8 @@ PAIRS.forEach(function(s){pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BAS
 // ═══════════════════════════════════
 function sw(p){
   var pages=document.querySelectorAll('.page');
-  for(var i=0;i<pages.length;i++){pages[i].classList.remove('active');pages[i].style.display='none';}
   var nbs=document.querySelectorAll('.nb');
+  for(var i=0;i<pages.length;i++){pages[i].classList.remove('active');pages[i].style.display='none';}
   for(var i=0;i<nbs.length;i++){nbs[i].classList.remove('active');}
   var pg=document.getElementById('pg-'+p);
   if(pg){pg.classList.add('active');pg.style.display='flex';}
@@ -528,9 +525,6 @@ function currentStage(){
   return STAGES.length-1;
 }
 
-// ═══════════════════════════════════
-// CHALLENGE PROGRESS
-// ═══════════════════════════════════
 function updateChallenge(){
   var bal=appMode==='live'&&futBal!==null?futBal:balance;
   var si=currentStage();
@@ -994,7 +988,6 @@ function updateSignalUI(){
 
   renderPlan(an,price);
 
-  var canTrade=appMode!=='demo'||true;
   var dailyOk=dailyTradeCount<MAX_DAILY_TRADES&&dailyLossAmt<MAX_DAILY_LOSS&&positions.length<MAX_POS;
   document.getElementById('btnL').disabled=!dailyOk;
   document.getElementById('btnS').disabled=!dailyOk;
@@ -1010,7 +1003,6 @@ function renderPlan(an,price){
   var el=document.getElementById('planWrap');
   if(!an||an.signal==='WAIT'){el.innerHTML='';return;}
   var s=an.signal,cls=s.toLowerCase();
-  var dp=price>1000?2:price>10?3:price>1?4:6;
   var slPct=an.sl?(Math.abs(price-an.sl)/price*100).toFixed(2):'--';
   var t1Pct=an.tp1?(Math.abs(an.tp1-price)/price*100).toFixed(2):'--';
   var t2Pct=an.tp2?(Math.abs(an.tp2-price)/price*100).toFixed(2):'--';
@@ -1024,17 +1016,17 @@ function renderPlan(an,price){
     '<div class="plan-row"><span class="pk">TP3 · %20 kapat (+'+t3Pct+'%)</span><span class="pv tp3">$'+fp(an.tp3)+'</span></div>'+
     '<div class="plan-row"><span class="pk">Stop Loss (-'+slPct+'%)</span><span class="pv sl">$'+fp(an.sl)+'</span></div>'+
     '<div class="plan-row"><span class="pk">R:R (TP1 bazlı)</span><span class="pv rr">'+(an.rrRatio?an.rrRatio.toFixed(2)+':1':'--')+'</span></div>'+
-    '<div class="plan-row" style="font-size:9px"><span style="color:var(--gold)">📌 TP1'de %50 kapat → SL'yi entry'e çek → risk=0</span></div>'+
+    '<div class="plan-row" style="font-size:9px"><span style="color:var(--gold)">📌 TP1\'de %50 kapat → SL\'yi entry\'e çek → risk=0</span></div>'+
     '</div></div>';
 }
 
 function updatePairRow(){
-  document.getElementById('pairRow').innerHTML=PAIRS.map(function(sym){{
+  document.getElementById('pairRow').innerHTML=PAIRS.map(function(sym){
     var pd=pData[sym]||{};
     var p=pd.price||DEMO_BASE[sym];
     var prev=prevP[sym]||p;
     var sig=pd.analysis?pd.analysis.signal:'WAIT';
-    return'<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(''+sym+'")">'+
+    return '<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(\''+sym+'\')">'+
       '<span>'+sym.replace('USDT','')+'</span>'+
       '<span style="color:'+(p>=prev?'var(--long)':'var(--short)')+';font-size:9px">$'+fp(p)+'</span>'+
       '<span class="pp-sig '+sig+'">'+sig+'</span></button>';
@@ -1060,11 +1052,6 @@ function updatePosUI(){
   updateChallenge();
   updateDailyBar();
 
-  var unrealPnl=positions.reduce(function(sum,p){
-    var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
-    return sum+(pr-p.entry)*(p.side==='LONG'?1:-1)*p.qty;
-  },0);
-
   var html='';
   if(!positions.length){
     html='<div style="text-align:center;padding:24px;color:var(--dim)">Açık pozisyon yok</div>';
@@ -1080,7 +1067,6 @@ function updatePosUI(){
       var prog=Math.max(0,Math.min(100,((moved+slDist)/(slDist+tp1Dist))*100));
       var tp1Hit=p.tp1&&(p.side==='LONG'?pr>=p.tp1:pr<=p.tp1);
       var tp2Hit=p.tp2&&(p.side==='LONG'?pr>=p.tp2:pr<=p.tp2);
-      var dp=pr>1000?2:pr>10?3:pr>1?4:6;
 
       html+='<div class="pos-c '+(p.side.toLowerCase())+'">';
       html+='<div class="pos-h"><div style="display:flex;gap:6px;align-items:center">';
@@ -1100,26 +1086,27 @@ function updatePosUI(){
 
       var pnlPctN=p.entry>0?(pr-p.entry)/p.entry*100*(p.side==='LONG'?1:-1):0;
       var advMsg='',advCol='rgba(255,255,255,.03)',advBrd='rgba(255,255,255,.08)';
-      if(tp1Hit&&!p.tp1Hit){advMsg='🟡 TP1 bölgesinde! %50 kapat, SL'yi entry'e çek → risk=0';advCol='rgba(245,166,35,.08)';advBrd='rgba(245,166,35,.3)';}
-      else if(pnlPctN>0.5&&p.tp1Hit){advMsg='🟢 TP1 kapandı, SL entry'e çekildi. TP2'yi bekle.';advCol='rgba(0,230,118,.06)';advBrd='rgba(0,230,118,.2)';}
-      else if(pnlPctN>0.3){advMsg='🟢 Karda. SL'yi en azından entry'e yakın tut.';advCol='rgba(0,230,118,.04)';}
+      if(tp1Hit&&!p.tp1Hit){advMsg='🟡 TP1 bölgesinde! %50 kapat, SL\'yi entry\'e çek → risk=0';advCol='rgba(245,166,35,.08)';advBrd='rgba(245,166,35,.3)';}
+      else if(pnlPctN>0.5&&p.tp1Hit){advMsg='🟢 TP1 kapandı, SL entry\'e çekildi. TP2\'yi bekle.';advCol='rgba(0,230,118,.06)';advBrd='rgba(0,230,118,.2)';}
+      else if(pnlPctN>0.3){advMsg='🟢 Karda. SL\'yi en azından entry\'e yakın tut.';advCol='rgba(0,230,118,.04)';}
       else if(pnlPctN<-1){advMsg='🔴 Zararda. SL korunuyor mu kontrol et. İlave giriş yapma.';advCol='rgba(255,61,92,.05)';advBrd='rgba(255,61,92,.2)';}
-      else{advMsg='⚪ Pozisyon gelişiyor. TP1'e ulaşıncaya kadar bekle.';}
+      else{advMsg='⚪ Pozisyon gelişiyor. TP1\'e ulaşıncaya kadar bekle.';}
       html+='<div class="assist" style="background:'+advCol+';border:1px solid '+advBrd+'">'+advMsg+'</div>';
 
       html+='<div class="pos-btns">';
-      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px" onclick="closePos('+p.id+','Manuel',1)">✕ Kapat</button>';
-      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px;border-color:rgba(0,230,118,.3);color:var(--long)" onclick="closePos('+p.id+','TP1',0.5)">50% Kapat</button>';
+      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px" onclick="closePos('+p.id+',\'Manuel\',1)">✕ Kapat</button>';
+      html+='<button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:32px;border-color:rgba(0,230,118,.3);color:var(--long)" onclick="closePos('+p.id+',\'TP1\',0.5)">50% Kapat</button>';
       html+='</div></div>';
     });
   }
   document.getElementById('posList').innerHTML=html;
   document.getElementById('posBdg').textContent=positions.length+'/'+MAX_POS;
 
-  document.getElementById('histBox').innerHTML=trades.slice(-8).reverse().map(function(t){
+  var histHtml = trades.slice(-8).reverse().map(function(t){
     return '<div class="th-row"><span>'+t.pair.replace('USDT','')+'&nbsp;'+t.side+' <span style="color:var(--dim);font-size:9px">'+t.reason+'</span></span>'+
     '<span style="color:'+(t.pnl>=0?'var(--long)':'var(--short)')+'">'+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(2)+'</span></div>';
-  }).join('')||'<div style="color:var(--dim)">Henüz işlem yok</div>';
+  }).join('');
+  document.getElementById('histBox').innerHTML = histHtml || '<div style="color:var(--dim)">Henüz işlem yok</div>';
 }
 
 // ═══════════════════════════════════
@@ -1333,7 +1320,6 @@ function makeKlines(sym,n,tf){
   var p=pState[sym].price;var kl=[];
   for(var i=n-1;i>=0;i--){
     var trendFactor=(i/n-0.5)*0.02*(Math.random()>0.5?1:-1);
-    var vol=p*(0.004+Math.random()*0.01);
     var o=p,c=o*(1+(Math.random()-0.5)*0.008+trendFactor);
     var rng=Math.abs(o-c)*(1+Math.random()*1.2);
     kl.unshift({t:Date.now()-(n-i)*tfMs,o:o,h:Math.max(o,c)+rng*0.35*Math.random(),l:Math.min(o,c)-rng*0.35*Math.random(),c:c,v:Math.random()*8000+1000});
@@ -1502,4 +1488,8 @@ window.onload=function(){
   initChart();
   startDemo();
   addLog('APEX CHALLENGE başlatıldı — Hedef: $62.5 → $75 → $90 → $100','info');
-  addLog('Kurallar: Günde 2
+  addLog('Kurallar: Günde 2 işlem · Max 1 pozisyon · R:R≥2 · 2x kaldıraç · SL=Swing Low/High','info');
+};
+</script>
+</body>
+</html>
