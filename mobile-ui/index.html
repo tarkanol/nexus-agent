@@ -483,8 +483,10 @@ PAIRS.forEach(s=>{pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BASE[s];});
 // UTILS
 // ═══════════════════════════════════
 function sw(p){
-  document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active');x.style.display='none';});
-  document.querySelectorAll('.nb').forEach(function(x){x.classList.remove('active');});
+  var pages=document.querySelectorAll('.page');
+  for(var i=0;i<pages.length;i++){pages[i].classList.remove('active');pages[i].style.display='none';}
+  var nbs=document.querySelectorAll('.nb');
+  for(var i=0;i<nbs.length;i++){nbs[i].classList.remove('active');}
   var pg=document.getElementById('pg-'+p);
   if(pg){pg.classList.add('active');pg.style.display='flex';}
   var nb=document.getElementById('nb-'+p);
@@ -1541,7 +1543,8 @@ async function mainLoop(){
 // INIT
 // ═══════════════════════════════════
 window.onload=function(){
-  document.querySelectorAll('.page').forEach(x=>{x.style.display='none';});
+  var pages=document.querySelectorAll('.page');
+  for(var i=0;i<pages.length;i++){pages[i].style.display='none';}
   sw('signal');
   initChart();
   startDemo();
