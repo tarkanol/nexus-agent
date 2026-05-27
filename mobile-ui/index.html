@@ -483,14 +483,14 @@ PAIRS.forEach(s=>{pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BASE[s];});
 // UTILS
 // ═══════════════════════════════════
 function sw(p){
-  document.querySelectorAll('.page').forEach(x=>{x.classList.remove('active');x.style.display='none';});
-  document.querySelectorAll('.nb').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(function(x){x.classList.remove('active');x.style.display='none';});
+  document.querySelectorAll('.nb').forEach(function(x){x.classList.remove('active');});
   var pg=document.getElementById('pg-'+p);
   if(pg){pg.classList.add('active');pg.style.display='flex';}
   var nb=document.getElementById('nb-'+p);
-  if(nb)nb.classList.add('active');
-  if(p==='signal')setTimeout(drawChart,50);
-  if(p==='challenge')renderChallenge();
+  if(nb){nb.classList.add('active');}
+  if(p==='signal'){setTimeout(drawChart,50);}
+  if(p==='challenge'){renderChallenge();}
 }
 
 function notify(msg,type){
@@ -1542,8 +1542,7 @@ async function mainLoop(){
 // ═══════════════════════════════════
 window.onload=function(){
   document.querySelectorAll('.page').forEach(x=>{x.style.display='none';});
-  var fp2=document.getElementById('pg-signal');if(fp2){fp2.style.display='flex';fp2.classList.add('active');}
-  var fn=document.getElementById('nb-signal');if(fn)fn.classList.add('active');
+  sw('signal');
   initChart();
   startDemo();
   addLog('APEX CHALLENGE başlatıldı — Hedef: $62.5 → $75 → $90 → $100','info');
