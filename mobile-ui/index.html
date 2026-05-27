@@ -210,7 +210,7 @@ input:focus,select:focus{border-color:var(--acc)}
 </div>
 
 <!-- PAGE: SİNYAL -->
-<div class="page active" id="pg-signal">
+<div class="page" id="pg-signal">
   <div class="scroll">
     <div class="pairs" id="pairRow"></div>
     <div class="card">
@@ -435,7 +435,7 @@ input:focus,select:focus{border-color:var(--acc)}
 </div>
 
 <nav class="nav">
-  <button class="nb active" id="nb-signal" onclick="sw('signal')"><span class="ni">📡</span>Sinyal</button>
+  <button class="nb" id="nb-signal" onclick="sw('signal')"><span class="ni">📡</span>Sinyal</button>
   <button class="nb" id="nb-pos" onclick="sw('pos')"><span class="ni">📂</span>Pozisyon</button>
   <button class="nb" id="nb-engine" onclick="sw('engine')"><span class="ni">⚙️</span>Motor</button>
   <button class="nb" id="nb-challenge" onclick="sw('challenge')"><span class="ni">🏆</span>Challenge</button>
@@ -483,20 +483,17 @@ PAIRS.forEach(s=>{pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BASE[s];});
 // UTILS
 // ═══════════════════════════════════
 function sw(p){
-  // tüm sayfaların active sınıfını kaldır
+  // Sadece class'ları değiştir, inline display atama
   document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-  // tüm nav butonlarının active sınıfını kaldır
   document.querySelectorAll('.nb').forEach(btn => btn.classList.remove('active'));
   
-  // seçilen sayfayı aktif yap
   const pg = document.getElementById('pg-'+p);
   if(pg) pg.classList.add('active');
   
-  // seçilen nav butonunu aktif yap
   const nb = document.getElementById('nb-'+p);
   if(nb) nb.classList.add('active');
   
-  // sayfa geçişlerinde ekstra işlemler
+  // Yan etkiler
   if(p==='signal') setTimeout(drawChart,50);
   if(p==='challenge') renderChallenge();
 }
@@ -1549,9 +1546,15 @@ async function mainLoop(){
 // INIT
 // ═══════════════════════════════════
 window.onload=function(){
-  // tüm sayfaları gizlemek için başlangıçta active sınıflarını kaldır
+  // Başlangıçta tüm sayfaların active sınıfını kaldır
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  sw('signal');
+  // Sinyal sayfasını aktif yap
+  const signalPage = document.getElementById('pg-signal');
+  if(signalPage) signalPage.classList.add('active');
+  // Sinyal butonuna active sınıfını ekle
+  const signalBtn = document.getElementById('nb-signal');
+  if(signalBtn) signalBtn.classList.add('active');
+  
   initChart();
   startDemo();
   addLog('APEX CHALLENGE başlatıldı — Hedef: $62.5 → $75 → $90 → $100','info');
