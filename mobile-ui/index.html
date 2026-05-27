@@ -480,16 +480,24 @@ PAIRS.forEach(function(s){pState[s]={price:DEMO_BASE[s],vel:0};prevP[s]=DEMO_BAS
 // UTILS
 // ═══════════════════════════════════
 function sw(p){
-  var pages=document.querySelectorAll('.page');
-  var nbs=document.querySelectorAll('.nb');
-  for(var i=0;i<pages.length;i++){pages[i].classList.remove('active');pages[i].style.display='none';}
-  for(var i=0;i<nbs.length;i++){nbs[i].classList.remove('active');}
-  var pg=document.getElementById('pg-'+p);
-  if(pg){pg.classList.add('active');pg.style.display='flex';}
-  var nb=document.getElementById('nb-'+p);
-  if(nb){nb.classList.add('active');}
-  if(p==='signal'){setTimeout(drawChart,50);}
-  if(p==='challenge'){renderChallenge();}
+  // Tüm sayfaların active sınıfını kaldır
+  document.querySelectorAll('.page').forEach(function(page){
+    page.classList.remove('active');
+  });
+  // Tüm nav butonlarının active sınıfını kaldır
+  document.querySelectorAll('.nb').forEach(function(btn){
+    btn.classList.remove('active');
+  });
+  // İstenen sayfayı active yap
+  var targetPage = document.getElementById('pg-'+p);
+  if(targetPage) targetPage.classList.add('active');
+  // İlgili nav butonunu active yap
+  var targetBtn = document.getElementById('nb-'+p);
+  if(targetBtn) targetBtn.classList.add('active');
+  
+  // Sayfa özel işlemler
+  if(p==='signal'){ setTimeout(drawChart,50); }
+  if(p==='challenge'){ renderChallenge(); }
 }
 
 function notify(msg,type){
@@ -1482,8 +1490,7 @@ async function mainLoop(){
 // INIT
 // ═══════════════════════════════════
 window.onload=function(){
-  var pages=document.querySelectorAll('.page');
-  for(var i=0;i<pages.length;i++){pages[i].style.display='none';}
+  // Başlangıçta tüm sayfalar gizli, sadece signal sayfasını göster
   sw('signal');
   initChart();
   startDemo();
