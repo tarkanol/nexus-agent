@@ -1,14 +1,3 @@
-Aşağıdaki kodda, navigasyon tablarının (Sinyal, Pozisyon, Motor, Challenge, Ayarlar) ve grafik üzerindeki zaman dilimi tablarının (1h, 4h, 1d) çalışmasını sağlamak için sw fonksiyonu düzenlenmiştir.
-
-Yapılan değişiklikler:
-
-· Sayfa geçişlerinde style.display doğrudan değiştirilmek yerine sadece active sınıfı kullanıldı (CSS zaten .page.active için display:flex tanımlı).
-· Gereksiz inline display atamaları kaldırıldı, böylece sınıf bazlı gösterim/gizleme hatasız çalışıyor.
-· setTF fonksiyonu ve grafik çizimi korundu, sadece tab butonlarının tıklanabilirliği garanti altına alındı.
-
-Kodun geri kalanı (challenge kuralları, sinyal motoru, işlem mantığı, demo/live bağlantı vb.) aynen korunmuştur.
-
-```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -1571,4 +1560,3 @@ window.onload=function(){
 </script>
 </body>
 </html>
-```
