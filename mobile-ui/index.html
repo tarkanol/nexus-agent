@@ -494,17 +494,59 @@ function doTogAuto(){ togAutoClose=!togAutoClose; document.getElementById('togAu
 function doTogTrail(){ togTrailing=!togTrailing; document.getElementById('togTrail').classList.toggle('on',togTrailing); document.getElementById('togTrailD').textContent=togTrailing?'TP1 sonrası SL → entry (risk=0)':'Trailing kapalı'; }
 function toggleAutoTrade(){ autoTrade=!autoTrade; let tog=document.getElementById('togAutoTrade'); let desc=document.getElementById('autoTradeDesc'); if(tog){ tog.classList.toggle('on',autoTrade); } if(desc){ desc.textContent=autoTrade?'Açık: sinyallere otomatik pozisyon açar':'Kapalı: sadece sinyal gösterir'; } notify(autoTrade?'Otomatik işlem modu AKTİF':'Otomatik işlem modu PASİF',autoTrade?'success':'info'); }
 function toggleChallengeRules(){ challengeRulesActive=!challengeRulesActive; let tog=document.getElementById('togChallengeRules'); let desc=document.getElementById('challengeRulesDesc'); if(tog) tog.classList.toggle('on',challengeRulesActive); if(desc) desc.textContent=challengeRulesActive?'Açık: max 1 poz, günde 2 işlem, $5 kayıp':'Kapalı: sınırsız işlem, 3 pozisyon'; notify(challengeRulesActive?'Challenge kuralları AKTİF':'Challenge kuralları PASİF (Pro Mod)',challengeRulesActive?'info':'success'); updateDailyBar(); updatePosUI(); }
-function updateOtonomSettings(){
-  let sel=document.getElementById('signalSelection'); if(sel) signalSelection=sel.value;
-  let confInp=document.getElementById('minConfidence'); if(confInp) minConfidence=parseFloat(confInp.value);
-  let rrInp=document.getElementById('userRR'); if(rrInp) userRR=parseFloat(rrInp.value);
-  let profitInp=document.getElementById('profitTargetUSD'); if(profitInp) profitTargetUSD=parseFloat(profitInp.value)||0;
-  let levSel=document.getElementById('selLeverage'); if(levSel) currentLeverage=parseInt(levSel.value);
-  let slTypeSel=document.getElementById('slType'); if(slTypeSel) slType=slTypeSel.value;
-  let slPercInp=document.getElementById('slPercent'); if(slPercInp) slPercent=parseFloat(slPercInp.value);
-  let tpStr=document.getElementById('tpLevels').value; let parts=tpStr.split(',').map(p=>parseFloat(p.trim())); if(parts.length===3 && parts.every(p=>!isNaN(p) && p>0)) tpLevels=parts;
-  let riskInp=document.getElementById('riskAmount'); if(riskInp) riskAmountUSD=parseFloat(riskInp.value);
-  let div=document.getElementById('slPercentDiv'); if(div) div.style.display = slType==='percent'?'block':'none';
+// Otonom ayarları okurken virgülü noktaya çevir
+function updateOtonomSettings() {
+  // ... diğer ayarlar ...
+  let profitInp = document.getElementById('profitTargetUSD');
+  if (profitInp) {
+    let raw = profitInp.value;
+    let num = parseFloat(raw.replace(',', '.'));
+    profitTargetUSD = isNaN(num) ? 0 : num;
+  }
+  // ... devamı ...
+}
+
+// Pozisyon kontrolü (checkPositions) içinde profit target kısmı:
+async function checkPositions() {
+  for (let p of [...positions]) {
+    let pr = (pData[p.pair] && pData[p.pair].price) || p.entry;
+    let mult = p.side === 'LONG' ? 1 : -1;
+    let unrealPnl = (pr - p.entry) * mult * p.qty;
+
+    // Profit target kontrolü (her zaman çalışır, otomatik TP/SL kapalı olsa bile)
+    if (profitTargetUSD > 0 && unrealPnl >= profitTargetUSD) {
+      await closePos(p.id, 'PROFIT TARGET', 1);
+      continue;
+    }
+
+    if (!togAutoClose) continue;
+    // ... trailing, TP1, TP2, TP3, SL kontrolleri ...
+  }
+}
+
+// closePos içinde canlı kapatma işlemini daha güvenli hale getir
+async function closePos(id, reason, fraction) {
+  // ... (başlangıç kısmı aynı) ...
+  if (fraction >= 1 && appMode === 'live' && WORKER) {
+    try {
+      let res = await fetch(WORKER + '/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: pos.pair, side: pos.side })
+      });
+      let data = await res.json();
+      if (!data.success) {
+        addLog(`❌ Canlı kapatma hatası (${reason}): ${data.error || 'bilinmeyen'}`, 'err');
+        notify(`Kapatma hatası: ${data.error || 'bilinmeyen'}`, 'error');
+      } else {
+        addLog(`✅ Canlı kapatma başarılı (${reason})`, 'ok');
+      }
+    } catch (e) {
+      addLog(`❌ Canlı kapatma exception (${reason}): ${e.message}`, 'err');
+    }
+    await syncBal(); // bakiyeyi tazele
+  }
+  // ... devamı ...
 }
 function bindOtonomEvents(){
   document.getElementById('signalSelection')?.addEventListener('change',updateOtonomSettings);
