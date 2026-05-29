@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-<title>APEX Pro - Tek TP</title>
+<title>APEX Pro - Otonom + Senkron</title>
 <style>
+/* Aynı CSS, değişmedi */
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
   --acc:#00ffe0;--long:#00e676;--short:#ff3d5c;
@@ -173,7 +174,6 @@ const MIN_RR_CHALLENGE = 2.0;
 let customPairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
 const DEMO_BASE = {BTCUSDT:74000, ETHUSDT:2050, SOLUSDT:83, BNBUSDT:588, XRPUSDT:0.605};
 
-// STATE
 let WORKER='', appMode='demo';
 let balance=CHALLENGE_START, startBal=CHALLENGE_START, peakBal=CHALLENGE_START;
 let dailyPnL=0, dailyTradeCount=0, dailyLossAmt=0;
@@ -185,7 +185,6 @@ let togAutoClose=true, togTrailing=true;
 let loopTimer=null, cdTimer=null;
 let syncInterval = null;
 
-// Otonom pro değişkenleri
 let autoTrade = false;
 let signalSelection = 'best';
 let minConfidence = 60;
@@ -206,12 +205,18 @@ const pState={}, prevP={}, pData={};
 customPairs.forEach(s=>{ pState[s]={price:DEMO_BASE[s]||1, vel:0}; prevP[s]=DEMO_BASE[s]||1; });
 
 // ═══════════════════════════════════
-// UTILS (düzeltilmiş sw)
+// UTILS (geliştirilmiş sw)
 function sw(p){
+  console.log('sw called for', p);
   document.querySelectorAll('.page').forEach(page=>page.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(btn=>btn.classList.remove('active'));
   let targetPage = document.getElementById('pg-'+p);
-  if(targetPage) targetPage.classList.add('active');
+  if(targetPage) {
+    targetPage.classList.add('active');
+    console.log('activated page', p);
+  } else {
+    console.error('page not found', p);
+  }
   let targetBtn = document.getElementById('nb-'+p);
   if(targetBtn) targetBtn.classList.add('active');
   if(p==='signal') setTimeout(drawChart,50);
@@ -268,7 +273,7 @@ function renderChallenge(){
 }
 
 // ═══════════════════════════════════
-// INDICATORS (kısaltılmış, aynı mantık)
+// INDICATORS (kısaltılmış)
 function ema(arr,p){ if(!arr||arr.length<p)return arr?arr.slice():[]; let k=2/(p+1), out=new Array(p-1).fill(null); let e=arr.slice(0,p).reduce((a,b)=>a+b,0)/p; out.push(e); for(let i=p;i<arr.length;i++){ e=arr[i]*k+e*(1-k); out.push(e); } return out; }
 function rsi(closes,p=14){ if(closes.length<p+2)return 50; let g=0,l=0; for(let i=1;i<=p;i++){ let d=closes[i]-closes[i-1]; d>0?g+=d:l-=d; } let ag=g/p, al=l/p; for(let i=p+1;i<closes.length;i++){ let d=closes[i]-closes[i-1]; ag=(ag*(p-1)+(d>0?d:0))/p; al=(al*(p-1)+(d<0?-d:0))/p; } return al===0?100:100-(100/(1+ag/al)); }
 function atr(kl,p=14){ if(!kl||kl.length<p+1)return kl&&kl.length>1?kl[kl.length-1].h-kl[kl.length-1].l:1; let trs=kl.slice(1).map((k,i)=>{let pc=kl[i].c; return Math.max(k.h-k.l,Math.abs(k.h-pc),Math.abs(k.l-pc));}); return trs.slice(-p).reduce((a,b)=>a+b,0)/p; }
@@ -404,11 +409,10 @@ function updatePosUI(){
 }
 
 // ═══════════════════════════════════
-// İŞLEM AÇ/KAPA (tek TP, aynı pair kontrolü)
+// İŞLEM AÇ/KAPA
 async function openPos(sym,side,auto){
   auto=auto||false; let an=pData[sym]&&pData[sym].analysis; if(!an || !an.sl){ notify('Sinyal veya SL bulunamadı','error'); return false; }
   let maxPos=getMaxPositions(); if(positions.length>=maxPos){ notify(maxPos+' pozisyon limiti','error'); return false; }
-  // Aynı pair'den açık pozisyon var mı?
   if(positions.some(p=>p.pair===sym)){ notify(sym+' için zaten açık pozisyon var!','error'); return false; }
   if(challengeRulesActive && dailyTradeCount>=getMaxDailyTrades()){ notify('Günlük işlem limiti','error'); return false; }
   if(challengeRulesActive && dailyLossAmt>=getMaxDailyLoss()){ notify('Günlük kayıp limiti','error'); return false; }
@@ -453,12 +457,9 @@ async function checkPositions(){
     let pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
     let mult=p.side==='LONG'?1:-1;
     let unrealPnl = (pr-p.entry)*mult*p.qty;
-    // Profit target kontrolü (dolar bazlı)
     if(profitTargetUSD > 0 && unrealPnl >= profitTargetUSD){ await closePos(p.id,'PROFIT TARGET'); continue; }
-    // R:R bazlı TP kontrolü
     if(p.tp && ((p.side==='LONG' && pr>=p.tp) || (p.side==='SHORT' && pr<=p.tp))){ await closePos(p.id,'TAKE PROFIT'); continue; }
     if(!togAutoClose) continue;
-    // Trailing stop (TP seviyesine yaklaştıkça SL kaydır)
     if(togTrailing && p.tp){
       let distToTP = Math.abs(p.tp - pr);
       let initialDist = Math.abs(p.tp - p.entry);
@@ -467,7 +468,6 @@ async function checkPositions(){
         else p.sl = Math.min(p.sl, p.entry - (p.entry - pr)*0.5);
       }
     }
-    // SL kontrolü
     if((p.side==='LONG' && pr<=p.sl) || (p.side==='SHORT' && pr>=p.sl)){ await closePos(p.id,'STOP LOSS'); continue; }
   }
 }
@@ -488,7 +488,6 @@ async function runEngine(){
   let selected = null; if(signalSelection === 'best'){ signals.sort((a,b)=>b.conf - a.conf); selected = signals[0]; } else selected = signals[0];
   if(autoTrade){
     let maxPos=getMaxPositions(); let canOpenPos = positions.length < maxPos && (!challengeRulesActive || (dailyTradeCount<getMaxDailyTrades() && dailyLossAmt<getMaxDailyLoss()));
-    // Aynı pair'den pozisyon var mı?
     let alreadyHas = positions.some(p=>p.pair===selected.sym);
     if(canOpenPos && !alreadyHas){ let opened = await openPos(selected.sym, selected.an.signal, true); if(opened) engCD[selected.sym]=Date.now(); }
     else { addLog(`⏸ ${selected.sym} ${selected.an.signal} sinyali var ama ${alreadyHas?'aynı pair açık':(canOpenPos?'limitler':'bilinmeyen')} nedeniyle açılamadı`,'info'); }
@@ -536,7 +535,47 @@ function demoTick(sym){ let s=pState[sym]; let drift=(DEMO_BASE[sym]-s.price)*0.
 function makeKlines(sym,n,tf){ let tfMs={'15m':900000,'1h':3600000,'4h':14400000,'1d':86400000}[tf]||3600000; let p=pState[sym].price, kl=[]; for(let i=n-1;i>=0;i--){ let trendFactor=(i/n-0.5)*0.02*(Math.random()>0.5?1:-1); let o=p, c=o*(1+(Math.random()-0.5)*0.008+trendFactor); let rng=Math.abs(o-c)*(1+Math.random()*1.2); kl.unshift({t:Date.now()-(n-i)*tfMs, o, h:Math.max(o,c)+rng*0.35*Math.random(), l:Math.min(o,c)-rng*0.35*Math.random(), c, v:Math.random()*8000+1000}); p=c; } if(kl.length) kl[kl.length-1].c=pState[sym].price; return kl; }
 function refreshDemo(){ let now=Date.now(); customPairs.forEach(sym=>{ prevP[sym]=pState[sym]?pState[sym].price:DEMO_BASE[sym]||0; demoTick(sym); let p=pState[sym].price; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; if(!pData[sym].lastKl||now-pData[sym].lastKl>30000){ pData[sym].kl4h=makeKlines(sym,200,'4h'); pData[sym].kl1h=makeKlines(sym,120,'1h'); pData[sym].kl15m=makeKlines(sym,120,'15m'); pData[sym].kl1d=makeKlines(sym,60,'1d'); pData[sym].lastKl=now; } else { ['kl4h','kl1h','kl15m','kl1d'].forEach(key=>{ let kl=pData[sym][key]; if(kl&&kl.length){ kl[kl.length-1].c=p; kl[kl.length-1].h=Math.max(kl[kl.length-1].h,p); kl[kl.length-1].l=Math.min(kl[kl.length-1].l,p); } }); } }); analyzeAll(); }
 async function fetchLive(){ if(!WORKER) return; try{ let pk=d=> d&&d.success&&Array.isArray(d.data)?d.data.map(k=>({t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})):null; let prices=await Promise.all(customPairs.map(sym=> fetch(WORKER+'/price?symbol='+sym).then(r=>r.json()).catch(()=>null))); customPairs.forEach((sym,i)=>{ let pr=prices[i]; if(pr&&pr.success){ let p=parseFloat(pr.data.lastPrice||pr.data.price); if(p>0){ prevP[sym]=pState[sym].price; pState[sym].price=p; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; } } }); let klines=await Promise.all([ fetch(WORKER+'/klines?symbol='+currentPair+'&interval=4h&limit=200').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=15m&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1d&limit=60').then(r=>r.json()).catch(()=>null) ]); if(!pData[currentPair]) pData[currentPair]={}; let k4=pk(klines[0]); if(k4) pData[currentPair].kl4h=k4; let k1=pk(klines[1]); if(k1) pData[currentPair].kl1h=k1; let k15=pk(klines[2]); if(k15) pData[currentPair].kl15m=k15; let k1d=pk(klines[3]); if(k1d) pData[currentPair].kl1d=k1d; let others=customPairs.filter(s=>s!==currentPair); let ok=await Promise.all(others.reduce((arr,sym)=>arr.concat([ fetch(WORKER+'/klines?symbol='+sym+'&interval=4h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=1h&limit=100').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=15m&limit=80').then(r=>r.json()).catch(()=>null) ]),[])); others.forEach((sym,i)=>{ if(!pData[sym]) pData[sym]={}; let k4o=pk(ok[i*3]), k1o=pk(ok[i*3+1]), k15o=pk(ok[i*3+2]); if(k4o) pData[sym].kl4h=k4o; if(k1o) pData[sym].kl1h=k1o; if(k15o) pData[sym].kl15m=k15o; }); analyzeAll(); } catch(e){ addLog('⚠️ fetchLive: '+e.message,'warn'); } }
-async function syncBal(){ if(!WORKER||appMode==='demo'){ if(appMode==='demo') document.getElementById('lastSync').textContent='Demo mod'; return; } try{ let balR=await fetch(WORKER+'/balance').then(r=>r.json()).catch(()=>null); if(balR&&balR.success&&balR.balance){ futBal=parseFloat(balR.balance.balance||balR.balance.availableBalance||0); balance=futBal; document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString('tr-TR'); addLog('🔄 Bakiye: $'+futBal.toFixed(2),'ok'); } let posR=await fetch(WORKER+'/sync-positions').then(r=>r.json()).catch(()=>null); if(posR&&posR.success&&posR.positions){ let binancePosMap = new Map(); posR.positions.forEach(bp=>{ binancePosMap.set(bp.symbol, bp); }); for(let p of [...positions]){ if(!binancePosMap.has(p.pair) && !p.fromBinance){ await closePos(p.id,'SENKRON (Kapandı)'); } } posR.positions.forEach(bp=>{ let exists=positions.find(p=>p.pair===bp.symbol && p.fromBinance); if(exists){ exists.unrealPnl=parseFloat(bp.unRealizedProfit||0); if(bp.markPrice) pData[bp.symbol].price=parseFloat(bp.markPrice); } else { let side=parseFloat(bp.positionAmt)>0?'LONG':'SHORT'; let entry=parseFloat(bp.entryPrice); let qty=Math.abs(parseFloat(bp.positionAmt)); let lev=parseInt(bp.leverage||2); let notional=Math.abs(parseFloat(bp.notional||0))||qty*entry; let posVal=notional/lev; let an=pData[bp.symbol]&&pData[bp.symbol].analysis; let sl,tp; if(an&&an.sl&&an.signal===side){ sl=an.sl; tp=an.tp; } else{ let posAtr=an?an.posAtr:entry*0.01; if(side==='LONG'){ sl=entry-posAtr*2.5; tp=entry+posAtr*5; } else { sl=entry+posAtr*2.5; tp=entry-posAtr*5; } } positions.push({id:posId++, pair:bp.symbol, side, entry, qty, lev, posValue:posVal, sl, tp, comm:0, auto:false, fromBinance:true, openTime:Date.now()}); addLog('📥 Import: '+side+' '+bp.symbol.replace('USDT','')+' '+lev+'x @$'+fp(entry),'ok'); } }); notify('📥 '+posR.positions.length+' pozisyon senkron edildi','success'); } updatePosUI(); } catch(e){ addLog('❌ Sync: '+e.message,'err'); } }
+async function syncBal(){ if(!WORKER||appMode==='demo'){ document.getElementById('lastSync').textContent=appMode==='demo'?'Demo mod':''; return; }
+  try{ let balR=await fetch(WORKER+'/balance').then(r=>r.json()).catch(()=>null); if(balR&&balR.success&&balR.balance){ futBal=parseFloat(balR.balance.balance||balR.balance.availableBalance||0); balance=futBal; document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString('tr-TR'); addLog('🔄 Bakiye: $'+futBal.toFixed(2),'ok'); } else { addLog('⚠️ Bakiye alınamadı','err'); }
+    let posR=await fetch(WORKER+'/sync-positions').then(r=>r.json()).catch(()=>null);
+    if(posR&&posR.success&&Array.isArray(posR.positions)){
+      // Binance'deki sembol seti
+      let binanceSymbols = new Set(posR.positions.map(bp=>bp.symbol));
+      // Yerel pozisyonlardan Binance'de olmayanları kapat
+      for(let p of [...positions]){
+        if(!binanceSymbols.has(p.pair) && !p.fromBinance){
+          await closePos(p.id,'SENKRON (Kapandı)');
+        }
+      }
+      // Binance'deki pozisyonları içe aktar / güncelle
+      posR.positions.forEach(bp=>{
+        let existing = positions.find(p=>p.pair===bp.symbol);
+        if(existing){
+          // Güncelleme: fiyat, unrealized PnL vs.
+          let price = parseFloat(bp.markPrice || bp.entryPrice);
+          if(price) pData[bp.symbol].price = price;
+          existing.unrealPnl = parseFloat(bp.unRealizedProfit||0);
+        } else {
+          // Yeni pozisyon
+          let side = parseFloat(bp.positionAmt)>0?'LONG':'SHORT';
+          let entry = parseFloat(bp.entryPrice);
+          let qty = Math.abs(parseFloat(bp.positionAmt));
+          let lev = parseInt(bp.leverage||2);
+          let notional = Math.abs(parseFloat(bp.notional||0))||qty*entry;
+          let posVal = notional/lev;
+          let an = pData[bp.symbol]?.analysis;
+          let sl, tp;
+          if(an && an.sl && an.signal===side){ sl=an.sl; tp=an.tp; }
+          else{ let posAtr=an?an.posAtr:entry*0.01; if(side==='LONG'){ sl=entry-posAtr*2.5; tp=entry+posAtr*5; } else { sl=entry+posAtr*2.5; tp=entry-posAtr*5; } }
+          positions.push({id:posId++, pair:bp.symbol, side, entry, qty, lev, posValue:posVal, sl, tp, comm:0, auto:false, fromBinance:true, openTime:Date.now()});
+          addLog('📥 İthal: '+side+' '+bp.symbol.replace('USDT','')+' '+lev+'x @$'+fp(entry),'ok');
+        }
+      });
+      updatePosUI();
+      notify('Senkron tamamlandı','success');
+    } else { addLog('⚠️ /sync-positions cevabı geçersiz','err'); }
+  } catch(e){ addLog('❌ Sync hatası: '+e.message,'err'); }
+}
 function resetChallenge(){ if(!confirm('Challenge sıfırlansın mı? Tüm geçmiş silinir.')) return; balance=CHALLENGE_START; startBal=CHALLENGE_START; peakBal=CHALLENGE_START; dailyPnL=0; dailyTradeCount=0; dailyLossAmt=0; totalComm=0; futBal=null; positions=[]; trades=[]; posId=1; notify('🔄 Challenge sıfırlandı — $62.50','info'); addLog('🔄 Challenge sıfırlandı','info'); updatePosUI(); updateChallenge(); }
 async function connect(){ let url=document.getElementById('wUrl').value.trim(); if(!url) return notify('Worker URL girin','error'); try{ let d=await fetch(url+'/ping').then(r=>r.json()); if(d.success){ WORKER=url; appMode='live'; document.getElementById('connBdg').textContent='LIVE'; document.getElementById('connBdg').className='bdg live'; notify('✅ Canlı bağlantı!','success'); addLog('✅ Worker v'+(d.version||'?'),'ok'); await syncBal(); if(loopTimer) clearTimeout(loopTimer); mainLoop(); if(syncInterval) clearInterval(syncInterval); syncInterval = setInterval(()=>{ if(appMode==='live') syncBal(); }, 30000); } else notify('Worker yanıt vermedi','error'); } catch(e){ notify('Bağlantı hatası','error'); addLog('❌ '+e.message,'err'); } }
 function startDemo(){ WORKER=''; appMode='demo'; futBal=null; document.getElementById('connBdg').textContent='DEMO'; document.getElementById('connBdg').className='bdg'; notify('🧪 Demo mod','info'); addLog('Demo başlatıldı','info'); if(loopTimer) clearTimeout(loopTimer); if(syncInterval) clearInterval(syncInterval); mainLoop(); }
