@@ -420,7 +420,7 @@ input:focus,select:focus{border-color:var(--acc)}
         <div class="tog-b"><div class="tog-l">Trailing Stop</div><div class="tog-d" id="togTrailD">TP1 sonrası SL → entry (risk=0)</div></div>
       </div>
     </div>
-    <!-- Ekstra boşluk trailing butonuna erişim için -->
+    <!-- Ekstra boşluk -->
     <div style="height:20px;"></div>
   </div>
 </div>
@@ -507,6 +507,7 @@ const MAX_DAILY_TRADES = 2;
 const MAX_DAILY_LOSS   = 5;
 const MAX_POS          = 1;
 const COMM             = 0.0004;
+const MIN_RR_CHALLENGE = 2.0;  // Challenge minimum R:R
 
 let customPairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
 const DEMO_BASE = {BTCUSDT:74000, ETHUSDT:2050, SOLUSDT:83, BNBUSDT:588, XRPUSDT:0.605};
@@ -529,7 +530,7 @@ let autoTrade = false;
 let signalSelection = 'best';
 let minConfidence = 60;
 let userRR = 2.5;
-let currentLeverage = 2;  // varsayılan 2x
+let currentLeverage = 2;
 let slType = 'swing';
 let slPercent = 1.0;
 let tpLevels = [50,30,20];
@@ -757,7 +758,7 @@ function findSwings(kl,lb=1){
 }
 
 // ═══════════════════════════════════
-// CHALLENGE SİNYAL MOTORU
+// CHALLENGE SİNYAL MOTORU (Hata düzeltildi: MIN_RR_CHALLENGE kullanılıyor)
 function analyzeChallenge(sym){
   let pd=pData[sym];
   if(!pd) return null;
@@ -905,8 +906,9 @@ function analyzeChallenge(sym){
       tp3 = price - tp3Dist;
     }
     let rrRatio = tp1Dist / slDist;
-    if(rrRatio < MIN_RR){
-      blockText='R:R '+rrRatio.toFixed(2)+':1 < '+MIN_RR+':1 minimum — işlem yok';
+    // Challenge kuralı minimum R:R kontrolü
+    if(rrRatio < MIN_RR_CHALLENGE){
+      blockText='R:R '+rrRatio.toFixed(2)+':1 < '+MIN_RR_CHALLENGE+':1 minimum — işlem yok';
       signal='WAIT';
     } else {
       return {
@@ -1130,7 +1132,7 @@ function updatePosUI(){
 }
 
 // ═══════════════════════════════════
-// TRADE EXECUTION (kaldıraç eklendi)
+// TRADE EXECUTION (kaldıraç eklendi, MIN_RR_CHALLENGE kullanıldı)
 async function openPos(sym,side,auto){
   auto=auto||false;
   let an=pData[sym]&&pData[sym].analysis;
@@ -1141,11 +1143,9 @@ async function openPos(sym,side,auto){
   if(dailyTradeCount>=MAX_DAILY_TRADES){ notify('Günlük '+MAX_DAILY_TRADES+' işlem limiti','error'); return false; }
   if(dailyLossAmt>=MAX_DAILY_LOSS){ notify('Günlük $'+MAX_DAILY_LOSS+' kayıp limiti','error'); return false; }
   
-  let riskAmount = +(document.getElementById('selSize').value)||12;  // kaybedilecek max dolar
+  let riskAmount = +(document.getElementById('selSize').value)||12;
   let slPercentAbs = Math.abs(an.sl - price) / price * 100;
-  // Pozisyon büyüklüğü (kaldıraçsız) = riskAmount / (slPercentAbs/100)
   let posValue = riskAmount / (slPercentAbs / 100);
-  // Maksimum bakiye yüzdesi %25 ile sınırla
   posValue = Math.min(posValue, balance * 0.25);
   let qty = (posValue * currentLeverage) / price;
   let comm = posValue * COMM;
@@ -1242,7 +1242,7 @@ async function runEngine(){
     let an=pData[sym]&&pData[sym].analysis;
     if(!an || an.signal === 'WAIT') continue;
     if(an.conf < minConfidence) continue;
-    if(an.rrRatio && an.rrRatio < MIN_RR) continue;
+    if(an.rrRatio && an.rrRatio < MIN_RR_CHALLENGE) continue;
     signals.push({sym, an, conf: an.conf});
   }
   if(signals.length === 0){
