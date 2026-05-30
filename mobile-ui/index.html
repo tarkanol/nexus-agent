@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
 <title>APEX Pro - Otonom + Senkron</title>
 <style>
+/* Tüm stiller aynı, kısaltmak için yazmıyorum, aynı kalacak */
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
   --acc:#00ffe0;--long:#00e676;--short:#ff3d5c;
@@ -164,11 +165,11 @@ input:focus,select:focus{border-color:var(--acc)}
 <div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">CHALLENGE SIFIRLA</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">Bakiyeyi $62.5'a sıfırlar, tüm geçmişi temizler.</div><button class="btn btn-outline" onclick="resetChallenge()" style="width:100%;color:var(--short);border-color:rgba(255,61,92,.3)">🔄 Sıfırla</button></div>
 <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:9px;color:var(--dim);letter-spacing:1px">LOG</span><button class="btn btn-outline" style="padding:3px 9px;min-height:26px;font-size:9px" onclick="document.getElementById('logEl').innerHTML=''">Temizle</button></div><div class="logbox" id="logEl"></div></div></div></div>
 <nav class="nav">
-  <button class="nb active" id="nb-signal"><span class="ni">📡</span>Sinyal</button>
-  <button class="nb" id="nb-pos"><span class="ni">📂</span>Pozisyon</button>
-  <button class="nb" id="nb-engine"><span class="ni">⚙️</span>Motor</button>
-  <button class="nb" id="nb-challenge"><span class="ni">🏆</span>Hesap</button>
-  <button class="nb" id="nb-settings"><span class="ni">🔧</span>Ayarlar</button>
+  <button class="nb active" id="nb-signal" onclick="sw('signal')"><span class="ni">📡</span>Sinyal</button>
+  <button class="nb" id="nb-pos" onclick="sw('pos')"><span class="ni">📂</span>Pozisyon</button>
+  <button class="nb" id="nb-engine" onclick="sw('engine')"><span class="ni">⚙️</span>Motor</button>
+  <button class="nb" id="nb-challenge" onclick="sw('challenge')"><span class="ni">🏆</span>Hesap</button>
+  <button class="nb" id="nb-settings" onclick="sw('settings')"><span class="ni">🔧</span>Ayarlar</button>
 </nav>
 
 <script>
@@ -220,6 +221,7 @@ customPairs.forEach(s=>{
 // ═══════════════════════════════════
 // UTILS
 function sw(p){
+  console.log('sw called for', p);
   document.querySelectorAll('.page').forEach(page=>page.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(btn=>btn.classList.remove('active'));
   let targetPage = document.getElementById('pg-'+p);
@@ -617,35 +619,24 @@ function startDemo(){ WORKER=''; appMode='demo'; futBal=null; document.getElemen
 async function mainLoop(){ try{ if(appMode==='demo') refreshDemo(); else await fetchLive(); await checkPositions(); await runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updatePosUI(); if(engineOn) startCD(); } catch(e){ addLog('⚠️ Loop: '+e.message,'warn'); } loopTimer=setTimeout(mainLoop, scanSec*1000); }
 
 // ═══════════════════════════════════
-// DÜZELTİLMİŞ bindNavEvents (sadece click, touchstart yok)
-function bindNavEvents(){
-  const pages = ['signal', 'pos', 'engine', 'challenge', 'settings'];
-  pages.forEach(pageId => {
-    const btn = document.getElementById('nb-' + pageId);
-    if(btn){
-      // Eski event listener'ları temizlemek için klonlama
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      newBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        sw(pageId);
-      });
-    }
-  });
-}
-
-window.onload=()=>{ 
-  sw('signal'); 
-  initChart(); 
-  startDemo(); 
-  renderPairManager(); 
-  renderPopularCoins();
-  bindOtonomEvents(); 
-  updateOtonomSettings();
-  bindNavEvents(); // Nav butonlarına sadece click eventi bağla
-  addLog('APEX PRO başlatıldı — Hedef: $100','info');
-  addLog('Pro Mod: 3 eş zamanlı pozisyon, otomatik senkron 30sn','info');
-};
+// BAŞLATMA (bindNavEvents KALDIRILDI, sadece onload)
+window.addEventListener('DOMContentLoaded', function() {
+  try {
+    console.log('DOM loaded');
+    sw('signal');
+    initChart();
+    startDemo();
+    renderPairManager();
+    renderPopularCoins();
+    bindOtonomEvents();
+    updateOtonomSettings();
+    addLog('APEX PRO başlatıldı — Hedef: $100','info');
+    addLog('Pro Mod: 3 eş zamanlı pozisyon, otomatik senkron 30sn','info');
+  } catch(e) {
+    console.error('Başlangıç hatası:', e);
+    addLog('Başlangıç hatası: ' + e.message, 'err');
+  }
+});
 </script>
 </body>
 </html>
