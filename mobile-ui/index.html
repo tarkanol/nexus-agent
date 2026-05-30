@@ -633,11 +633,14 @@ function bindNavEvents(){
         sw(pageId);
       });
       // touchstart ile de dene (iPhone için daha hızlı tepki)
-      btn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        sw(pageId);
-      });
-    }
+    function bindNavEvents(){
+  const pages = ['signal','pos','engine','challenge','settings'];
+  pages.forEach(pageId => {
+    const btn = document.getElementById('nb-' + pageId);
+    if(!btn) return;
+    btn.addEventListener('click', () => sw(pageId));
+  });
+}
   });
 }
 
