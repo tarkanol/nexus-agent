@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
 <title>APEX Pro - Otonom + Senkron</title>
 <style>
-/* Tüm stiller aynı, kısaltmak için yazmıyorum, aynı kalacak */
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
   --acc:#00ffe0;--long:#00e676;--short:#ff3d5c;
@@ -147,7 +146,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <div class="page" id="pg-pos"><div class="scroll"><div style="background:linear-gradient(135deg,rgba(251,191,36,.06),rgba(0,0,0,.2));border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:14px;margin-bottom:8px"><div style="font-size:9px;color:var(--dim)" id="balSrc">BAKİYE</div><div style="font-size:28px;font-weight:700;color:var(--gold);margin:3px 0" id="dispBal">$62.50</div><div style="display:flex;gap:14px;font-size:10px;margin-top:4px"><span style="color:var(--dim)">Günlük: <span id="dispDay" style="font-weight:700">$0.00</span></span><span style="color:var(--dim)">Toplam: <span id="dispTotal" style="font-weight:700">$0.00</span></span></div><div style="margin-top:8px;display:flex;gap:6px;align-items:center"><button class="btn btn-outline" style="font-size:10px;padding:5px 12px;min-height:30px" onclick="syncBal()">🔄 Senkron</button><span style="font-size:9px;color:var(--dim)" id="lastSync"></span></div></div><div class="card" style="padding:8px 10px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:9px;color:var(--dim);letter-spacing:1px">AKTİF POZİSYON</span><span style="font-size:9px;color:var(--dim)" id="dayTradeTxt">0/3</span></div><div style="height:3px;background:var(--brd);border-radius:2px;overflow:hidden;margin-bottom:5px"><div style="height:100%;border-radius:2px;background:var(--gold);transition:width .4s" id="dayBar"></div></div><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim)"><span>Kayıp limiti: <span id="lossLimitTxt" style="color:var(--warn)">Sınırsız</span></span><span id="dayStatus" style="color:var(--long)">Pro Mod Aktif</span></div></div><div id="posList"><div style="text-align:center;padding:24px;color:var(--dim)">Açık pozisyon yok</div></div><div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:6px">SON İŞLEMLER</div><div id="histBox" style="font-size:11px;color:var(--dim)">--</div></div></div></div>
 <div class="page" id="pg-engine"><div class="scroll"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div style="font-size:13px;font-weight:700" id="engTxt">MOTOR KAPALI</div><div style="font-size:10px;color:var(--dim);margin-top:2px" id="engSub">Pro Otonom: 3 eş zamanlı pozisyon</div></div><button class="btn btn-gold" id="btnEng" onclick="toggleEng()" style="min-width:80px">▶ Başlat</button></div><div id="engStats" style="display:none;background:var(--deep);border-radius:5px;padding:8px;font-size:10px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div><span style="color:var(--dim)">Son tarama: </span><span id="eLast">--</span></div><div><span style="color:var(--dim)">Sonraki: </span><span id="eNext">--</span></div><div><span style="color:var(--dim)">Aktif sinyal: </span><span id="eSig">--</span></div><div><span style="color:var(--dim)">Açılan: </span><span id="eOpened">0</span></div></div><div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--brd)"><span style="color:var(--dim)">Blok: </span><span id="eBlock" style="color:var(--warn)">--</span></div></div></div>
 <div class="card"><div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🤖 OTONOM PRO AYARLAR</div><div class="tog-row"><div class="tog off" id="togAutoTrade" onclick="toggleAutoTrade()"></div><div class="tog-b"><div class="tog-l">Otomatik İşlem</div><div class="tog-d" id="autoTradeDesc">Kapalı: sadece sinyal gösterir</div></div></div><div class="tog-row"><div class="tog on" id="togChallengeRules" onclick="toggleChallengeRules()"></div><div class="tog-b"><div class="tog-l">Challenge Kuralları (günlük limit, 1 poz)</div><div class="tog-d" id="challengeRulesDesc">Açık: max 1 poz, günde 2 işlem, $5 kayıp</div></div></div>
-<div class="fr"><label>Sinyal Seçimi</label><select id="signalSelection"><option value="first">İlk gelen sinyali aç</option><option value="best" selected>En yüksek güvenli sinyali aç</option></select></div>
+<div class="fr"><label>Sinyal Seçimi</label><select id="signalSelection"><option value="first">İlk gelen sinyali aç</option><option value="best" selected>En yüksek güvenli sinyali aç (tüm coinler arasında)</option></select></div>
 <div class="fr"><label>Minimum Güven Eşiği (%)</label><input type="number" id="minConfidence" value="60" min="0" max="100" step="5"></div>
 <div class="fr"><label>Risk / Reward Oranı (R:R)</label><input type="number" id="userRR" value="2.5" min="1.5" max="10" step="0.5"></div>
 <div class="fr"><label>Kazanç TP (dolar) - 0 ise R:R kullan</label><input type="text" id="profitTargetUSD" value="0" placeholder="0.36"><div style="font-size:9px;color:var(--dim);margin-top:3px">Pozisyon karı bu değere ulaşınca otomatik kapatılır.</div></div>
@@ -160,7 +159,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <div style="height:20px;"></div></div></div>
 <div class="page" id="pg-challenge"><div class="scroll"><div class="card" style="border-color:rgba(251,191,36,.3);text-align:center;padding:14px"><div style="font-size:9px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">HESAP DURUMU</div><div style="font-size:32px;font-weight:700;color:var(--gold)" id="bigBal">$62.50</div><div style="font-size:11px;color:var(--dim);margin-top:4px" id="bigPct">Başlangıç sermayesi</div><div style="height:6px;background:var(--brd);border-radius:3px;margin:10px 0;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,var(--gold),var(--acc));border-radius:3px;transition:width .8s" id="bigBar"></div></div><div style="font-size:10px;color:var(--dim)" id="bigSub">$62.50 → $100.00</div></div><div id="stageCards"></div><div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">PERFORMANS</div><div class="th-row"><span style="color:var(--dim)">Win Rate</span><span id="pWr">--</span></div><div class="th-row"><span style="color:var(--dim)">Kazanan / Kaybeden</span><span id="pWL">0 / 0</span></div><div class="th-row"><span style="color:var(--dim)">Ort. Kâr / Ort. Kayıp</span><span id="pAvg">-- / --</span></div><div class="th-row"><span style="color:var(--dim)">Toplam Komisyon</span><span id="pComm" style="color:var(--warn)">$0.000</span></div><div class="th-row"><span style="color:var(--dim)">Max Drawdown</span><span id="pDD" style="color:var(--short)">0%</span></div><div class="th-row"><span style="color:var(--dim)">En iyi işlem</span><span id="pBest" style="color:var(--long)">--</span></div></div></div></div>
 <div class="page" id="pg-settings"><div class="scroll"><div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">BAĞLANTI</div><div class="fr"><label>Worker URL</label><input id="wUrl" placeholder="https://...workers.dev" type="url"></div><div class="brow"><button class="btn btn-acc" onclick="connect()">Canlı Bağlan</button><button class="btn btn-outline" onclick="startDemo()">Demo</button></div></div>
-<div class="card"><div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🔥 POPÜLER COİNLER (Hızlı Ekle)</div><div id="popularCoins" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div><div style="font-size:9px;color:var(--dim);margin-bottom:5px">Tıkla ekle/kaldır (USDT otomatik eklenir)</div></div>
+<div class="card"><div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🔥 POPÜLER COİNLER (Market Cap Top 30)</div><div id="popularCoins" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div><div style="font-size:9px;color:var(--dim);margin-bottom:5px">Tıkla ekle/kaldır (USDT otomatik eklenir)</div></div>
 <div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">TARANACAK ÇİFTLER</div><div style="font-size:10px;color:var(--dim);margin-bottom:8px">Aktif çiftler (tıkla kaldır):</div><div id="pairManager" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div><div style="display:flex;gap:5px;"><input id="newPairInput" placeholder="örn: DOGEUSDT" style="flex:1;min-height:34px;font-size:11px" onkeydown="if(event.key==='Enter')addPair()"><button class="btn btn-outline" style="padding:5px 12px;min-height:34px;font-size:11px" onclick="addPair()">+ Ekle</button></div></div>
 <div class="card"><div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">CHALLENGE SIFIRLA</div><div style="font-size:11px;color:var(--dim);margin-bottom:8px">Bakiyeyi $62.5'a sıfırlar, tüm geçmişi temizler.</div><button class="btn btn-outline" onclick="resetChallenge()" style="width:100%;color:var(--short);border-color:rgba(255,61,92,.3)">🔄 Sıfırla</button></div>
 <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:9px;color:var(--dim);letter-spacing:1px">LOG</span><button class="btn btn-outline" style="padding:3px 9px;min-height:26px;font-size:9px" onclick="document.getElementById('logEl').innerHTML=''">Temizle</button></div><div class="logbox" id="logEl"></div></div></div></div>
@@ -181,9 +180,23 @@ const CHALLENGE_START = 62.5;
 const COMM = 0.0004;
 const MIN_RR_CHALLENGE = 2.0;
 
-let customPairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
-const POPULAR_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','MATIC','DOT','LINK','LTC','BCH','NEAR','ATOM','ALGO','FIL','VET','EGLD','HBAR','XTZ','THETA','EOS','KSM','CAKE','FTM','APE','ARB','OP'];
-const DEMO_BASE = {BTCUSDT:74000, ETHUSDT:2050, SOLUSDT:83, BNBUSDT:588, XRPUSDT:0.605, DOGEUSDT:0.12, ADAUSDT:0.45, AVAXUSDT:35, MATICUSDT:0.7, DOTUSDT:6.5, LINKUSDT:14, LTCUSDT:70, BCHUSDT:300, NEARUSDT:4, ATOMUSDT:8, ALGOUSDT:0.2, FILUSDT:5, VETUSDT:0.02, EGLDUSDT:35, HBARUSDT:0.07, XTZUSDT:1, THETAUSDT:1.2, EOSUSDT:0.8, KSMUSDT:35, CAKEUSDT:2.5, FTMUSDT:0.5, APEUSDT:1.2, ARBUSDT:1, OPUSDT:2};
+// Binance Market Cap Top 30 (USDT çiftleri) - Güncel liste
+const POPULAR_COINS = ['BTC','ETH','BNB','SOL','XRP','DOGE','ADA','AVAX','MATIC','DOT','LINK','LTC','BCH','NEAR','ATOM','ALGO','FIL','VET','EGLD','HBAR','XTZ','THETA','EOS','KSM','CAKE','FTM','APE','ARB','OP','SUI','PYTH','SEI','APT','RNDR','INJ','TIA','WIF','JUP','ONDO','STRK','ENA','PEPE','WLD','AGIX','FET','OCEAN','ARKM'];
+
+let customPairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','MATICUSDT','DOTUSDT','LINKUSDT','LTCUSDT','BCHUSDT','NEARUSDT','ATOMUSDT'];
+
+// Demo base fiyatlar (sadece demo mod için, canlıda worker'dan gelir)
+const DEMO_BASE = {
+  BTCUSDT:74000, ETHUSDT:2050, SOLUSDT:83, BNBUSDT:588, XRPUSDT:0.605,
+  DOGEUSDT:0.12, ADAUSDT:0.45, AVAXUSDT:35, MATICUSDT:0.7, DOTUSDT:6.5,
+  LINKUSDT:14, LTCUSDT:70, BCHUSDT:300, NEARUSDT:4, ATOMUSDT:8,
+  ALGOUSDT:0.2, FILUSDT:5, VETUSDT:0.02, EGLDUSDT:35, HBARUSDT:0.07,
+  XTZUSDT:1, THETAUSDT:1.2, EOSUSDT:0.8, KSMUSDT:35, CAKEUSDT:2.5,
+  FTMUSDT:0.5, APEUSDT:1.2, ARBUSDT:1, OPUSDT:2, SUIUSDT:1, PYTHUSDT:0.5,
+  SEIUSDT:0.5, APTUSDT:10, RNDRUSDT:8, INJUSDT:25, TIAUSDT:12, WIFUSDT:2,
+  JUPUSDT:1, ONDOUSDT:1, STRKUSDT:1.5, ENAUSDT:1, PEPEUSDT:0.00001,
+  WLDUSDT:5, AGIXUSDT:1, FETUSDT:1.5, OCEANUSDT:0.8, ARKMUSDT:1.5
+};
 
 let WORKER='', appMode='demo';
 let balance=CHALLENGE_START, startBal=CHALLENGE_START, peakBal=CHALLENGE_START;
@@ -195,7 +208,7 @@ let scanSec=120, engineOn=false;
 let togAutoClose=true, togTrailing=true;
 let loopTimer=null, cdTimer=null;
 let syncInterval = null;
-let syncFailed = false; // bakiye hatasını bir kez göstermek için
+let syncFailed = false;
 
 let autoTrade = false;
 let signalSelection = 'best';
@@ -214,14 +227,23 @@ function getMaxDailyLoss() { return challengeRulesActive ? 5 : 999999; }
 
 const engCD={};
 const pState={}, prevP={}, pData={};
-customPairs.forEach(s=>{ 
-  pState[s]={price:DEMO_BASE[s]||(DEMO_BASE[s.slice(0,-4)] ? DEMO_BASE[s.slice(0,-4)] : 1), vel:0}; 
-  prevP[s]=DEMO_BASE[s]||1; 
-});
+
+// customPairs için başlangıç state oluştur
+function initDataForPairs() {
+  customPairs.forEach(s=>{ 
+    let basePrice = DEMO_BASE[s] || (DEMO_BASE[s.slice(0,-4)] ? DEMO_BASE[s.slice(0,-4)] : 1);
+    pState[s]={price:basePrice, vel:0}; 
+    prevP[s]=basePrice;
+    if(!pData[s]) pData[s]={};
+  });
+}
+initDataForPairs();
 
 // ═══════════════════════════════════
 // UTILS
+let currentPage = 'signal'; // aktif sayfa takibi
 function sw(p){
+  currentPage = p;
   document.querySelectorAll('.page').forEach(page=>page.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(btn=>btn.classList.remove('active'));
   let targetPage = document.getElementById('pg-'+p);
@@ -352,18 +374,27 @@ function analyzeChallenge(sym){
   }
   return {signal,conf,bull,bear,edgeText,blockText,htfTrend,bos,price,posAtr,sl:null,tp:null,rrRatio:null,fib4h, indicators:{rsi:rsi15m,macdHist:macd15m.hist,adx:adx4h.adx,ema50above:le50&&price>le50,vr:vr15m,bbW:bbCalc(c15m).w}, mtf:{'1h':oBull>oBear?'LONG':oBear>oBull?'SHORT':'WAIT','4h':htfTrend,'1d':'WAIT'}};
 }
-function analyzeAll(){ customPairs.forEach(sym=>{ if(!pData[sym]) return; try{ pData[sym].analysis=analyzeChallenge(sym); } catch(e){ addLog('Analiz hatası '+sym+': '+e.message,'err'); } }); }
+function analyzeAll(){ 
+  for(let sym of customPairs){
+    if(!pData[sym]) continue;
+    try{ pData[sym].analysis=analyzeChallenge(sym); } 
+    catch(e){ addLog('Analiz hatası '+sym+': '+e.message,'err'); }
+  }
+}
 
 // ═══════════════════════════════════
 // CHART
 let chartCtx;
 function initChart(){ chartCtx=document.getElementById('chart').getContext('2d'); }
+let drawChartScheduled = false;
 function drawChart(){
   if(!chartCtx) return;
+  if(currentPage !== 'signal') return; // sadece sinyal sayfası aktifken çiz
   let pd=pData[currentPair]; if(!pd) return;
   let tfKey='kl'+currentTF.replace('1h','1h').replace('4h','4h').replace('1d','1d');
   let kl=pd[tfKey]||pd.kl4h||[]; if(!kl||kl.length<10) return;
-  let canvas=chartCtx.canvas; canvas.width=canvas.offsetWidth; canvas.height=155;
+  let canvas=chartCtx.canvas;
+  canvas.width=canvas.offsetWidth; canvas.height=155;
   let W=canvas.width, H=155, ctx=chartCtx; ctx.clearRect(0,0,W,H);
   let n=Math.min(60,kl.length), k=kl.slice(-n); let cl=k.map(x=>x.c);
   let an=pd.analysis; let mn=Math.min(...k.map(x=>x.l))*0.9993, mx=Math.max(...k.map(x=>x.h))*1.0007;
@@ -575,82 +606,80 @@ function togglePopularCoin(coin){
 // DATA
 function demoTick(sym){ let s=pState[sym]; let base=DEMO_BASE[sym]||(DEMO_BASE[sym.slice(0,-4)]? DEMO_BASE[sym.slice(0,-4)] : 1); let drift=(base-s.price)*0.0008; s.vel=s.vel*0.88+(Math.random()-0.5)*s.price*0.0003+drift; s.price=Math.max(s.price*0.85, s.price+s.vel); return s.price; }
 function makeKlines(sym,n,tf){ let tfMs={'15m':900000,'1h':3600000,'4h':14400000,'1d':86400000}[tf]||3600000; let p=pState[sym].price, kl=[]; for(let i=n-1;i>=0;i--){ let trendFactor=(i/n-0.5)*0.02*(Math.random()>0.5?1:-1); let o=p, c=o*(1+(Math.random()-0.5)*0.008+trendFactor); let rng=Math.abs(o-c)*(1+Math.random()*1.2); kl.unshift({t:Date.now()-(n-i)*tfMs, o, h:Math.max(o,c)+rng*0.35*Math.random(), l:Math.min(o,c)-rng*0.35*Math.random(), c, v:Math.random()*8000+1000}); p=c; } if(kl.length) kl[kl.length-1].c=pState[sym].price; return kl; }
-function refreshDemo(){ let now=Date.now(); customPairs.forEach(sym=>{ prevP[sym]=pState[sym]?pState[sym].price:DEMO_BASE[sym]||1; demoTick(sym); let p=pState[sym].price; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; if(!pData[sym].lastKl||now-pData[sym].lastKl>30000){ pData[sym].kl4h=makeKlines(sym,200,'4h'); pData[sym].kl1h=makeKlines(sym,120,'1h'); pData[sym].kl15m=makeKlines(sym,120,'15m'); pData[sym].kl1d=makeKlines(sym,60,'1d'); pData[sym].lastKl=now; } else { ['kl4h','kl1h','kl15m','kl1d'].forEach(key=>{ let kl=pData[sym][key]; if(kl&&kl.length){ kl[kl.length-1].c=p; kl[kl.length-1].h=Math.max(kl[kl.length-1].h,p); kl[kl.length-1].l=Math.min(kl[kl.length-1].l,p); } }); } }); analyzeAll(); }
+function refreshDemo(){ let now=Date.now(); for(let sym of customPairs){ 
+    prevP[sym]=pState[sym]?pState[sym].price:DEMO_BASE[sym]||1; 
+    demoTick(sym); 
+    let p=pState[sym].price; 
+    if(!pData[sym]) pData[sym]={}; 
+    pData[sym].price=p; 
+    if(!pData[sym].lastKl||now-pData[sym].lastKl>30000){ 
+      pData[sym].kl4h=makeKlines(sym,200,'4h'); 
+      pData[sym].kl1h=makeKlines(sym,120,'1h'); 
+      pData[sym].kl15m=makeKlines(sym,120,'15m'); 
+      pData[sym].kl1d=makeKlines(sym,60,'1d'); 
+      pData[sym].lastKl=now; 
+    } else { 
+      ['kl4h','kl1h','kl15m','kl1d'].forEach(key=>{ let kl=pData[sym][key]; if(kl&&kl.length){ kl[kl.length-1].c=p; kl[kl.length-1].h=Math.max(kl[kl.length-1].h,p); kl[kl.length-1].l=Math.min(kl[kl.length-1].l,p); } }); 
+    } 
+  } 
+  analyzeAll(); 
+}
 async function fetchLive(){ if(!WORKER) return; try{ let pk=d=> d&&d.success&&Array.isArray(d.data)?d.data.map(k=>({t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})):null; let prices=await Promise.all(customPairs.map(sym=> fetch(WORKER+'/price?symbol='+sym).then(r=>r.json()).catch(()=>null))); customPairs.forEach((sym,i)=>{ let pr=prices[i]; if(pr&&pr.success){ let p=parseFloat(pr.data.lastPrice||pr.data.price); if(p>0){ prevP[sym]=pState[sym].price; pState[sym].price=p; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; } } }); let klines=await Promise.all([ fetch(WORKER+'/klines?symbol='+currentPair+'&interval=4h&limit=200').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=15m&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1d&limit=60').then(r=>r.json()).catch(()=>null) ]); if(!pData[currentPair]) pData[currentPair]={}; let k4=pk(klines[0]); if(k4) pData[currentPair].kl4h=k4; let k1=pk(klines[1]); if(k1) pData[currentPair].kl1h=k1; let k15=pk(klines[2]); if(k15) pData[currentPair].kl15m=k15; let k1d=pk(klines[3]); if(k1d) pData[currentPair].kl1d=k1d; let others=customPairs.filter(s=>s!==currentPair); let ok=await Promise.all(others.reduce((arr,sym)=>arr.concat([ fetch(WORKER+'/klines?symbol='+sym+'&interval=4h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=1h&limit=100').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=15m&limit=80').then(r=>r.json()).catch(()=>null) ]),[])); others.forEach((sym,i)=>{ if(!pData[sym]) pData[sym]={}; let k4o=pk(ok[i*3]), k1o=pk(ok[i*3+1]), k15o=pk(ok[i*3+2]); if(k4o) pData[sym].kl4h=k4o; if(k1o) pData[sym].kl1h=k1o; if(k15o) pData[sym].kl15m=k15o; }); analyzeAll(); } catch(e){ addLog('⚠️ fetchLive: '+e.message,'warn'); } }
-
-// ═══════════════════════════════════
-// DÜZELTİLMİŞ syncBal (sonsuz hata mesajını engeller, demo moda geçer)
-async function syncBal() {
-  if (!WORKER || appMode !== 'live') {
-    document.getElementById('lastSync').textContent = appMode === 'live' ? 'Worker yok' : 'Demo mod';
-    return;
+async function syncBal(){ 
+  if(!WORKER || appMode !== 'live'){ 
+    document.getElementById('lastSync').textContent = appMode === 'live' ? 'Worker yok' : 'Demo mod'; 
+    return; 
   }
-  try {
-    let balR = await fetch(WORKER + '/balance').then(r => r.json()).catch(() => null);
-    if (balR && balR.success && balR.balance) {
-      futBal = parseFloat(balR.balance.balance || balR.balance.availableBalance || 0);
-      balance = futBal;
-      document.getElementById('lastSync').textContent = 'Sync: ' + new Date().toLocaleTimeString('tr-TR');
-      addLog('🔄 Bakiye: $' + futBal.toFixed(2), 'ok');
-      syncFailed = false;
-    } else {
-      if (!syncFailed) {
-        addLog('⚠️ Bakiye alınamadı, demo moda geçiliyor', 'warn');
-        notify('Worker bakiye bilgisi alınamadı, demo moda geçiliyor', 'error');
-        startDemo(); // demo moda geç
-      }
-      syncFailed = true;
-      return;
+  try { 
+    let balR = await fetch(WORKER + '/balance').then(r => r.json()).catch(() => null); 
+    if (balR && balR.success && balR.balance) { 
+      futBal = parseFloat(balR.balance.balance || balR.balance.availableBalance || 0); 
+      balance = futBal; 
+      document.getElementById('lastSync').textContent = 'Sync: ' + new Date().toLocaleTimeString('tr-TR'); 
+      addLog('🔄 Bakiye: $' + futBal.toFixed(2), 'ok'); 
+      syncFailed = false; 
+    } else { 
+      if (!syncFailed) { 
+        addLog('⚠️ Bakiye alınamadı (worker null balance). Canlı modda kalınıyor.', 'warn'); 
+        notify('Worker bakiye bilgisi alınamadı, lütfen kontrol edin', 'error'); 
+      } 
+      syncFailed = true; 
+      return; 
     }
-
-    let posR = await fetch(WORKER + '/sync-positions').then(r => r.json()).catch(() => null);
-    if (posR && posR.success && Array.isArray(posR.positions)) {
-      let binanceSymbols = new Set(posR.positions.map(bp => bp.symbol));
-      for (let p of [...positions]) {
-        if (!binanceSymbols.has(p.pair) && !p.fromBinance) {
-          await closePos(p.id, 'SENKRON (Kapandı)');
-        }
-      }
-      posR.positions.forEach(bp => {
-        let existing = positions.find(p => p.pair === bp.symbol);
-        if (existing) {
-          let price = parseFloat(bp.markPrice || bp.entryPrice);
-          if (price) pData[bp.symbol].price = price;
-          existing.unrealPnl = parseFloat(bp.unRealizedProfit || 0);
-          if (profitTargetUSD > 0 && existing.unrealPnl >= profitTargetUSD) {
-            closePos(existing.id, 'PROFIT TARGET');
-          }
-        } else {
-          let side = parseFloat(bp.positionAmt) > 0 ? 'LONG' : 'SHORT';
-          let entry = parseFloat(bp.entryPrice);
-          let qty = Math.abs(parseFloat(bp.positionAmt));
-          let lev = parseInt(bp.leverage || 2);
-          let notional = Math.abs(parseFloat(bp.notional || 0)) || qty * entry;
-          let posVal = notional / lev;
-          let an = pData[bp.symbol]?.analysis;
-          let sl, tp;
-          if (an && an.sl && an.signal === side) { sl = an.sl; tp = an.tp; }
-          else {
-            let posAtr = an ? an.posAtr : entry * 0.01;
-            if (side === 'LONG') { sl = entry - posAtr * 2.5; tp = entry + posAtr * 5; }
-            else { sl = entry + posAtr * 2.5; tp = entry - posAtr * 5; }
-          }
-          positions.push({ id: posId++, pair: bp.symbol, side, entry, qty, lev, posValue: posVal, sl, tp, comm: 0, auto: false, fromBinance: true, openTime: Date.now(), unrealPnl: parseFloat(bp.unRealizedProfit || 0) });
-          addLog('📥 İthal: ' + side + ' ' + bp.symbol.replace('USDT', '') + ' ' + lev + 'x @$' + fp(entry), 'ok');
-        }
-      });
-      updatePosUI();
-      notify('Senkron tamamlandı', 'success');
-    } else {
-      addLog('⚠️ /sync-positions cevabı geçersiz', 'warn');
-    }
-  } catch (e) {
-    addLog('❌ Sync hatası: ' + e.message, 'err');
-    if (!syncFailed) {
-      startDemo();
-      syncFailed = true;
-    }
-  }
+    let posR = await fetch(WORKER + '/sync-positions').then(r => r.json()).catch(() => null); 
+    if (posR && posR.success && Array.isArray(posR.positions)) { 
+      let binanceSymbols = new Set(posR.positions.map(bp => bp.symbol)); 
+      for (let p of [...positions]) { if (!binanceSymbols.has(p.pair) && !p.fromBinance) { await closePos(p.id, 'SENKRON (Kapandı)'); } } 
+      posR.positions.forEach(bp => { 
+        let existing = positions.find(p => p.pair === bp.symbol); 
+        if (existing) { 
+          let price = parseFloat(bp.markPrice || bp.entryPrice); 
+          if (price) pData[bp.symbol].price = price; 
+          existing.unrealPnl = parseFloat(bp.unRealizedProfit || 0); 
+          if (profitTargetUSD > 0 && existing.unrealPnl >= profitTargetUSD) { closePos(existing.id, 'PROFIT TARGET'); } 
+        } else { 
+          let side = parseFloat(bp.positionAmt) > 0 ? 'LONG' : 'SHORT'; 
+          let entry = parseFloat(bp.entryPrice); 
+          let qty = Math.abs(parseFloat(bp.positionAmt)); 
+          let lev = parseInt(bp.leverage || 2); 
+          let notional = Math.abs(parseFloat(bp.notional || 0)) || qty * entry; 
+          let posVal = notional / lev; 
+          let an = pData[bp.symbol]?.analysis; 
+          let sl, tp; 
+          if (an && an.sl && an.signal === side) { sl = an.sl; tp = an.tp; } 
+          else { let posAtr = an ? an.posAtr : entry * 0.01; if (side === 'LONG') { sl = entry - posAtr * 2.5; tp = entry + posAtr * 5; } else { sl = entry + posAtr * 2.5; tp = entry - posAtr * 5; } } 
+          positions.push({ id: posId++, pair: bp.symbol, side, entry, qty, lev, posValue: posVal, sl, tp, comm: 0, auto: false, fromBinance: true, openTime: Date.now(), unrealPnl: parseFloat(bp.unRealizedProfit || 0) }); 
+          addLog('📥 İthal: ' + side + ' ' + bp.symbol.replace('USDT', '') + ' ' + lev + 'x @$' + fp(entry), 'ok'); 
+        } 
+      }); 
+      updatePosUI(); 
+      notify('Senkron tamamlandı', 'success'); 
+    } else { 
+      addLog('⚠️ /sync-positions cevabı geçersiz', 'warn'); 
+    } 
+  } catch (e) { 
+    addLog('❌ Sync hatası: ' + e.message, 'err'); 
+  } 
 }
 function resetChallenge(){ if(!confirm('Challenge sıfırlansın mı? Tüm geçmiş silinir.')) return; balance=CHALLENGE_START; startBal=CHALLENGE_START; peakBal=CHALLENGE_START; dailyPnL=0; dailyTradeCount=0; dailyLossAmt=0; totalComm=0; futBal=null; positions=[]; trades=[]; posId=1; notify('🔄 Challenge sıfırlandı — $62.50','info'); addLog('🔄 Challenge sıfırlandı','info'); updatePosUI(); updateChallenge(); }
 async function connect(){ let url=document.getElementById('wUrl').value.trim(); if(!url) return notify('Worker URL girin','error'); try{ let d=await fetch(url+'/ping').then(r=>r.json()); if(d.success){ WORKER=url; appMode='live'; syncFailed=false; document.getElementById('connBdg').textContent='LIVE'; document.getElementById('connBdg').className='bdg live'; notify('✅ Canlı bağlantı!','success'); addLog('✅ Worker v'+(d.version||'?'),'ok'); await syncBal(); if(loopTimer) clearTimeout(loopTimer); mainLoop(); if(syncInterval) clearInterval(syncInterval); syncInterval = setInterval(()=>{ if(appMode==='live') syncBal(); }, 30000); } else notify('Worker yanıt vermedi','error'); } catch(e){ notify('Bağlantı hatası','error'); addLog('❌ '+e.message,'err'); } }
