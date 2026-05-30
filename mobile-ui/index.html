@@ -380,14 +380,25 @@ input:focus,select:focus{border-color:var(--acc)}
       <div class="fr"><label>Hassasiyet</label><select id="selSens"><option value="high">Yüksek</option><option value="med" selected>Orta</option><option value="low">Düşük</option></select></div>
       <div class="tog-row">
         <div class="tog on" id="togAuto" onclick="doTogAuto()"></div>
-        <div class="tog-b"><div class="tog-l">Otomatik TP/SL</div><div class="tog-d" id="togAutoD">TP/SL gelince otomatik kapat</div></div>
+        <div class="tog-b"><div class="tog-l">Otomatik TP/SL Kapat</div><div class="tog-d" id="togAutoD">TP/SL gelince otomatik kapat</div></div>
       </div>
-      <div class="tog-row">
+      <div class="tog-row" style="border:none">
         <div class="tog on" id="togTrail" onclick="doTogTrail()"></div>
         <div class="tog-b"><div class="tog-l">Trailing Stop</div><div class="tog-d" id="togTrailD">TP yaklaşınca SL kısmen takip</div></div>
       </div>
     </div>
-    <div style="height:20px"></div>
+
+    <div class="card" id="scanListCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin-bottom:0">📊 SON TARAMA SİNYALLERİ</div>
+        <span style="font-size:9px;color:var(--dim)" id="scanTimeLabel">--</span>
+      </div>
+      <div id="scanSignalList">
+        <div style="text-align:center;padding:16px;color:var(--dim);font-size:10px">Motor henüz tarama yapmadı</div>
+      </div>
+    </div>
+
+    <div style="height:100px"></div>
   </div>
 </div>
 
@@ -1004,17 +1015,15 @@ function updateRiskPreview(){
   var price = (pData[currentPair] && pData[currentPair].price) || DEMO_BASE[currentPair] || 1;
   var slD = an && an.slDist ? an.slDist : price * 0.01;
   var slPct = (slD / price) * 100;
-
-  // FİX: Risk hesabı — posValue = risk / slPct, sonra kaldıraç için teminat = posValue / leverage
   var posValue = riskAmountUSD / (slPct / 100);
   var margin = posValue / currentLeverage;
   var lot = posValue / price;
 
   function el(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; }
   el('rPreviewRisk','$'+riskAmountUSD.toFixed(2));
-  el('rPreviewPos','$'+posValue.toFixed(2));
+  el('rPreviewPos','$'+posValue.toFixed(2)+' (SL %'+slPct.toFixed(2)+')');
   el('rPreviewLev',currentLeverage);
-  el('rPreviewLot',lot.toFixed(4));
+  el('rPreviewLot',lot.toFixed(4)+' · teminat $'+margin.toFixed(2));
 }
 
 function updateSignalUI(){
@@ -1210,18 +1219,18 @@ function openPos(sym,side,auto){
   var slDist=Math.abs(an.sl-price);
   var slPct=(slDist/price)*100;
 
-  // ══════════════════════════════════
-  // FİX: Doğru risk/pozisyon hesabı
-  // posValue (notional) = risk ÷ SL%
-  // Kaldıraç sadece gereken teminatı etkiler, PnL'yi değil
-  // Teminat = posValue / leverage  (bu hesap bakiye kontrolünde kullanılır)
-  // ══════════════════════════════════
-  var posValue = riskAmountUSD / (slPct / 100); // örn: $12 risk, %1 SL → $1200 notional
-  var margin = posValue / currentLeverage;       // örn: $1200 / 3x → $400 teminat
-  // Teminat bakiyenin %30'unu geçmesin
-  if(margin > balance * 0.30){
-    posValue = (balance * 0.30) * currentLeverage;
-    margin = balance * 0.30;
+  // Risk Hesabı:
+  // posValue (notional) = riskAmountUSD / (slPct/100)
+  // Kaldıraç gereken teminatı düşürür: margin = posValue / leverage
+  // Örnek: $15 risk, SL %1, 3x → posValue = $15/0.01 = $1500, margin = $500
+  // Eğer SL %5 ise → posValue = $15/0.05 = $300, margin = $100
+  // Yani büyük SL = küçük pozisyon (sabit risk mantığı)
+  var posValue = riskAmountUSD / (slPct / 100);
+  var margin = posValue / currentLeverage;
+  // Güvenlik: teminat bakiyenin %40'ını geçmesin
+  if(margin > balance * 0.40){
+    margin = balance * 0.40;
+    posValue = margin * currentLeverage;
   }
   var qty = posValue / price;
   var comm = posValue * COMM * 2; // giriş + çıkış
@@ -1342,6 +1351,17 @@ function checkPositions(){
 // ═══════════════════════════════════
 function runEngine(){
   if(!engineOn) return;
+
+  // Tüm coinleri tara (sinyal listesi için)
+  var allScanned=[];
+  customPairs.forEach(function(sym){
+    var an=pData[sym]&&pData[sym].analysis;
+    if(!an) return;
+    allScanned.push({sym:sym, an:an, conf:an.conf});
+  });
+  renderScanList(allScanned);
+
+  // Eşiği geçen sinyaller
   var signals=[];
   customPairs.forEach(function(sym){
     var an=pData[sym]&&pData[sym].analysis;
@@ -1350,9 +1370,11 @@ function runEngine(){
     if(an.rrRatio&&an.rrRatio<MIN_RR_CHALLENGE) return;
     signals.push({sym:sym, an:an, conf:an.conf});
   });
+
+  var now=new Date().toLocaleTimeString('tr-TR');
+  var eLast=document.getElementById('eLast'); if(eLast) eLast.textContent=now;
+
   if(!signals.length){
-    var now=new Date().toLocaleTimeString('tr-TR');
-    var eLast=document.getElementById('eLast'); if(eLast) eLast.textContent=now;
     var eSig=document.getElementById('eSig'); if(eSig) eSig.textContent='Sinyal yok';
     return;
   }
@@ -1367,17 +1389,70 @@ function runEngine(){
     if(canOpen && !alreadyHas){
       openPos(selected.sym,selected.an.signal,true);
     } else {
-      addLog('⏸ '+selected.sym+' sinyal var ama '+( alreadyHas?'aynı pair açık':'limit doldu'),'info');
+      addLog('Sinyal var ama '+(alreadyHas?'aynı pair açık':'limit doldu')+': '+selected.sym,'info');
     }
   } else {
-    addLog('📡 SİNYAL: '+selected.sym+' '+selected.an.signal+' (Güven:'+selected.conf+'%) R:R:'+selected.an.rrRatio.toFixed(2),'info');
+    addLog('SINYAL: '+selected.sym+' '+selected.an.signal+' (Guven:'+selected.conf+'%) R:R:'+selected.an.rrRatio.toFixed(2),'info');
   }
-  var now=new Date().toLocaleTimeString('tr-TR');
-  var el=document.getElementById('eLast'); if(el) el.textContent=now;
-  el=document.getElementById('eSig'); if(el) el.textContent=selected.sym.replace('USDT','')+':'+selected.an.signal+'('+selected.conf+'%)';
-  el=document.getElementById('eBlock'); if(el) el.textContent='—';
+  var el=document.getElementById('eSig'); if(el) el.textContent=selected.sym.replace('USDT','')+':'+selected.an.signal+'('+selected.conf+'%)';
+  el=document.getElementById('eBlock'); if(el) el.textContent='OK';
   el=document.getElementById('eOpened'); if(el) el.textContent=positions.length;
 }
+
+function renderScanList(allScanned){
+  var container=document.getElementById('scanSignalList');
+  var timeEl=document.getElementById('scanTimeLabel');
+  if(!container) return;
+  var now=new Date().toLocaleTimeString('tr-TR');
+  if(timeEl) timeEl.textContent=now+' ('+allScanned.length+' coin)';
+
+  if(!allScanned.length){
+    container.innerHTML='<div style="text-align:center;padding:12px;color:var(--dim);font-size:10px">Veri yok</div>';
+    return;
+  }
+
+  allScanned.sort(function(a,b){
+    var aHas=a.an.signal!=='WAIT'?1:0, bHas=b.an.signal!=='WAIT'?1:0;
+    if(aHas!==bHas) return bHas-aHas;
+    return b.conf-a.conf;
+  });
+
+  var html='<table style="width:100%;border-collapse:collapse;font-size:10px">'
+    +'<tr style="color:var(--dim);font-size:8px;border-bottom:1px solid var(--brd)">'
+    +'<td style="padding:4px 4px 4px 2px">COİN</td>'
+    +'<td style="padding:4px;text-align:center">SİNYAL</td>'
+    +'<td style="padding:4px;text-align:center">GÜVEN</td>'
+    +'<td style="padding:4px;text-align:center">R:R</td>'
+    +'<td style="padding:4px;text-align:center">HTF</td>'
+    +'<td style="padding:4px;text-align:right">FİYAT</td>'
+    +'</tr>';
+
+  allScanned.forEach(function(item){
+    var an=item.an, sym=item.sym;
+    var price=(pData[sym]&&pData[sym].price)||DEMO_BASE[sym]||0;
+    var prev=prevP[sym]||price;
+    var isActive=positions.some(function(p){return p.pair===sym;});
+    var passesFilt=an.signal!=='WAIT'&&an.conf>=minConfidence&&an.rrRatio&&an.rrRatio>=MIN_RR_CHALLENGE;
+    var rowBg=isActive?'rgba(251,191,36,.07)':passesFilt?'rgba(0,255,224,.03)':'transparent';
+    var sigCol=an.signal==='LONG'?'var(--long)':an.signal==='SHORT'?'var(--short)':'var(--dim)';
+    var sigBg=an.signal==='LONG'?'rgba(0,230,118,.15)':an.signal==='SHORT'?'rgba(255,61,92,.15)':'var(--deep)';
+    var htfCol=an.htfTrend==='LONG'?'var(--long)':an.htfTrend==='SHORT'?'var(--short)':'var(--dim)';
+    var rrTxt=an.rrRatio?an.rrRatio.toFixed(1)+'x':'--';
+    var rrCol=an.rrRatio&&an.rrRatio>=MIN_RR_CHALLENGE?'var(--long)':'var(--dim)';
+    var confCol=an.conf>=minConfidence?'var(--acc)':an.conf>=50?'var(--warn)':'var(--dim)';
+    html+='<tr style="background:'+rowBg+';border-bottom:1px solid rgba(14,30,53,.7)" onclick="selectPair(''+sym+'')" style="cursor:pointer">'
+      +'<td style="padding:5px 4px;font-weight:700;cursor:pointer">'+(isActive?'<span style="color:var(--gold)">★</span> ':'')+sym.replace('USDT','')+'</td>'
+      +'<td style="padding:5px 4px;text-align:center"><span style="background:'+sigBg+';color:'+sigCol+';padding:2px 6px;border-radius:3px;font-weight:700;font-size:9px;letter-spacing:.5px">'+an.signal+'</span></td>'
+      +'<td style="padding:5px 4px;text-align:center;color:'+confCol+';font-weight:700">'+an.conf+'%</td>'
+      +'<td style="padding:5px 4px;text-align:center;color:'+rrCol+'">'+rrTxt+'</td>'
+      +'<td style="padding:5px 4px;text-align:center;color:'+htfCol+';font-size:9px;letter-spacing:.3px">'+an.htfTrend+'</td>'
+      +'<td style="padding:5px 4px;text-align:right;color:'+(price>=prev?'var(--long)':'var(--short)')+'">$'+fp(price)+'</td>'
+      +'</tr>';
+  });
+  html+='</table>';
+  container.innerHTML=html;
+}
+
 
 function updateRiskCalcEngine(){
   var price=(pData[currentPair]&&pData[currentPair].price)||DEMO_BASE[currentPair]||1;
@@ -1705,12 +1780,21 @@ function mainLoop(){
     else fetchLive();
     checkPositions();
     runEngine();
+    // Motor kapalıyken de sinyal listesini güncelle
+    if(!engineOn){
+      var allScanned=[];
+      customPairs.forEach(function(sym){
+        var an=pData[sym]&&pData[sym].analysis;
+        if(an) allScanned.push({sym:sym,an:an,conf:an.conf});
+      });
+      renderScanList(allScanned);
+    }
     updateSignalUI();
     updatePairRow();
     updateTicker();
     if(currentPage==='pos') updatePosUI();
     if(engineOn) startCD();
-  } catch(e){ addLog('⚠️ Loop: '+e.message,'warn'); }
+  } catch(e){ addLog('Loop hata: '+e.message,'warn'); }
   loopTimer=setTimeout(mainLoop, scanSec*1000);
 }
 
