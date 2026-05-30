@@ -195,6 +195,7 @@ let scanSec=120, engineOn=false;
 let togAutoClose=true, togTrailing=true;
 let loopTimer=null, cdTimer=null;
 let syncInterval = null;
+let syncFailed = false; // bakiye hatasını bir kez göstermek için
 
 let autoTrade = false;
 let signalSelection = 'best';
@@ -221,7 +222,6 @@ customPairs.forEach(s=>{
 // ═══════════════════════════════════
 // UTILS
 function sw(p){
-  console.log('sw called for', p);
   document.querySelectorAll('.page').forEach(page=>page.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(btn=>btn.classList.remove('active'));
   let targetPage = document.getElementById('pg-'+p);
@@ -577,52 +577,90 @@ function demoTick(sym){ let s=pState[sym]; let base=DEMO_BASE[sym]||(DEMO_BASE[s
 function makeKlines(sym,n,tf){ let tfMs={'15m':900000,'1h':3600000,'4h':14400000,'1d':86400000}[tf]||3600000; let p=pState[sym].price, kl=[]; for(let i=n-1;i>=0;i--){ let trendFactor=(i/n-0.5)*0.02*(Math.random()>0.5?1:-1); let o=p, c=o*(1+(Math.random()-0.5)*0.008+trendFactor); let rng=Math.abs(o-c)*(1+Math.random()*1.2); kl.unshift({t:Date.now()-(n-i)*tfMs, o, h:Math.max(o,c)+rng*0.35*Math.random(), l:Math.min(o,c)-rng*0.35*Math.random(), c, v:Math.random()*8000+1000}); p=c; } if(kl.length) kl[kl.length-1].c=pState[sym].price; return kl; }
 function refreshDemo(){ let now=Date.now(); customPairs.forEach(sym=>{ prevP[sym]=pState[sym]?pState[sym].price:DEMO_BASE[sym]||1; demoTick(sym); let p=pState[sym].price; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; if(!pData[sym].lastKl||now-pData[sym].lastKl>30000){ pData[sym].kl4h=makeKlines(sym,200,'4h'); pData[sym].kl1h=makeKlines(sym,120,'1h'); pData[sym].kl15m=makeKlines(sym,120,'15m'); pData[sym].kl1d=makeKlines(sym,60,'1d'); pData[sym].lastKl=now; } else { ['kl4h','kl1h','kl15m','kl1d'].forEach(key=>{ let kl=pData[sym][key]; if(kl&&kl.length){ kl[kl.length-1].c=p; kl[kl.length-1].h=Math.max(kl[kl.length-1].h,p); kl[kl.length-1].l=Math.min(kl[kl.length-1].l,p); } }); } }); analyzeAll(); }
 async function fetchLive(){ if(!WORKER) return; try{ let pk=d=> d&&d.success&&Array.isArray(d.data)?d.data.map(k=>({t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})):null; let prices=await Promise.all(customPairs.map(sym=> fetch(WORKER+'/price?symbol='+sym).then(r=>r.json()).catch(()=>null))); customPairs.forEach((sym,i)=>{ let pr=prices[i]; if(pr&&pr.success){ let p=parseFloat(pr.data.lastPrice||pr.data.price); if(p>0){ prevP[sym]=pState[sym].price; pState[sym].price=p; if(!pData[sym]) pData[sym]={}; pData[sym].price=p; } } }); let klines=await Promise.all([ fetch(WORKER+'/klines?symbol='+currentPair+'&interval=4h&limit=200').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=15m&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+currentPair+'&interval=1d&limit=60').then(r=>r.json()).catch(()=>null) ]); if(!pData[currentPair]) pData[currentPair]={}; let k4=pk(klines[0]); if(k4) pData[currentPair].kl4h=k4; let k1=pk(klines[1]); if(k1) pData[currentPair].kl1h=k1; let k15=pk(klines[2]); if(k15) pData[currentPair].kl15m=k15; let k1d=pk(klines[3]); if(k1d) pData[currentPair].kl1d=k1d; let others=customPairs.filter(s=>s!==currentPair); let ok=await Promise.all(others.reduce((arr,sym)=>arr.concat([ fetch(WORKER+'/klines?symbol='+sym+'&interval=4h&limit=120').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=1h&limit=100').then(r=>r.json()).catch(()=>null), fetch(WORKER+'/klines?symbol='+sym+'&interval=15m&limit=80').then(r=>r.json()).catch(()=>null) ]),[])); others.forEach((sym,i)=>{ if(!pData[sym]) pData[sym]={}; let k4o=pk(ok[i*3]), k1o=pk(ok[i*3+1]), k15o=pk(ok[i*3+2]); if(k4o) pData[sym].kl4h=k4o; if(k1o) pData[sym].kl1h=k1o; if(k15o) pData[sym].kl15m=k15o; }); analyzeAll(); } catch(e){ addLog('⚠️ fetchLive: '+e.message,'warn'); } }
-async function syncBal(){ if(!WORKER||appMode==='demo'){ document.getElementById('lastSync').textContent=appMode==='demo'?'Demo mod':''; return; }
-  try{ let balR=await fetch(WORKER+'/balance').then(r=>r.json()).catch(()=>null); if(balR&&balR.success&&balR.balance){ futBal=parseFloat(balR.balance.balance||balR.balance.availableBalance||0); balance=futBal; document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString('tr-TR'); addLog('🔄 Bakiye: $'+futBal.toFixed(2),'ok'); } else { addLog('⚠️ Bakiye alınamadı','err'); }
-    let posR=await fetch(WORKER+'/sync-positions').then(r=>r.json()).catch(()=>null);
-    if(posR&&posR.success&&Array.isArray(posR.positions)){
-      let binanceSymbols = new Set(posR.positions.map(bp=>bp.symbol));
-      for(let p of [...positions]){ if(!binanceSymbols.has(p.pair) && !p.fromBinance){ await closePos(p.id,'SENKRON (Kapandı)'); } }
-      posR.positions.forEach(bp=>{
-        let existing = positions.find(p=>p.pair===bp.symbol);
-        if(existing){ 
-          let price = parseFloat(bp.markPrice || bp.entryPrice); 
-          if(price) pData[bp.symbol].price = price; 
-          existing.unrealPnl = parseFloat(bp.unRealizedProfit||0);
-          if(profitTargetUSD > 0 && existing.unrealPnl >= profitTargetUSD){
-            closePos(existing.id,'PROFIT TARGET');
-          }
+
+// ═══════════════════════════════════
+// DÜZELTİLMİŞ syncBal (sonsuz hata mesajını engeller, demo moda geçer)
+async function syncBal() {
+  if (!WORKER || appMode !== 'live') {
+    document.getElementById('lastSync').textContent = appMode === 'live' ? 'Worker yok' : 'Demo mod';
+    return;
+  }
+  try {
+    let balR = await fetch(WORKER + '/balance').then(r => r.json()).catch(() => null);
+    if (balR && balR.success && balR.balance) {
+      futBal = parseFloat(balR.balance.balance || balR.balance.availableBalance || 0);
+      balance = futBal;
+      document.getElementById('lastSync').textContent = 'Sync: ' + new Date().toLocaleTimeString('tr-TR');
+      addLog('🔄 Bakiye: $' + futBal.toFixed(2), 'ok');
+      syncFailed = false;
+    } else {
+      if (!syncFailed) {
+        addLog('⚠️ Bakiye alınamadı, demo moda geçiliyor', 'warn');
+        notify('Worker bakiye bilgisi alınamadı, demo moda geçiliyor', 'error');
+        startDemo(); // demo moda geç
+      }
+      syncFailed = true;
+      return;
+    }
+
+    let posR = await fetch(WORKER + '/sync-positions').then(r => r.json()).catch(() => null);
+    if (posR && posR.success && Array.isArray(posR.positions)) {
+      let binanceSymbols = new Set(posR.positions.map(bp => bp.symbol));
+      for (let p of [...positions]) {
+        if (!binanceSymbols.has(p.pair) && !p.fromBinance) {
+          await closePos(p.id, 'SENKRON (Kapandı)');
         }
-        else{
-          let side = parseFloat(bp.positionAmt)>0?'LONG':'SHORT';
+      }
+      posR.positions.forEach(bp => {
+        let existing = positions.find(p => p.pair === bp.symbol);
+        if (existing) {
+          let price = parseFloat(bp.markPrice || bp.entryPrice);
+          if (price) pData[bp.symbol].price = price;
+          existing.unrealPnl = parseFloat(bp.unRealizedProfit || 0);
+          if (profitTargetUSD > 0 && existing.unrealPnl >= profitTargetUSD) {
+            closePos(existing.id, 'PROFIT TARGET');
+          }
+        } else {
+          let side = parseFloat(bp.positionAmt) > 0 ? 'LONG' : 'SHORT';
           let entry = parseFloat(bp.entryPrice);
           let qty = Math.abs(parseFloat(bp.positionAmt));
-          let lev = parseInt(bp.leverage||2);
-          let notional = Math.abs(parseFloat(bp.notional||0))||qty*entry;
-          let posVal = notional/lev;
+          let lev = parseInt(bp.leverage || 2);
+          let notional = Math.abs(parseFloat(bp.notional || 0)) || qty * entry;
+          let posVal = notional / lev;
           let an = pData[bp.symbol]?.analysis;
           let sl, tp;
-          if(an && an.sl && an.signal===side){ sl=an.sl; tp=an.tp; }
-          else{ let posAtr=an?an.posAtr:entry*0.01; if(side==='LONG'){ sl=entry-posAtr*2.5; tp=entry+posAtr*5; } else { sl=entry+posAtr*2.5; tp=entry-posAtr*5; } }
-          positions.push({id:posId++, pair:bp.symbol, side, entry, qty, lev, posValue:posVal, sl, tp, comm:0, auto:false, fromBinance:true, openTime:Date.now(), unrealPnl:parseFloat(bp.unRealizedProfit||0)});
-          addLog('📥 İthal: '+side+' '+bp.symbol.replace('USDT','')+' '+lev+'x @$'+fp(entry),'ok');
+          if (an && an.sl && an.signal === side) { sl = an.sl; tp = an.tp; }
+          else {
+            let posAtr = an ? an.posAtr : entry * 0.01;
+            if (side === 'LONG') { sl = entry - posAtr * 2.5; tp = entry + posAtr * 5; }
+            else { sl = entry + posAtr * 2.5; tp = entry - posAtr * 5; }
+          }
+          positions.push({ id: posId++, pair: bp.symbol, side, entry, qty, lev, posValue: posVal, sl, tp, comm: 0, auto: false, fromBinance: true, openTime: Date.now(), unrealPnl: parseFloat(bp.unRealizedProfit || 0) });
+          addLog('📥 İthal: ' + side + ' ' + bp.symbol.replace('USDT', '') + ' ' + lev + 'x @$' + fp(entry), 'ok');
         }
       });
       updatePosUI();
-      notify('Senkron tamamlandı','success');
-    } else { addLog('⚠️ /sync-positions cevabı geçersiz','err'); }
-  } catch(e){ addLog('❌ Sync hatası: '+e.message,'err'); }
+      notify('Senkron tamamlandı', 'success');
+    } else {
+      addLog('⚠️ /sync-positions cevabı geçersiz', 'warn');
+    }
+  } catch (e) {
+    addLog('❌ Sync hatası: ' + e.message, 'err');
+    if (!syncFailed) {
+      startDemo();
+      syncFailed = true;
+    }
+  }
 }
 function resetChallenge(){ if(!confirm('Challenge sıfırlansın mı? Tüm geçmiş silinir.')) return; balance=CHALLENGE_START; startBal=CHALLENGE_START; peakBal=CHALLENGE_START; dailyPnL=0; dailyTradeCount=0; dailyLossAmt=0; totalComm=0; futBal=null; positions=[]; trades=[]; posId=1; notify('🔄 Challenge sıfırlandı — $62.50','info'); addLog('🔄 Challenge sıfırlandı','info'); updatePosUI(); updateChallenge(); }
-async function connect(){ let url=document.getElementById('wUrl').value.trim(); if(!url) return notify('Worker URL girin','error'); try{ let d=await fetch(url+'/ping').then(r=>r.json()); if(d.success){ WORKER=url; appMode='live'; document.getElementById('connBdg').textContent='LIVE'; document.getElementById('connBdg').className='bdg live'; notify('✅ Canlı bağlantı!','success'); addLog('✅ Worker v'+(d.version||'?'),'ok'); await syncBal(); if(loopTimer) clearTimeout(loopTimer); mainLoop(); if(syncInterval) clearInterval(syncInterval); syncInterval = setInterval(()=>{ if(appMode==='live') syncBal(); }, 30000); } else notify('Worker yanıt vermedi','error'); } catch(e){ notify('Bağlantı hatası','error'); addLog('❌ '+e.message,'err'); } }
-function startDemo(){ WORKER=''; appMode='demo'; futBal=null; document.getElementById('connBdg').textContent='DEMO'; document.getElementById('connBdg').className='bdg'; notify('🧪 Demo mod','info'); addLog('Demo başlatıldı','info'); if(loopTimer) clearTimeout(loopTimer); if(syncInterval) clearInterval(syncInterval); mainLoop(); }
+async function connect(){ let url=document.getElementById('wUrl').value.trim(); if(!url) return notify('Worker URL girin','error'); try{ let d=await fetch(url+'/ping').then(r=>r.json()); if(d.success){ WORKER=url; appMode='live'; syncFailed=false; document.getElementById('connBdg').textContent='LIVE'; document.getElementById('connBdg').className='bdg live'; notify('✅ Canlı bağlantı!','success'); addLog('✅ Worker v'+(d.version||'?'),'ok'); await syncBal(); if(loopTimer) clearTimeout(loopTimer); mainLoop(); if(syncInterval) clearInterval(syncInterval); syncInterval = setInterval(()=>{ if(appMode==='live') syncBal(); }, 30000); } else notify('Worker yanıt vermedi','error'); } catch(e){ notify('Bağlantı hatası','error'); addLog('❌ '+e.message,'err'); } }
+function startDemo(){ WORKER=''; appMode='demo'; futBal=null; syncFailed=false; document.getElementById('connBdg').textContent='DEMO'; document.getElementById('connBdg').className='bdg'; notify('🧪 Demo mod','info'); addLog('Demo başlatıldı','info'); if(loopTimer) clearTimeout(loopTimer); if(syncInterval) clearInterval(syncInterval); mainLoop(); }
 async function mainLoop(){ try{ if(appMode==='demo') refreshDemo(); else await fetchLive(); await checkPositions(); await runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updatePosUI(); if(engineOn) startCD(); } catch(e){ addLog('⚠️ Loop: '+e.message,'warn'); } loopTimer=setTimeout(mainLoop, scanSec*1000); }
 
 // ═══════════════════════════════════
-// BAŞLATMA (bindNavEvents KALDIRILDI, sadece onload)
+// BAŞLATMA
 window.addEventListener('DOMContentLoaded', function() {
   try {
-    console.log('DOM loaded');
     sw('signal');
     initChart();
     startDemo();
