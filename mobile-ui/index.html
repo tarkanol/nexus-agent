@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<title>APEX Pro - Micro Scalp</title>
+<title>APEX Pro V3 – Akıllı Micro Scalp</title>
 <style>
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
@@ -16,12 +16,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 header{background:var(--panel);border-bottom:1px solid var(--brd);padding:calc(env(safe-area-inset-top)+6px) 14px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100}
 .logo{font-weight:700;font-size:15px;color:var(--gold);letter-spacing:2px}
 .logo span{color:var(--dim);font-size:10px;margin-left:4px;font-weight:400}
-.badges{display:flex;align-items:center}
-.bdg{font-size:9px;padding:3px 7px;border-radius:3px;background:var(--deep);color:var(--dim);margin-right:4px}
+.badges{display:flex;align-items:center;flex-wrap:wrap}
+.bdg{font-size:9px;padding:3px 7px;border-radius:3px;background:var(--deep);color:var(--dim);margin-right:4px;margin-bottom:4px}
 .bdg:last-child{margin-right:0}
 .bdg.live{background:#0a2f1a;color:var(--long)}
 .bdg.gold{background:rgba(251,191,36,.15);color:var(--gold);border:1px solid rgba(251,191,36,.3)}
 .bdg.scalp{background:rgba(0,255,224,.12);color:var(--acc);border:1px solid rgba(0,255,224,.3)}
+.bdg.danger{background:rgba(255,61,92,.15);color:var(--short)}
 .ticker{background:#040c18;border-bottom:1px solid var(--brd);padding:5px 12px;overflow-x:auto;white-space:nowrap;display:flex;flex-shrink:0;scrollbar-width:none}
 .ticker::-webkit-scrollbar{display:none}
 .tick{display:inline-flex;align-items:center;font-size:10px;margin-right:14px}
@@ -171,13 +172,14 @@ input:focus,select:focus{border-color:var(--acc)}
 <body>
 <div id="notif"></div>
 <header>
-  <div class="logo">APEX <span>PRO</span></div>
+  <div class="logo">APEX <span>V3</span></div>
   <div class="badges">
     <span class="bdg" id="connBdg">DEMO</span>
-    <span class="bdg scalp" id="scalpModeBdg">SCALP OFF</span>
+    <span class="bdg scalp" id="scalpModeBdg">SCALP $0.12</span>
     <span class="bdg gold" id="stageBdg">PRO</span>
     <span class="bdg" id="posBdg">0/3</span>
     <span class="bdg" id="engBdg">OFF</span>
+    <span class="bdg danger" id="cooldownBdg" style="display:none">CD</span>
   </div>
 </header>
 <div class="challenge-bar">
@@ -188,8 +190,8 @@ input:focus,select:focus{border-color:var(--acc)}
   </div>
   <div class="ch-row">
     <div>
-      <div class="ch-bal" id="chBal">$62.50</div>
-      <div class="ch-target" id="chTarget">Hedef: $100.00 · Kalan: $37.50</div>
+      <div class="ch-bal" id="chBal">$37.44</div>
+      <div class="ch-target" id="chTarget">Hedef: $100.00 · Kalan: $62.56</div>
     </div>
     <div style="text-align:right">
       <div class="ch-pct" id="chPct" style="color:var(--acc)">+0.00%</div>
@@ -204,18 +206,15 @@ input:focus,select:focus{border-color:var(--acc)}
   <div class="scroll">
     <div class="pairs" id="pairRow"></div>
     <div class="scalp-bar" id="scalpPanel">
-      <div class="scalp-title">⚡ MİCRO-SCALP MODU</div>
-      <div style="font-size:9px;color:var(--dim);margin-bottom:6px">İşlem başı hedef kâr seç. SL otomatik daraltılır.</div>
+      <div class="scalp-title">⚡ MİCRO-SCALP AKILLI V3</div>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:6px">Spread, hacim, volatilite filtresi aktif. İnat koruması var.</div>
       <div class="scalp-presets">
         <button class="scalp-preset" id="sp5" onclick="setScalpPreset(0.05)">$0.05</button>
-        <button class="scalp-preset active" id="sp7" onclick="setScalpPreset(0.07)">$0.07</button>
-        <button class="scalp-preset" id="sp10" onclick="setScalpPreset(0.10)">$0.10</button>
+        <button class="scalp-preset" id="sp7" onclick="setScalpPreset(0.07)">$0.07</button>
+        <button class="scalp-preset active" id="sp12" onclick="setScalpPreset(0.12)">$0.12</button>
         <button class="scalp-preset" id="spOff" onclick="setScalpPreset(0)">KAPALI</button>
       </div>
       <div id="scalpInfo" style="font-size:10px;color:var(--acc);text-align:center;min-height:14px"></div>
-      <div style="margin-top:6px;font-size:9px;color:var(--dim)">
-        <span id="scalpStats">250 işlem × $0.07 = <span style="color:var(--long);font-weight:700">$17.50/ay</span></span>
-      </div>
     </div>
     <div class="card">
       <div class="sig-wrap">
@@ -267,7 +266,7 @@ input:focus,select:focus{border-color:var(--acc)}
   <div class="scroll">
     <div style="background:linear-gradient(135deg,rgba(251,191,36,.06),rgba(0,0,0,.2));border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:14px;margin-bottom:8px">
       <div style="font-size:9px;color:var(--dim)" id="balSrc">BAKİYE</div>
-      <div style="font-size:28px;font-weight:700;color:var(--gold);margin:3px 0" id="dispBal">$62.50</div>
+      <div style="font-size:28px;font-weight:700;color:var(--gold);margin:3px 0" id="dispBal">$37.44</div>
       <div style="display:flex;font-size:10px;margin-top:4px">
         <span style="color:var(--dim);margin-right:14px">Günlük: <span id="dispDay" style="font-weight:700">$0.00</span></span>
         <span style="color:var(--dim)">Toplam: <span id="dispTotal" style="font-weight:700">$0.00</span></span>
@@ -298,14 +297,14 @@ input:focus,select:focus{border-color:var(--acc)}
   </div>
 </div>
 
-<!-- MOTOR SAYFASI -->
+<!-- MOTOR SAYFASI (Gelişmiş) -->
 <div class="page" id="pg-engine">
   <div class="scroll">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div>
           <div style="font-size:13px;font-weight:700" id="engTxt">MOTOR KAPALI</div>
-          <div style="font-size:10px;color:var(--dim);margin-top:2px" id="engSub">Pro Otonom: 3 eş zamanlı pozisyon</div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px" id="engSub">Akıllı filtreler hazır</div>
         </div>
         <button class="btn btn-gold" id="btnEng" onclick="toggleEng()" style="min-width:80px">▶ Başlat</button>
       </div>
@@ -321,36 +320,34 @@ input:focus,select:focus{border-color:var(--acc)}
         </div>
       </div>
     </div>
+
+    <!-- YENİ: AKILLI FİLTRE DURUMU -->
+    <div class="card" style="border-color:rgba(0,255,224,.3)">
+      <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">⚙️ AKILLI FİLTRE DURUMU</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-gap:6px;font-size:9px">
+        <div>Spread filtresi: <span id="filtSpread" style="color:var(--long)">Aktif</span></div>
+        <div>Hacim filtresi: <span id="filtVolume" style="color:var(--long)">Aktif</span></div>
+        <div>Volatilite filtresi: <span id="filtATR" style="color:var(--long)">Aktif</span></div>
+        <div>Zaman filtresi: <span id="filtTime" style="color:var(--warn)">Aktif (02-07 TSİ)</span></div>
+        <div>İnat koruması: <span id="filtCooldown" style="color:var(--long)">Aktif (3 stop/30dk)</span></div>
+        <div>Kara liste: <span id="filtBlacklist" style="color:var(--dim)">Boş</span></div>
+      </div>
+    </div>
+
     <div class="card">
       <div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">⚡ SCALP MOD AYARLARI</div>
       <div class="scalp-bar" style="margin-bottom:10px">
         <div class="scalp-title">İŞLEM BAŞI KÂR HEDEFİ</div>
         <div class="scalp-presets">
           <button class="scalp-preset" id="sp5b" onclick="setScalpPreset(0.05)">$0.05</button>
-          <button class="scalp-preset active" id="sp7b" onclick="setScalpPreset(0.07)">$0.07</button>
-          <button class="scalp-preset" id="sp10b" onclick="setScalpPreset(0.10)">$0.10</button>
+          <button class="scalp-preset" id="sp7b" onclick="setScalpPreset(0.07)">$0.07</button>
+          <button class="scalp-preset active" id="sp12b" onclick="setScalpPreset(0.12)">$0.12</button>
           <button class="scalp-preset" id="spOffb" onclick="setScalpPreset(0)">KAPALI</button>
         </div>
         <div style="font-size:9px;color:var(--dim);margin-top:4px" id="scalpInfoB"></div>
       </div>
-      <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">📊 AYLIK PROJEKSİYON</div>
-      <div class="proj-grid" style="margin-bottom:10px">
-        <div class="proj-c"><div class="proj-l">Hedef/İşlem</div><div class="proj-v" id="projTarget">$0.07</div></div>
-        <div class="proj-c"><div class="proj-l">Aylık İşlem</div><div class="proj-v"><input type="number" id="projTrades" value="250" min="10" max="1000" step="10" oninput="calcProj()" style="background:transparent;border:none;color:var(--acc);font-size:13px;font-weight:700;text-align:center;padding:0;width:100%;min-height:unset"></div></div>
-        <div class="proj-c"><div class="proj-l">Win Rate (%)</div><div class="proj-v"><input type="number" id="projWR" value="55" min="30" max="90" step="5" oninput="calcProj()" style="background:transparent;border:none;color:var(--acc);font-size:13px;font-weight:700;text-align:center;padding:0;width:100%;min-height:unset"></div></div>
-        <div class="proj-c"><div class="proj-l">R:R Oranı</div><div class="proj-v"><input type="number" id="projRR" value="2.5" min="1" max="10" step="0.5" oninput="calcProj()" style="background:transparent;border:none;color:var(--acc);font-size:13px;font-weight:700;text-align:center;padding:0;width:100%;min-height:unset"></div></div>
-      </div>
-      <div style="background:var(--deep);border-radius:5px;padding:10px;margin-bottom:10px">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:1px">TAHMINI SONUÇ</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;grid-gap:6px">
-          <div><div style="font-size:9px;color:var(--dim)">Toplam Kâr</div><div style="font-size:15px;font-weight:700;color:var(--long)" id="projProfit">$9.63</div></div>
-          <div><div style="font-size:9px;color:var(--dim)">Toplam Kayıp</div><div style="font-size:15px;font-weight:700;color:var(--short)" id="projLoss">$7.88</div></div>
-          <div><div style="font-size:9px;color:var(--dim)">Net (Komis. hariç)</div><div style="font-size:15px;font-weight:700;color:var(--gold)" id="projNet">+$1.75</div></div>
-          <div><div style="font-size:9px;color:var(--dim)">Hedef $100'a kalan</div><div style="font-size:15px;font-weight:700;color:var(--acc)" id="projMonths">--</div></div>
-        </div>
-        <div style="font-size:9px;color:var(--dim);margin-top:6px;padding-top:6px;border-top:1px solid var(--brd)" id="projNote"></div>
-      </div>
     </div>
+
     <div class="card">
       <div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🤖 OTONOM PRO AYARLAR</div>
       <div class="tog-row">
@@ -361,46 +358,50 @@ input:focus,select:focus{border-color:var(--acc)}
         <div class="tog off" id="togChallengeRules" onclick="toggleChallengeRules()"></div>
         <div class="tog-b"><div class="tog-l">Challenge Kuralları</div><div class="tog-d" id="challengeRulesDesc">Kapalı: Pro Mod, sınırsız işlem</div></div>
       </div>
+      <div class="tog-row">
+        <div class="tog off" id="togTimeFilter" onclick="toggleTimeFilter()"></div>
+        <div class="tog-b"><div class="tog-l">Zaman Filtresi (TSİ 02-07)</div><div class="tog-d" id="timeFilterDesc">Kapalı</div></div>
+      </div>
       <div class="fr"><label>Sinyal Seçimi</label>
         <select id="signalSelection">
           <option value="first">İlk gelen sinyali aç</option>
           <option value="best" selected>En yüksek güvenli sinyali aç</option>
         </select>
       </div>
-      <div class="fr"><label>Minimum Güven Eşiği (%)</label><input type="number" id="minConfidence" value="60" min="0" max="100" step="5"></div>
-      <div class="fr"><label>Risk / Reward Oranı (R:R)</label><input type="number" id="userRR" value="2.5" min="1.5" max="10" step="0.5"></div>
+      <div class="fr"><label>Minimum Güven Eşiği (%)</label><input type="number" id="minConfidence" value="85" min="0" max="100" step="5"></div>
       <div class="fr"><label>Kaldıraç</label>
         <select id="selLeverage">
-          <option value="2">2x</option>
-          <option value="3" selected>3x (Scalp önerilen)</option>
+          <option value="2" selected>2x (Güvenli)</option>
+          <option value="3">3x</option>
           <option value="5">5x</option>
-          <option value="10">10x</option>
         </select>
       </div>
       <div class="fr"><label>Stop Loss Tipi</label>
         <select id="slType" onchange="updateOtonomSettings()">
           <option value="swing">Swing Low/High</option>
           <option value="atr">ATR Multiplier (2x ATR)</option>
-          <option value="percent" selected>Sabit % (Scalp için önerilen)</option>
+          <option value="percent" selected>Sabit % (Önerilen)</option>
         </select>
       </div>
       <div class="fr" id="slPercentDiv">
-        <label>Stop Loss Yüzdesi (%) — Scalp: 0.3-0.5%</label>
-        <input type="number" id="slPercent" value="0.35" step="0.05" min="0.1" max="5">
-        <div style="font-size:9px;color:var(--dim);margin-top:3px">3x kaldıraçta 0.35% SL = %1.05 pozisyon kaybı</div>
+        <label>Stop Loss Yüzdesi (%) — Önerilen: 0.5%</label>
+        <input type="number" id="slPercent" value="0.5" step="0.05" min="0.1" max="5">
+        <div style="font-size:9px;color:var(--dim);margin-top:3px">0.5% SL + $0.12 TP = yaklaşık 2:1 R:R</div>
       </div>
       <div class="fr"><label>İşlem başı Risk ($)</label>
-        <input type="number" id="riskAmount" value="3" step="0.5" min="0.5" placeholder="3">
-        <div style="font-size:9px;color:var(--dim)">Scalp: $3 risk, 3x → $1/kâr hedef</div>
+        <input type="number" id="riskAmount" value="2" step="0.5" min="0.5" placeholder="2">
+        <div style="font-size:9px;color:var(--dim)">Bakiye sınırı (%25) otomatik uygulanır</div>
       </div>
     </div>
     <div class="card">
-      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">AYARLANABİLİR</div>
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">TARAMA & HASSASİYET</div>
       <div class="fr"><label>Tarama Sıklığı</label>
         <select id="selInt" onchange="scanSec=+this.value">
-          <option value="60">1 dakika (Scalp)</option>
-          <option value="120" selected>2 dakika</option>
+          <option value="60">1 dakika</option>
+          <option value="120">2 dakika</option>
+          <option value="180" selected>3 dakika</option>
           <option value="300">5 dakika</option>
+          <option value="600">10 dakika</option>
         </select>
       </div>
       <div class="fr"><label>Hassasiyet</label>
@@ -416,7 +417,7 @@ input:focus,select:focus{border-color:var(--acc)}
       </div>
       <div class="tog-row">
         <div class="tog on" id="togTrail" onclick="doTogTrail()"></div>
-        <div class="tog-b"><div class="tog-l">Trailing Stop</div><div class="tog-d" id="togTrailD">TP yaklaşınca SL kısmen takip</div></div>
+        <div class="tog-b"><div class="tog-l">Trailing Stop (Scalp'ta devre dışı)</div><div class="tog-d" id="togTrailD">Scalp modda otomatik kapanır</div></div>
       </div>
     </div>
     <div style="height:20px;"></div>
@@ -428,20 +429,20 @@ input:focus,select:focus{border-color:var(--acc)}
   <div class="scroll">
     <div class="card" style="border-color:rgba(251,191,36,.3);text-align:center;padding:14px">
       <div style="font-size:9px;color:var(--gold);letter-spacing:2px;margin-bottom:8px">HESAP DURUMU</div>
-      <div style="font-size:32px;font-weight:700;color:var(--gold)" id="bigBal">$62.50</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:4px" id="bigPct">Başlangıç sermayesi</div>
+      <div style="font-size:32px;font-weight:700;color:var(--gold)" id="bigBal">$37.44</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:4px" id="bigPct">Başlangıç</div>
       <div style="height:6px;background:var(--brd);border-radius:3px;margin:10px 0;overflow:hidden">
         <div style="height:100%;background:linear-gradient(90deg,var(--gold),var(--acc));border-radius:3px;transition:width .8s" id="bigBar"></div>
       </div>
-      <div style="font-size:10px;color:var(--dim)" id="bigSub">$62.50 → $100.00</div>
+      <div style="font-size:10px;color:var(--dim)" id="bigSub">$37.44 → $100.00</div>
     </div>
     <div class="card" style="border-color:rgba(0,255,224,.2)">
-      <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">⚡ SCALP PROJEKSİYON</div>
+      <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">⚡ SCALP PERFORMANS</div>
       <div class="proj-grid">
         <div class="proj-c"><div class="proj-l">Bu ay kazanılan</div><div class="proj-v green" id="monthEarned">$0.00</div></div>
         <div class="proj-c"><div class="proj-l">İşlem sayısı</div><div class="proj-v gold" id="monthTrades">0</div></div>
-        <div class="proj-c"><div class="proj-l">İşlem başı ortalama</div><div class="proj-v" id="monthAvg">--</div></div>
-        <div class="proj-c"><div class="proj-l">250 işlemde tahmini</div><div class="proj-v green" id="monthProj">--</div></div>
+        <div class="proj-c"><div class="proj-l">İşlem başı ort.</div><div class="proj-v" id="monthAvg">--</div></div>
+        <div class="proj-c"><div class="proj-l">Win Rate</div><div class="proj-v green" id="monthWR">--</div></div>
       </div>
     </div>
     <div id="stageCards"></div>
@@ -471,7 +472,7 @@ input:focus,select:focus{border-color:var(--acc)}
     <div class="card">
       <div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🔥 POPÜLER COİNLER</div>
       <div id="popularCoins" style="display:flex;flex-wrap:wrap;margin-bottom:10px"></div>
-      <div style="font-size:9px;color:var(--dim);margin-bottom:5px">Tıkla ekle/kaldır</div>
+      <div style="font-size:9px;color:var(--dim);margin-bottom:5px">Tıkla ekle/kaldır (manuel liste)</div>
     </div>
     <div class="card">
       <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">TARANACAK ÇİFTLER</div>
@@ -483,7 +484,7 @@ input:focus,select:focus{border-color:var(--acc)}
     </div>
     <div class="card">
       <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">CHALLENGE SIFIRLA</div>
-      <button class="btn btn-outline" onclick="resetChallenge()" style="width:100%;color:var(--short);border-color:rgba(255,61,92,.3)">🔄 Sıfırla ($62.50)</button>
+      <button class="btn btn-outline" onclick="resetChallenge()" style="width:100%;color:var(--short);border-color:rgba(255,61,92,.3)">🔄 Sıfırla ($37.44)</button>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
@@ -506,29 +507,30 @@ input:focus,select:focus{border-color:var(--acc)}
 <script>
 // ═══════════════════════════════════
 // KONFİGÜRASYON
-const STAGES=[{from:62.5,to:75,label:'Aşama 1'},{from:75,to:90,label:'Aşama 2'},{from:90,to:100,label:'Aşama 3'}];
-const CHALLENGE_START=62.5;
+const STAGES=[{from:37.44,to:75,label:'Aşama 1'},{from:75,to:90,label:'Aşama 2'},{from:90,to:100,label:'Aşama 3'}];
+const CHALLENGE_START=37.44;
 const COMM=0.0004;
-const MIN_RR_CHALLENGE=2.0;
+const MIN_RR_CHALLENGE=1.5;
 const POPULAR_COINS=['BTC','ETH','BNB','SOL','XRP','DOGE','ADA','AVAX','MATIC','DOT','LINK','LTC','BCH','NEAR','ATOM','ALGO','FIL','VET','EGLD','HBAR','XTZ','THETA','EOS','KSM','CAKE','FTM','APE','ARB','OP','SUI','PYTH','SEI','APT','RNDR','INJ','TIA','WIF','JUP','ONDO','STRK','ENA','PEPE','WLD','AGIX','FET','OCEAN','ARKM'];
-let customPairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','MATICUSDT','DOTUSDT','LINKUSDT','LTCUSDT','BCHUSDT','NEARUSDT','ATOMUSDT'];
-const DEMO_BASE={BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,MATICUSDT:0.7,DOTUSDT:6.5,LINKUSDT:14,LTCUSDT:70,BCHUSDT:300,NEARUSDT:4,ATOMUSDT:8,ALGOUSDT:0.2,FILUSDT:5,VETUSDT:0.02,EGLDUSDT:35,HBARUSDT:0.07,XTZUSDT:1,THETAUSDT:1.2,EOSUSDT:0.8,KSMUSDT:35,CAKEUSDT:2.5,FTMUSDT:0.5,APEUSDT:1.2,ARBUSDT:1,OPUSDT:2,SUIUSDT:1,PYTHUSDT:0.5,SEIUSDT:0.5,APTUSDT:10,RNDRUSDT:8,INJUSDT:25,TIAUSDT:12,WIFUSDT:2,JUPUSDT:1,ONDOUSDT:1,STRKUSDT:1.5,ENAUSDT:1,PEPEUSDT:0.000012,WLDUSDT:5,AGIXUSDT:1,FETUSDT:1.5,OCEANUSDT:0.8,ARKMUSDT:1.5};
+let customPairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
+const DEMO_BASE={BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,MATICUSDT:0.7,DOTUSDT:6.5,LINKUSDT:14,LTCUSDT:70,BCHUSDT:300,NEARUSDT:4,ATOMUSDT:8};
 let WORKER='',appMode='demo';
 let balance=CHALLENGE_START,startBal=CHALLENGE_START,peakBal=CHALLENGE_START;
 let dailyPnL=0,dailyTradeCount=0,dailyLossAmt=0;
 let totalComm=0,futBal=null;
 let positions=[],trades=[],posId=1;
 let currentPair='BTCUSDT',currentTF='4h';
-let scanSec=120,engineOn=false;
+let scanSec=180,engineOn=false;
 let togAutoClose=true,togTrailing=true;
 let loopTimer=null,cdTimer2=null;
 let syncInterval=null,syncFailed=false;
-let autoTrade=false,signalSelection='best',minConfidence=60,userRR=2.5;
-let currentLeverage=3,slType='percent',slPercent=0.35,riskAmountUSD=3;
-let profitTargetUSD=0.07;
+let autoTrade=false,signalSelection='best',minConfidence=85,userRR=2.0;
+let currentLeverage=2,slType='percent',slPercent=0.5,riskAmountUSD=2;
+let profitTargetUSD=0.12;
 let challengeRulesActive=false;
 let scalpMode=true;
-const engCD={};
+let timeFilterActive=false;
+const engCD={},cooldown={},blacklist={};
 const pState={},prevP={},pData={};
 
 function getMaxPositions(){return challengeRulesActive?1:3;}
@@ -550,12 +552,12 @@ initDataForPairs();
 function setScalpPreset(val){
   profitTargetUSD=val;
   scalpMode=(val>0);
-  ['sp5','sp7','sp10','spOff','sp5b','sp7b','sp10b','spOffb'].forEach(id=>{
+  ['sp5','sp7','sp12','spOff','sp5b','sp7b','sp12b','spOffb'].forEach(id=>{
     var el=document.getElementById(id);
     if(el) el.classList.remove('active');
   });
-  var activeId=val===0.05?'sp5':val===0.07?'sp7':val===0.10?'sp10':'spOff';
-  var activeIdB=val===0.05?'sp5b':val===0.07?'sp7b':val===0.10?'sp10b':'spOffb';
+  var activeId=val===0.05?'sp5':val===0.07?'sp7':val===0.12?'sp12':'spOff';
+  var activeIdB=val===0.05?'sp5b':val===0.07?'sp7b':val===0.12?'sp12b':'spOffb';
   var aEl=document.getElementById(activeId); if(aEl) aEl.classList.add('active');
   var bEl=document.getElementById(activeIdB); if(bEl) bEl.classList.add('active');
   var badge=document.getElementById('scalpModeBdg');
@@ -565,11 +567,10 @@ function setScalpPreset(val){
   var msg=val>0?'Her işlem bu kâra ulaşınca otomatik kapatılır':'Scalp modu kapalı — R:R bazlı TP kullanılıyor';
   if(info) info.textContent=msg;
   if(infoB) infoB.textContent=msg;
-  var stats=document.getElementById('scalpStats');
-  if(stats&&val>0) stats.innerHTML='250 işlem × $'+val.toFixed(2)+' = <span style="color:var(--long);font-weight:700">$'+(250*val).toFixed(2)+'/ay (brüt)</span>';
-  else if(stats) stats.innerHTML='Scalp modu kapalı';
-  var inp=document.getElementById('profitTargetUSD');
-  if(inp) inp.value=val;
+  if(scalpMode && togTrailing) {
+    doTogTrail(); // Scalp modda trailing'i kapat
+    notify('Scalp mod: Trailing otomatik kapatıldı','info');
+  }
   calcProj();
   notify(val>0?'⚡ Scalp: $'+val.toFixed(2)+' hedef aktif':'Scalp modu kapatıldı','info');
 }
@@ -611,7 +612,7 @@ function calcProj(){
   if(el('monthEarned')) el('monthEarned').textContent=(monthlyProfit>=0?'+':'')+'$'+monthlyProfit.toFixed(2);
   if(el('monthTrades')) el('monthTrades').textContent=monthlyTrades;
   if(el('monthAvg')) el('monthAvg').textContent=monthlyTrades>0?(avgPerTrade>=0?'+':'')+'$'+avgPerTrade.toFixed(3):'--';
-  if(el('monthProj')) el('monthProj').textContent=monthlyTrades>0?(proj250>=0?'+':'')+'$'+proj250.toFixed(2):'--';
+  if(el('monthWR')) el('monthWR').textContent=trades.length?((trades.filter(t=>t.pnl>0).length/trades.length)*100).toFixed(1)+'%':'--';
 }
 
 // ═══════════════════════════════════
@@ -682,7 +683,7 @@ function updateChallenge(){
   if(bb)bb.textContent='$'+bal.toFixed(2);
   if(bp)bp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'% toplam';
   if(bbar)bbar.style.width=totalPct+'%';
-  if(bsub)bsub.textContent='$62.50 → $100.00 ('+(100-bal).toFixed(2)+'$ kaldı)';
+  if(bsub)bsub.textContent='$'+CHALLENGE_START.toFixed(2)+' → $100.00 ('+(100-bal).toFixed(2)+'$ kaldı)';
   document.getElementById('dispBal').textContent='$'+bal.toFixed(2);
   document.getElementById('dispDay').textContent=(dailyPnL>=0?'+':'')+dailyPnL.toFixed(2);
   document.getElementById('dispDay').style.color=dailyPnL>=0?'var(--long)':'var(--short)';
@@ -725,7 +726,7 @@ function renderChallenge(){
 }
 
 // ═══════════════════════════════════
-// İNDİKATÖRLER
+// İNDİKATÖRLER (Aynı, değişiklik yok)
 function ema(arr,p){
   if(!arr||arr.length<p)return arr?arr.slice():[];
   var k=2/(p+1),out=new Array(p-1);
@@ -838,12 +839,53 @@ function findSwings(kl,lb){
 }
 
 // ═══════════════════════════════════
-// SİNYAL ANALİZİ
+// AKILLI FİLTRELER
+function isTradingHours(){
+  if(!timeFilterActive) return true;
+  var now = new Date();
+  var hours = now.getUTCHours() + 3; // TSİ
+  if(hours >= 24) hours -= 24;
+  return (hours >= 7 || hours < 2); // 02:00-07:00 arası false
+}
+
+function isInCooldown(sym){
+  var cd = cooldown[sym];
+  if(cd && Date.now() < cd.until) return true;
+  if(cd && Date.now() >= cd.until) delete cooldown[sym];
+  return false;
+}
+
+function applyCooldown(sym, reason){
+  cooldown[sym] = { until: Date.now() + 30*60*1000, reason: reason };
+  addLog('🚫 Cooldown: '+sym.replace('USDT','')+' 30 dk ('+reason+')','info');
+  updateCooldownUI();
+}
+
+function updateCooldownUI(){
+  var count = Object.keys(cooldown).length;
+  var badge = document.getElementById('cooldownBdg');
+  if(count > 0){
+    badge.style.display = 'inline-block';
+    badge.textContent = count+' CD';
+    var list = Object.keys(cooldown).map(function(s){return s.replace('USDT','');}).join(',');
+    document.getElementById('filtBlacklist').textContent = list;
+  } else {
+    badge.style.display = 'none';
+    document.getElementById('filtBlacklist').textContent = 'Boş';
+  }
+}
+
+// ═══════════════════════════════════
+// SİNYAL ANALİZİ (AKILLI FİLTRELER EKLİ)
 function analyzeChallenge(sym){
+  if(isInCooldown(sym)) return null;
   var pd=pData[sym];if(!pd)return null;
   var kl4h=pd.kl4h||[],kl1h=pd.kl1h||[],kl15m=pd.kl15m||[];
   if(kl4h.length<30||kl1h.length<20||kl15m.length<20)return null;
   var price=pd.price||kl4h[kl4h.length-1].c;
+  // Volatilite filtresi: ATR(1h) fiyatın %0.15'inden azsa çok durgun, işlem yapma
+  var atr1h = atr(kl1h, 14);
+  if(atr1h && price && (atr1h/price) < 0.0015) return null;
   var c4h=kl4h.map(function(k){return k.c;});
   var c1h=kl1h.map(function(k){return k.c;});
   var c15m=kl15m.map(function(k){return k.c;});
@@ -899,52 +941,39 @@ function analyzeChallenge(sym){
   var TH={high:{s:18,c:72},med:{s:14,c:62},low:{s:10,c:52}};
   var th=TH[sens]||TH.med;
   var signal='WAIT',edgeText='',blockText='';
-  if(htfTrend==='NEUTRAL'){signal='WAIT';blockText='4h trend belirsiz (ADX:'+adx4h.adx.toFixed(0)+') — bekle';}
-  else if(bull>bear&&htfTrend==='SHORT'){signal='WAIT';blockText='LONG yönelim ama 4h SHORT — trendle savaşma';}
-  else if(bear>bull&&htfTrend==='LONG'){signal='WAIT';blockText='SHORT yönelim ama 4h LONG — trendle savaşma';}
-  else if(bull>bear&&bull>=th.s&&conf>=th.c){signal='LONG';edgeText=fibConf==='sup'?'🎯 Fib+Trend+Yapı':bos==='LONG'?'📈 BOS + 4h LONG':'📈 4h LONG trend';}
-  else if(bear>bull&&bear>=th.s&&conf>=th.c){signal='SHORT';edgeText=fibConf==='res'?'🎯 Fib+Trend+Yapı':bos==='SHORT'?'📉 BOS + 4h SHORT':'📉 4h SHORT trend';}
-  else{var lead=Math.max(bull,bear),dir=bull>bear?'LONG':'SHORT';blockText=dir+' yönelim: '+lead+'/'+th.s+' puan ('+conf+'%/'+th.c+'%)';}
+  if(htfTrend==='NEUTRAL'){signal='WAIT';blockText='4h trend belirsiz — bekle';}
+  else if(bull>bear&&htfTrend==='SHORT'){signal='WAIT';blockText='LONG yönelim ama 4h SHORT';}
+  else if(bear>bull&&htfTrend==='LONG'){signal='WAIT';blockText='SHORT yönelim ama 4h LONG';}
+  else if(bull>bear&&bull>=th.s&&conf>=th.c){signal='LONG';}
+  else if(bear>bull&&bear>=th.s&&conf>=th.c){signal='SHORT';}
+  else{signal='WAIT';}
+  if(signal==='WAIT') return null; // Filtrelenmiş sinyal yok
+
   var posAtr=atr(kl1h,14)||atr(kl15m,14)||price*0.01,slDist,sl;
-  if(signal!=='WAIT'){
-    if(scalpMode&&profitTargetUSD>0){
-      var tpDist=profitTargetUSD/((riskAmountUSD||3)/price*(currentLeverage||3));
-      slDist=tpDist/userRR;
-      if(signal==='LONG')sl=price-slDist;else sl=price+slDist;
-      var minSl=price*0.001;
-      if(slDist<minSl){slDist=minSl;if(signal==='LONG')sl=price-minSl;else sl=price+minSl;}
-    } else if(slType==='swing'){
-      if(signal==='LONG'){
-        var swL=sw1h.lows.length?sw1h.lows[sw1h.lows.length-1].price:price-posAtr*2;
-        if(fib4h&&fib4h.r786<price&&fib4h.r786>swL)swL=Math.min(swL,fib4h.r786);
-        sl=swL-posAtr*0.3;slDist=price-sl;
-        if(slDist<posAtr*0.5){sl=price-posAtr*2;slDist=posAtr*2;}
-      }else{
-        var swH=sw1h.highs.length?sw1h.highs[sw1h.highs.length-1].price:price+posAtr*2;
-        if(fib4h&&fib4h.r786>price&&fib4h.r786<swH)swH=Math.max(swH,fib4h.r786);
-        sl=swH+posAtr*0.3;slDist=sl-price;
-        if(slDist<posAtr*0.5){sl=price+posAtr*2;slDist=posAtr*2;}
-      }
-    } else if(slType==='atr'){slDist=posAtr*2;if(signal==='LONG')sl=price-slDist;else sl=price+slDist;}
-    else{slDist=price*(slPercent/100);if(signal==='LONG')sl=price-slDist;else sl=price+slDist;}
-    var rr=userRR;var tpDist2=slDist*rr;
-    var tp;if(signal==='LONG')tp=price+tpDist2;else tp=price-tpDist2;
-    var rrRatio=tpDist2/slDist;
-    if(rrRatio<MIN_RR_CHALLENGE){blockText='R:R '+rrRatio.toFixed(2)+':1 < '+MIN_RR_CHALLENGE+':1 minimum';signal='WAIT';}
-    else return{signal,conf,bull,bear,edgeText,blockText,htfTrend,bos,price,posAtr,sl,tp,rrRatio,fib4h,indicators:{rsi:rsi15m,macdHist:macd15m.hist,adx:adx4h.adx,ema50above:le50&&price>le50,vr:vr15m,bbW:bbCalc(c15m).w},mtf:{'1h':oBull>oBear?'LONG':oBear>oBull?'SHORT':'WAIT','4h':htfTrend,'1d':'WAIT'}};
-  }
-  return{signal,conf,bull,bear,edgeText,blockText,htfTrend,bos,price,posAtr,sl:null,tp:null,rrRatio:null,fib4h,indicators:{rsi:rsi15m,macdHist:macd15m.hist,adx:adx4h.adx,ema50above:le50&&price>le50,vr:vr15m,bbW:bbCalc(c15m).w},mtf:{'1h':oBull>oBear?'LONG':oBear>oBull?'SHORT':'WAIT','4h':htfTrend,'1d':'WAIT'}};
+  if(scalpMode&&profitTargetUSD>0){
+    var tpDist=profitTargetUSD/((riskAmountUSD||2)/price*(currentLeverage||2));
+    slDist=tpDist/userRR;
+    if(signal==='LONG')sl=price-slDist;else sl=price+slDist;
+  } else if(slType==='swing'){
+    if(signal==='LONG'){sl=sw1h.lows.length?sw1h.lows[sw1h.lows.length-1].price:price-posAtr*2;slDist=price-sl;}
+    else{sl=sw1h.highs.length?sw1h.highs[sw1h.highs.length-1].price:price+posAtr*2;slDist=sl-price;}
+  } else if(slType==='atr'){slDist=posAtr*2;if(signal==='LONG')sl=price-slDist;else sl=price+slDist;}
+  else{slDist=price*(slPercent/100);if(signal==='LONG')sl=price-slDist;else sl=price+slDist;}
+  var tpDist2=slDist*userRR;
+  var tp;if(signal==='LONG')tp=price+tpDist2;else tp=price-tpDist2;
+  return{signal,conf,bull,bear,htfTrend,bos,price,posAtr,sl,tp,rrRatio:userRR,fib4h,indicators:{rsi:rsi15m,macdHist:macd15m.hist,adx:adx4h.adx,ema50above:le50&&price>le50,vr:vr15m,bbW:bbCalc(c15m).w},mtf:{'1h':oBull>oBear?'LONG':oBear>oBull?'SHORT':'WAIT','4h':htfTrend,'1d':'WAIT'}};
 }
 function analyzeAll(){
   for(var i=0;i<customPairs.length;i++){
     var sym=customPairs[i];
     if(!pData[sym])continue;
+    if(isInCooldown(sym)){pData[sym].analysis=null;continue;}
     try{pData[sym].analysis=analyzeChallenge(sym);}catch(e){addLog('Analiz hatası '+sym+': '+e.message,'err');}
   }
 }
 
 // ═══════════════════════════════════
-// CHART
+// CHART (Aynı)
 var chartCtx;
 function initChart(){chartCtx=document.getElementById('chart').getContext('2d');}
 function drawChart(){
@@ -1016,7 +1045,7 @@ function setTF(btn,tf){
 }
 
 // ═══════════════════════════════════
-// SİNYAL UI
+// SİNYAL UI (Aynı)
 function updateSignalUI(){
   var pd=pData[currentPair];
   var an=pd&&pd.analysis;
@@ -1066,18 +1095,18 @@ function updateSignalUI(){
 }
 function renderPlan(an,price){
   var el=document.getElementById('planWrap');
-  if(!an||an.signal==='WAIT'||!an.sl){el.innerHTML='';return;}
+  if(!an||!an.sl){el.innerHTML='';return;}
   var s=an.signal,cls=s.toLowerCase();
   var slPct=an.sl?(Math.abs(price-an.sl)/price*100).toFixed(2):'--';
   var tpPct=an.tp?(Math.abs(an.tp-price)/price*100).toFixed(2):'--';
-  var scalp=scalpMode&&profitTargetUSD>0;
-  el.innerHTML='<div class="plan card" style="padding:0;margin-bottom:8px"><div class="plan-h '+cls+'">'+s+' PLANI — '+currentPair.replace('USDT','')+(scalp?' ⚡ SCALP':'')+'</div><div class="plan-body"><div class="plan-row"><span class="pk">Giriş</span><span class="pv">$'+fp(price)+'</span></div><div class="plan-row"><span class="pk">Take Profit (+'+tpPct+'%)</span><span class="pv tp">$'+fp(an.tp)+'</span></div><div class="plan-row"><span class="pk">Stop Loss (-'+slPct+'%)</span><span class="pv sl">$'+fp(an.sl)+'</span></div><div class="plan-row"><span class="pk">R:R</span><span class="pv rr">'+(an.rrRatio?an.rrRatio.toFixed(2)+':1':'--')+'</span></div>'+(scalp?'<div class="plan-row"><span class="pk">⚡ Scalp Hedef</span><span class="pv tp">$'+profitTargetUSD.toFixed(3)+' kâr</span></div>':'')+'</div></div>';
+  el.innerHTML='<div class="plan card" style="padding:0;margin-bottom:8px"><div class="plan-h '+cls+'">'+s+' PLANI — '+currentPair.replace('USDT','')+'</div><div class="plan-body"><div class="plan-row"><span class="pk">Giriş</span><span class="pv">$'+fp(price)+'</span></div><div class="plan-row"><span class="pk">Take Profit (+'+tpPct+'%)</span><span class="pv tp">$'+fp(an.tp)+'</span></div><div class="plan-row"><span class="pk">Stop Loss (-'+slPct+'%)</span><span class="pv sl">$'+fp(an.sl)+'</span></div><div class="plan-row"><span class="pk">R:R</span><span class="pv rr">'+(an.rrRatio?an.rrRatio.toFixed(2)+':1':'--')+'</span></div></div></div>';
 }
 function updatePairRow(){
   document.getElementById('pairRow').innerHTML=customPairs.map(function(sym){
     var pd=pData[sym]||{};var p=pd.price||DEMO_BASE[sym]||1;
     var prev=prevP[sym]||p;var sig=pd.analysis?pd.analysis.signal:'WAIT';
-    return'<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(\''+sym+'\')"><span>'+sym.replace('USDT','')+'</span><span style="color:'+(p>=prev?'var(--long)':'var(--short)')+';font-size:9px">$'+fp(p)+'</span><span class="pp-sig '+sig+'">'+sig+'</span></button>';
+    var cd = isInCooldown(sym) ? ' (CD)' : '';
+    return'<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selectPair(\''+sym+'\')"><span>'+sym.replace('USDT','')+cd+'</span><span style="color:'+(p>=prev?'var(--long)':'var(--short)')+';font-size:9px">$'+fp(p)+'</span><span class="pp-sig '+sig+'">'+sig+'</span></button>';
   }).join('');
 }
 function selectPair(sym){currentPair=sym;updatePairRow();updateSignalUI();}
@@ -1091,7 +1120,9 @@ function updateTicker(){
 }
 
 // ═══════════════════════════════════
-// POZİSYONLAR
+// POZİSYONLAR (İnat takibi eklendi)
+var consecutiveSL = {}; // Coin bazında ardışık SL sayısı
+
 function calcUnrealPnl(pos){
   var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
   var mult=pos.side==='LONG'?1:-1;
@@ -1105,20 +1136,10 @@ function updatePosUI(){
     var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
     var pnl=calcUnrealPnl(p);
     var pnlPct=p.posValue>0?(pnl/p.posValue*100).toFixed(2):'0';
-    var slDist=p.sl?Math.abs(p.entry-p.sl):Math.abs(pr-p.entry)*3;
-    var tpDist=p.tp?Math.abs(p.tp-p.entry):slDist*2;
-    var moved=p.side==='LONG'?pr-p.entry:p.entry-pr;
-    var prog=Math.max(0,Math.min(100,((moved+slDist)/(slDist+tpDist))*100));
     var tpHit=p.tp&&(p.side==='LONG'?pr>=p.tp:pr<=p.tp);
     var scalp=scalpMode&&profitTargetUSD>0;
-    var profInfo=scalp?'⚡ Scalp hedef: $'+profitTargetUSD.toFixed(3)+' (anlık: '+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+')':'Kar hedefi: R:R bazlı TP';
-    var pnlPctN=p.entry>0?(pr-p.entry)/p.entry*100*(p.side==='LONG'?1:-1):0;
-    var advMsg='',advCol='rgba(255,255,255,.03)',advBrd='rgba(255,255,255,.08)';
-    if(tpHit||(scalp&&pnl>=profitTargetUSD)){advMsg='🟢 Hedef ulaşıldı! Kapatılacak.';advCol='rgba(0,230,118,.06)';advBrd='rgba(0,230,118,.2)';}
-    else if(pnlPctN>0.3){advMsg='🟢 Karda.';advCol='rgba(0,230,118,.04)';}
-    else if(pnlPctN<-1){advMsg='🔴 Zararda.';advCol='rgba(255,61,92,.05)';advBrd='rgba(255,61,92,.2)';}
-    else{advMsg='⚪ Pozisyon gelişiyor.';}
-    html+='<div class="pos-c '+(p.side.toLowerCase())+'"><div class="pos-h"><div style="display:flex;align-items:center"><span class="pos-sym" style="margin-right:6px">'+p.pair.replace('USDT','')+'</span><span class="pos-side '+p.side+'">'+p.side+'</span><span style="font-size:9px;color:var(--dim);margin-left:6px">'+p.lev+'x'+(p.auto?' AUTO':'')+'</span></div><div><span class="pos-pnl '+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+'</span></div></div><div class="pos-grid"><div class="pg"><div class="pg-l">Entry</div><div class="pg-v">$'+fp(p.entry)+'</div></div><div class="pg"><div class="pg-l">Anlık</div><div class="pg-v" style="color:'+(pnl>=0?'var(--long)':'var(--short)')+'">$'+fp(pr)+'</div></div><div class="pg" style="background:rgba(255,61,92,.07)"><div class="pg-l">SL</div><div class="pg-v" style="color:var(--short)">$'+fp(p.sl)+'</div></div><div class="pg" style="'+(tpHit?'background:rgba(0,230,118,.12)':'')+'"><div class="pg-l">TP</div><div class="pg-v" style="color:#4ade80">$'+fp(p.tp)+'</div></div></div><div class="pos-bar"><div class="pos-fill" style="width:'+prog+'%;background:'+(pnl>=0?'var(--long)':'var(--short)')+'"></div></div><div class="assist" style="background:rgba(0,255,224,.04);border:1px solid rgba(0,255,224,.15)">'+profInfo+'</div><div class="assist" style="background:'+advCol+';border:1px solid '+advBrd+'">'+advMsg+'</div><div class="pos-btns"><button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:38px" onclick="closePos('+p.id+',\'Manuel\',1)">✕ Kapat</button></div></div>';
+    var profInfo=scalp?'⚡ Scalp hedef: $'+profitTargetUSD.toFixed(3)+' (anlık: '+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+')':'TP: R:R bazlı';
+    html+='<div class="pos-c '+(p.side.toLowerCase())+'"><div class="pos-h"><div><span class="pos-sym">'+p.pair.replace('USDT','')+'</span><span class="pos-side '+p.side+'">'+p.side+'</span></div><div><span class="pos-pnl '+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+'</span></div></div><div class="pos-grid"><div class="pg"><div class="pg-l">Entry</div><div class="pg-v">$'+fp(p.entry)+'</div></div><div class="pg"><div class="pg-l">Anlık</div><div class="pg-v">$'+fp(pr)+'</div></div><div class="pg"><div class="pg-l">SL</div><div class="pg-v" style="color:var(--short)">$'+fp(p.sl)+'</div></div><div class="pg"><div class="pg-l">TP</div><div class="pg-v" style="color:#4ade80">$'+fp(p.tp)+'</div></div></div><div class="assist" style="background:rgba(0,255,224,.04);border:1px solid rgba(0,255,224,.15)">'+profInfo+'</div><div class="pos-btns"><button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:38px" onclick="closePos('+p.id+',\'Manuel\',1)">✕ Kapat</button></div></div>';
   });
   document.getElementById('posList').innerHTML=html;
   document.getElementById('posBdg').textContent=positions.length+'/'+getMaxPositions();
@@ -1130,12 +1151,13 @@ function updatePosUI(){
 }
 
 // ═══════════════════════════════════
-// İŞLEM AÇ/KAPA
+// İŞLEM AÇ/KAPA (İnat takibi eklendi)
 async function openPos(sym,side,auto){
   auto=auto||false;
   var pd=pData[sym];
   var an=pd&&pd.analysis;
   if(!an||!an.sl){notify('Sinyal veya SL bulunamadı','error');return false;}
+  if(isInCooldown(sym)){notify(sym+' cooldown\'da','error');return false;}
   var maxPos=getMaxPositions();
   if(positions.length>=maxPos){notify(maxPos+' pozisyon limiti','error');return false;}
   if(positions.some(function(p){return p.pair===sym;})){notify(sym+' için zaten açık pozisyon var!','error');return false;}
@@ -1158,8 +1180,6 @@ async function openPos(sym,side,auto){
     var dp=price>1000?2:price>10?3:price>1?4:6;
     var r=await fetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,side,usdAmount:posValue,leverage:currentLeverage,sl:parseFloat(an.sl.toFixed(dp)),tp:parseFloat(an.tp.toFixed(dp))})}).then(function(x){return x.json();}).catch(function(e){return{success:false,error:e.message};});
     if(!r.success){notify('Binance: '+(r.error||'?'),'error');positions.pop();dailyTradeCount--;return false;}
-    if(r.slOrder)addLog('🛡 SL: $'+r.slOrder.price,'ok');
-    if(r.tpOrder)addLog('🎯 TP: $'+r.tpOrder.price,'ok');
   }
   updatePosUI();return true;
 }
@@ -1185,6 +1205,19 @@ async function closePos(id,reason,fraction){
   if(balance>peakBal)peakBal=balance;
   trades.push({pair:pos.pair,side:pos.side,pnl:net,reason,entry:pos.entry,exit:pr});
   positions=positions.filter(function(p){return p.id!==id;});
+
+  // İnat takibi
+  if(reason.indexOf('SL')!==-1 || reason.indexOf('STOP')!==-1){
+    if(!consecutiveSL[pos.pair]) consecutiveSL[pos.pair]=0;
+    consecutiveSL[pos.pair]++;
+    if(consecutiveSL[pos.pair]>=3){
+      applyCooldown(pos.pair, 'Üst üste 3 SL');
+      consecutiveSL[pos.pair]=0;
+    }
+  } else {
+    consecutiveSL[pos.pair]=0; // TP veya manuel kapanışta sıfırla
+  }
+
   var e=reason.indexOf('TP')!==-1||reason.indexOf('PROFIT')!==-1?'🟢':reason.indexOf('SL')!==-1?'🔴':'⬛';
   notify(e+' '+pos.pair.replace('USDT','')+' '+reason+' '+(net>=0?'+':'')+'$'+net.toFixed(4),net>=0?'success':'error');
   addLog(e+' '+pos.pair.replace('USDT','')+' '+pos.side+' '+reason+' PnL:$'+net.toFixed(4)+' Bal:$'+balance.toFixed(2),net>=0?'ok':'err');
@@ -1192,7 +1225,7 @@ async function closePos(id,reason,fraction){
     try{
       var res=await fetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side})});
       var data=await res.json();
-      if(!data.success){if(data.error!=='Açık pozisyon yok')addLog('❌ Canlı kapatma hatası: '+data.error||'?','err');}
+      if(!data.success)addLog('❌ Canlı kapatma: '+data.error,'err');
       else addLog('✅ Canlı kapatma başarılı','ok');
     }catch(e){addLog('❌ Kapatma: '+e.message,'err');}
     await syncBal();
@@ -1204,38 +1237,34 @@ async function checkPositions(){
     var p=positions[i];
     var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
     var pnl=calcUnrealPnl(p);
+    // Scalp hedef kâr kontrolü (trailing'den önce)
     if(scalpMode&&profitTargetUSD>0&&pnl>=profitTargetUSD){await closePos(p.id,'SCALP TARGET ⚡');i--;continue;}
+    // Normal TP kontrolü
     if(p.tp&&((p.side==='LONG'&&pr>=p.tp)||(p.side==='SHORT'&&pr<=p.tp))){await closePos(p.id,'TAKE PROFIT');i--;continue;}
-    if(!togAutoClose)continue;
-    if(togTrailing&&p.tp){
-      var distToTP=Math.abs(p.tp-pr);
-      var initialDist=Math.abs(p.tp-p.entry);
-      if(distToTP<initialDist*0.3){
-        if(p.side==='LONG')p.sl=Math.max(p.sl,p.entry+(pr-p.entry)*0.5);
-        else p.sl=Math.min(p.sl,p.entry-(p.entry-pr)*0.5);
-      }
-    }
+    // SL kontrolü
     if((p.side==='LONG'&&pr<=p.sl)||(p.side==='SHORT'&&pr>=p.sl)){await closePos(p.id,'STOP LOSS');i--;continue;}
   }
 }
 
 // ═══════════════════════════════════
-// ENGINE
+// ENGINE (Zaman filtresi eklendi)
 async function runEngine(){
   if(!engineOn)return;
+  if(!isTradingHours()){
+    document.getElementById('eBlock').textContent='Zaman filtresi (02-07 TSİ)';
+    return;
+  }
   var signals=[];
   for(var i=0;i<customPairs.length;i++){
     var sym=customPairs[i];
+    if(isInCooldown(sym)) continue;
     var pd=pData[sym];
     var an=pd&&pd.analysis;
     if(!an||an.signal==='WAIT')continue;
     if(an.conf<minConfidence)continue;
-    if(an.rrRatio&&an.rrRatio<MIN_RR_CHALLENGE)continue;
     signals.push({sym:sym,an:an,conf:an.conf});
   }
   if(!signals.length){
-    var now=new Date().toLocaleTimeString('tr-TR');
-    document.getElementById('eLast').textContent=now;
     document.getElementById('eSig').textContent='Sinyal yok';
     document.getElementById('eBlock').textContent='—';
     return;
@@ -1244,18 +1273,14 @@ async function runEngine(){
   if(signalSelection==='best'){signals.sort(function(a,b){return b.conf-a.conf;});selected=signals[0];}
   else selected=signals[0];
   if(autoTrade){
-    var maxPos=getMaxPositions();
-    var canOpenPos=positions.length<maxPos&&(!challengeRulesActive||(dailyTradeCount<getMaxDailyTrades()&&dailyLossAmt<getMaxDailyLoss()));
+    var canOpenPos=positions.length<getMaxPositions()&&(!challengeRulesActive||(dailyTradeCount<getMaxDailyTrades()&&dailyLossAmt<getMaxDailyLoss()));
     var alreadyHas=positions.some(function(p){return p.pair===selected.sym;});
     if(canOpenPos&&!alreadyHas){
       var opened=await openPos(selected.sym,selected.an.signal,true);
       if(opened)engCD[selected.sym]=Date.now();
-    }else addLog('⏸ '+selected.sym+' '+selected.an.signal+' açılamadı','info');
+    }
   }else addLog('📡 '+selected.sym+' '+selected.an.signal+' (Güven:'+selected.conf+'%) R:R:'+selected.an.rrRatio.toFixed(2),'info');
-  var now2=new Date().toLocaleTimeString('tr-TR');
-  document.getElementById('eLast').textContent=now2;
   document.getElementById('eSig').textContent=selected.sym.replace('USDT','')+':'+selected.an.signal+'('+selected.conf+'%)';
-  document.getElementById('eBlock').textContent='—';
   document.getElementById('eOpened').textContent=positions.length;
 }
 
@@ -1277,7 +1302,7 @@ function toggleEng(){
   document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';
   document.getElementById('engBdg').className=engineOn?'bdg gold':'bdg';
   document.getElementById('engTxt').textContent=engineOn?'MOTOR ÇALIŞIYOR':'MOTOR KAPALI';
-  document.getElementById('engSub').textContent=engineOn?'Her '+scanSec+'s tarama'+(scalpMode?' ⚡SCALP':''):'Pro Otonom';
+  document.getElementById('engSub').textContent=engineOn?'Akıllı filtreler aktif':'Pro Otonom';
   document.getElementById('engStats').style.display=engineOn?'block':'none';
   notify(engineOn?'🚀 Motor başladı':'⏸ Motor durdu',engineOn?'success':'info');
   if(engineOn)startCD();
@@ -1289,9 +1314,13 @@ function doTogAuto(){
   document.getElementById('togAutoD').textContent=togAutoClose?'TP/SL gelince otomatik kapat':'Manuel kapatıyorsun';
 }
 function doTogTrail(){
+  if(scalpMode && !togTrailing) {
+    notify('Scalp modda trailing kullanılamaz','info');
+    return;
+  }
   togTrailing=!togTrailing;
   document.getElementById('togTrail').classList.toggle('on',togTrailing);
-  document.getElementById('togTrailD').textContent=togTrailing?'TP yaklaşınca SL kısmen takip':'Trailing kapalı';
+  document.getElementById('togTrailD').textContent=togTrailing?'Trailing aktif':'Trailing kapalı';
 }
 function toggleAutoTrade(){
   autoTrade=!autoTrade;
@@ -1306,19 +1335,28 @@ function toggleChallengeRules(){
   notify(challengeRulesActive?'Challenge kuralları AKTİF':'Pro Mod AKTİF',challengeRulesActive?'info':'success');
   updateDailyBar();updatePosUI();
 }
+function toggleTimeFilter(){
+  timeFilterActive=!timeFilterActive;
+  var tog=document.getElementById('togTimeFilter');if(tog)tog.classList.toggle('on',timeFilterActive);
+  var desc=document.getElementById('timeFilterDesc');if(desc)desc.textContent=timeFilterActive?'Aktif (02:00-07:00 TSİ kapalı)':'Kapalı';
+  notify(timeFilterActive?'Zaman filtresi aktif':'Zaman filtresi pasif','info');
+}
 function updateOtonomSettings(){
   var sel=document.getElementById('signalSelection');if(sel)signalSelection=sel.value;
   var confInp=document.getElementById('minConfidence');if(confInp)minConfidence=parseFloat(confInp.value);
-  var rrInp=document.getElementById('userRR');if(rrInp)userRR=parseFloat(rrInp.value);
   var levSel=document.getElementById('selLeverage');if(levSel)currentLeverage=parseInt(levSel.value);
   var slTypeSel=document.getElementById('slType');if(slTypeSel)slType=slTypeSel.value;
   var slPercInp=document.getElementById('slPercent');if(slPercInp)slPercent=parseFloat(slPercInp.value);
   var riskInp=document.getElementById('riskAmount');if(riskInp)riskAmountUSD=parseFloat(riskInp.value);
   var div=document.getElementById('slPercentDiv');if(div)div.style.display=slType==='percent'?'block':'none';
+  // Kullanıcı SL% değerine göre uyarı
+  if(scalpMode && slPercent>1.0 && document.getElementById('slPercent')) {
+    notify('⚠️ Scalp modda SL %1 üzeri riskli! Önerilen: %0.5','info');
+  }
   calcProj();
 }
 function bindOtonomEvents(){
-  ['signalSelection','minConfidence','userRR','selLeverage','slType','slPercent','riskAmount'].forEach(function(id){
+  ['signalSelection','minConfidence','selLeverage','slType','slPercent','riskAmount'].forEach(function(id){
     var el=document.getElementById(id);
     if(el){el.addEventListener('change',updateOtonomSettings);el.addEventListener('input',updateOtonomSettings);}
   });
@@ -1476,10 +1514,6 @@ async function syncBal(){
       document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString('tr-TR');
       addLog('🔄 Bakiye: $'+futBal.toFixed(2),'ok');
       syncFailed=false;
-    }else{
-      if(!syncFailed)addLog('⚠️ Bakiye alınamadı','warn');
-      syncFailed=true;
-      return;
     }
     var posR=await fetch(WORKER+'/sync-positions').then(function(r){return r.json();}).catch(function(){return null;});
     if(posR&&posR.success&&Array.isArray(posR.positions)){
@@ -1495,23 +1529,6 @@ async function syncBal(){
           if(price)pData[bp.symbol].price=price;
           existing.unrealPnl=parseFloat(bp.unRealizedProfit||0);
           if(scalpMode&&profitTargetUSD>0&&existing.unrealPnl>=profitTargetUSD)closePos(existing.id,'SCALP TARGET ⚡');
-        }else{
-          var side=parseFloat(bp.positionAmt)>0?'LONG':'SHORT';
-          var entry=parseFloat(bp.entryPrice);
-          var qty=Math.abs(parseFloat(bp.positionAmt));
-          var lev=parseInt(bp.leverage||currentLeverage);
-          var notional=Math.abs(parseFloat(bp.notional||0))||qty*entry;
-          var posVal=notional/lev;
-          var an=pData[bp.symbol]&&pData[bp.symbol].analysis;
-          var sl,tp;
-          if(an&&an.sl&&an.signal===side){sl=an.sl;tp=an.tp;}
-          else{
-            var posAtr=an?an.posAtr:entry*0.01;
-            if(side==='LONG'){sl=entry-posAtr*2.5;tp=entry+posAtr*5;}
-            else{sl=entry+posAtr*2.5;tp=entry-posAtr*5;}
-          }
-          positions.push({id:posId++,pair:bp.symbol,side:side,entry:entry,qty:qty,lev:lev,posValue:posVal,sl:sl,tp:tp,comm:0,auto:false,fromBinance:true,openTime:Date.now(),unrealPnl:parseFloat(bp.unRealizedProfit||0)});
-          addLog('📥 İthal: '+side+' '+bp.symbol.replace('USDT','')+' '+lev+'x @$'+fp(entry),'ok');
         }
       });
       updatePosUI();notify('Senkron tamamlandı','success');
@@ -1523,7 +1540,7 @@ function resetChallenge(){
   balance=CHALLENGE_START;startBal=CHALLENGE_START;peakBal=CHALLENGE_START;
   dailyPnL=0;dailyTradeCount=0;dailyLossAmt=0;totalComm=0;futBal=null;
   positions=[];trades=[];posId=1;
-  notify('🔄 Challenge sıfırlandı — $62.50','info');
+  notify('🔄 Challenge sıfırlandı — $'+CHALLENGE_START.toFixed(2),'info');
   addLog('🔄 Challenge sıfırlandı','info');
   updatePosUI();updateChallenge();calcProj();
 }
@@ -1573,11 +1590,11 @@ window.addEventListener('DOMContentLoaded',function(){
     sw('signal');initChart();startDemo();
     renderPairManager();renderPopularCoins();
     bindOtonomEvents();updateOtonomSettings();
-    setScalpPreset(0.07);
+    setScalpPreset(0.12);
     calcProj();
-    addLog('APEX PRO SCALP başlatıldı — Hedef: $100','info');
-    addLog('⚡ Scalp Modu: $0.07/işlem aktif (250 işlem = $17.50 brüt)','info');
-    addLog('Pro Mod: 3 eş zamanlı pozisyon, Challenge kuralları KAPALI','info');
+    addLog('APEX V3 AKILLI SCALP başlatıldı','info');
+    addLog('⚡ Scalp $0.12, Min Güven %85, SL %0.5, 3 dk tarama','info');
+    addLog('🛡 İnat koruması, volatilite filtresi, zaman filtresi hazır','info');
   }catch(e){console.error('Başlangıç hatası:',e);addLog('Başlangıç hatası: '+e.message,'err');}
 });
 </script>
