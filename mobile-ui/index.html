@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<title>APEX Pro V3 – Akıllı Micro Scalp</title>
+<title>APEX Pro V3 – Micro Scalp Kalibre</title>
 <style>
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
@@ -172,7 +172,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <body>
 <div id="notif"></div>
 <header>
-  <div class="logo">APEX <span>V3</span></div>
+  <div class="logo">APEX <span>V3 KALİBRE</span></div>
   <div class="badges">
     <span class="bdg" id="connBdg">DEMO</span>
     <span class="bdg scalp" id="scalpModeBdg">SCALP $0.12</span>
@@ -321,7 +321,7 @@ input:focus,select:focus{border-color:var(--acc)}
       </div>
     </div>
 
-    <!-- YENİ: AKILLI FİLTRE DURUMU -->
+    <!-- AKILLI FİLTRE DURUMU -->
     <div class="card" style="border-color:rgba(0,255,224,.3)">
       <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">⚙️ AKILLI FİLTRE DURUMU</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;grid-gap:6px;font-size:9px">
@@ -386,7 +386,13 @@ input:focus,select:focus{border-color:var(--acc)}
       <div class="fr" id="slPercentDiv">
         <label>Stop Loss Yüzdesi (%) — Önerilen: 0.5%</label>
         <input type="number" id="slPercent" value="0.5" step="0.05" min="0.1" max="5">
-        <div style="font-size:9px;color:var(--dim);margin-top:3px">0.5% SL + $0.12 TP = yaklaşık 2:1 R:R</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:3px">0.5% SL + $0.12 TP + R:R 4 = dar SL</div>
+      </div>
+      <!-- YENİ: R:R INPUTU -->
+      <div class="fr" id="rrDiv">
+        <label>Risk / Reward Oranı (Scalp için önerilen: 4)</label>
+        <input type="number" id="userRR" value="4.0" step="0.5" min="1.5" max="10">
+        <div style="font-size:9px;color:var(--dim);margin-top:3px">Scalp modda SL = TP hedefi / bu oran</div>
       </div>
       <div class="fr"><label>İşlem başı Risk ($)</label>
         <input type="number" id="riskAmount" value="2" step="0.5" min="0.5" placeholder="2">
@@ -524,7 +530,7 @@ let scanSec=180,engineOn=false;
 let togAutoClose=true,togTrailing=true;
 let loopTimer=null,cdTimer2=null;
 let syncInterval=null,syncFailed=false;
-let autoTrade=false,signalSelection='best',minConfidence=85,userRR=2.0;
+let autoTrade=false,signalSelection='best',minConfidence=85,userRR=4.0;
 let currentLeverage=2,slType='percent',slPercent=0.5,riskAmountUSD=2;
 let profitTargetUSD=0.12;
 let challengeRulesActive=false;
@@ -726,7 +732,7 @@ function renderChallenge(){
 }
 
 // ═══════════════════════════════════
-// İNDİKATÖRLER (Aynı, değişiklik yok)
+// İNDİKATÖRLER
 function ema(arr,p){
   if(!arr||arr.length<p)return arr?arr.slice():[];
   var k=2/(p+1),out=new Array(p-1);
@@ -883,7 +889,6 @@ function analyzeChallenge(sym){
   var kl4h=pd.kl4h||[],kl1h=pd.kl1h||[],kl15m=pd.kl15m||[];
   if(kl4h.length<30||kl1h.length<20||kl15m.length<20)return null;
   var price=pd.price||kl4h[kl4h.length-1].c;
-  // Volatilite filtresi: ATR(1h) fiyatın %0.15'inden azsa çok durgun, işlem yapma
   var atr1h = atr(kl1h, 14);
   if(atr1h && price && (atr1h/price) < 0.0015) return null;
   var c4h=kl4h.map(function(k){return k.c;});
@@ -941,13 +946,13 @@ function analyzeChallenge(sym){
   var TH={high:{s:18,c:72},med:{s:14,c:62},low:{s:10,c:52}};
   var th=TH[sens]||TH.med;
   var signal='WAIT',edgeText='',blockText='';
-  if(htfTrend==='NEUTRAL'){signal='WAIT';blockText='4h trend belirsiz — bekle';}
-  else if(bull>bear&&htfTrend==='SHORT'){signal='WAIT';blockText='LONG yönelim ama 4h SHORT';}
-  else if(bear>bull&&htfTrend==='LONG'){signal='WAIT';blockText='SHORT yönelim ama 4h LONG';}
+  if(htfTrend==='NEUTRAL'){signal='WAIT';}
+  else if(bull>bear&&htfTrend==='SHORT'){signal='WAIT';}
+  else if(bear>bull&&htfTrend==='LONG'){signal='WAIT';}
   else if(bull>bear&&bull>=th.s&&conf>=th.c){signal='LONG';}
   else if(bear>bull&&bear>=th.s&&conf>=th.c){signal='SHORT';}
   else{signal='WAIT';}
-  if(signal==='WAIT') return null; // Filtrelenmiş sinyal yok
+  if(signal==='WAIT') return null;
 
   var posAtr=atr(kl1h,14)||atr(kl15m,14)||price*0.01,slDist,sl;
   if(scalpMode&&profitTargetUSD>0){
@@ -973,7 +978,7 @@ function analyzeAll(){
 }
 
 // ═══════════════════════════════════
-// CHART (Aynı)
+// CHART
 var chartCtx;
 function initChart(){chartCtx=document.getElementById('chart').getContext('2d');}
 function drawChart(){
@@ -1045,7 +1050,7 @@ function setTF(btn,tf){
 }
 
 // ═══════════════════════════════════
-// SİNYAL UI (Aynı)
+// SİNYAL UI
 function updateSignalUI(){
   var pd=pData[currentPair];
   var an=pd&&pd.analysis;
@@ -1054,8 +1059,8 @@ function updateSignalUI(){
   document.getElementById('sigBadge').textContent=sig;
   document.getElementById('sigBadge').className='sig-badge '+sig;
   document.getElementById('sigInfo').textContent=an?'Güven: '+an.conf+'%  ·  Bull: '+an.bull+'  Bear: '+an.bear+'  ·  HTF: '+an.htfTrend:'Analiz bekleniyor...';
-  document.getElementById('sigEdge').textContent=an&&an.edgeText?an.edgeText:'';
-  document.getElementById('sigBlock').textContent=an&&an.blockText?an.blockText:'';
+  document.getElementById('sigEdge').textContent='';
+  document.getElementById('sigBlock').textContent='';
   if(an&&an.indicators){
     var ind=an.indicators;
     var set=function(id,val,cls){
@@ -1121,7 +1126,7 @@ function updateTicker(){
 
 // ═══════════════════════════════════
 // POZİSYONLAR (İnat takibi eklendi)
-var consecutiveSL = {}; // Coin bazında ardışık SL sayısı
+var consecutiveSL = {};
 
 function calcUnrealPnl(pos){
   var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
@@ -1137,8 +1142,7 @@ function updatePosUI(){
     var pnl=calcUnrealPnl(p);
     var pnlPct=p.posValue>0?(pnl/p.posValue*100).toFixed(2):'0';
     var tpHit=p.tp&&(p.side==='LONG'?pr>=p.tp:pr<=p.tp);
-    var scalp=scalpMode&&profitTargetUSD>0;
-    var profInfo=scalp?'⚡ Scalp hedef: $'+profitTargetUSD.toFixed(3)+' (anlık: '+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+')':'TP: R:R bazlı';
+    var profInfo='⚡ Scalp hedef: $'+profitTargetUSD.toFixed(3)+' (anlık: '+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+')';
     html+='<div class="pos-c '+(p.side.toLowerCase())+'"><div class="pos-h"><div><span class="pos-sym">'+p.pair.replace('USDT','')+'</span><span class="pos-side '+p.side+'">'+p.side+'</span></div><div><span class="pos-pnl '+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+'</span></div></div><div class="pos-grid"><div class="pg"><div class="pg-l">Entry</div><div class="pg-v">$'+fp(p.entry)+'</div></div><div class="pg"><div class="pg-l">Anlık</div><div class="pg-v">$'+fp(pr)+'</div></div><div class="pg"><div class="pg-l">SL</div><div class="pg-v" style="color:var(--short)">$'+fp(p.sl)+'</div></div><div class="pg"><div class="pg-l">TP</div><div class="pg-v" style="color:#4ade80">$'+fp(p.tp)+'</div></div></div><div class="assist" style="background:rgba(0,255,224,.04);border:1px solid rgba(0,255,224,.15)">'+profInfo+'</div><div class="pos-btns"><button class="btn btn-outline" style="font-size:10px;padding:5px 10px;min-height:38px" onclick="closePos('+p.id+',\'Manuel\',1)">✕ Kapat</button></div></div>';
   });
   document.getElementById('posList').innerHTML=html;
@@ -1215,7 +1219,7 @@ async function closePos(id,reason,fraction){
       consecutiveSL[pos.pair]=0;
     }
   } else {
-    consecutiveSL[pos.pair]=0; // TP veya manuel kapanışta sıfırla
+    consecutiveSL[pos.pair]=0;
   }
 
   var e=reason.indexOf('TP')!==-1||reason.indexOf('PROFIT')!==-1?'🟢':reason.indexOf('SL')!==-1?'🔴':'⬛';
@@ -1237,11 +1241,8 @@ async function checkPositions(){
     var p=positions[i];
     var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
     var pnl=calcUnrealPnl(p);
-    // Scalp hedef kâr kontrolü (trailing'den önce)
     if(scalpMode&&profitTargetUSD>0&&pnl>=profitTargetUSD){await closePos(p.id,'SCALP TARGET ⚡');i--;continue;}
-    // Normal TP kontrolü
     if(p.tp&&((p.side==='LONG'&&pr>=p.tp)||(p.side==='SHORT'&&pr<=p.tp))){await closePos(p.id,'TAKE PROFIT');i--;continue;}
-    // SL kontrolü
     if((p.side==='LONG'&&pr<=p.sl)||(p.side==='SHORT'&&pr>=p.sl)){await closePos(p.id,'STOP LOSS');i--;continue;}
   }
 }
@@ -1344,19 +1345,17 @@ function toggleTimeFilter(){
 function updateOtonomSettings(){
   var sel=document.getElementById('signalSelection');if(sel)signalSelection=sel.value;
   var confInp=document.getElementById('minConfidence');if(confInp)minConfidence=parseFloat(confInp.value);
+  var rrInp=document.getElementById('userRR');if(rrInp)userRR=parseFloat(rrInp.value);
   var levSel=document.getElementById('selLeverage');if(levSel)currentLeverage=parseInt(levSel.value);
   var slTypeSel=document.getElementById('slType');if(slTypeSel)slType=slTypeSel.value;
   var slPercInp=document.getElementById('slPercent');if(slPercInp)slPercent=parseFloat(slPercInp.value);
   var riskInp=document.getElementById('riskAmount');if(riskInp)riskAmountUSD=parseFloat(riskInp.value);
   var div=document.getElementById('slPercentDiv');if(div)div.style.display=slType==='percent'?'block':'none';
-  // Kullanıcı SL% değerine göre uyarı
-  if(scalpMode && slPercent>1.0 && document.getElementById('slPercent')) {
-    notify('⚠️ Scalp modda SL %1 üzeri riskli! Önerilen: %0.5','info');
-  }
+  if(scalpMode && slPercent>1.0) notify('⚠️ Scalp modda SL %1 üzeri riskli!','info');
   calcProj();
 }
 function bindOtonomEvents(){
-  ['signalSelection','minConfidence','selLeverage','slType','slPercent','riskAmount'].forEach(function(id){
+  ['signalSelection','minConfidence','userRR','selLeverage','slType','slPercent','riskAmount'].forEach(function(id){
     var el=document.getElementById(id);
     if(el){el.addEventListener('change',updateOtonomSettings);el.addEventListener('input',updateOtonomSettings);}
   });
@@ -1592,9 +1591,10 @@ window.addEventListener('DOMContentLoaded',function(){
     bindOtonomEvents();updateOtonomSettings();
     setScalpPreset(0.12);
     calcProj();
-    addLog('APEX V3 AKILLI SCALP başlatıldı','info');
-    addLog('⚡ Scalp $0.12, Min Güven %85, SL %0.5, 3 dk tarama','info');
-    addLog('🛡 İnat koruması, volatilite filtresi, zaman filtresi hazır','info');
+    addLog('APEX V3 KALİBRE başlatıldı','info');
+    addLog('⚡ Scalp $0.12, Min Güven %85, SL %0.5, R:R 4, Tarama 3 dk','info');
+    addLog('🛡 İnat koruması, volatilite filtresi, zaman filtresi aktif','info');
+    addLog('🪙 Coin listesi: BTC, ETH, SOL, BNB, XRP','info');
   }catch(e){console.error('Başlangıç hatası:',e);addLog('Başlangıç hatası: '+e.message,'err');}
 });
 </script>
