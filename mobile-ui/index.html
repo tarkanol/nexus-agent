@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<title>APEX Pro V3.7 – Scalpel</title>
+<title>APEX Pro V3.7.1 – Scalpel</title>
 <style>
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
@@ -172,7 +172,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <body>
 <div id="notif"></div>
 <header>
-  <div class="logo">APEX <span>V3.7</span></div>
+  <div class="logo">APEX <span>V3.7.1</span></div>
   <div class="badges">
     <span class="bdg" id="connBdg">DEMO</span>
     <span class="bdg scalp" id="scalpModeBdg">SCALP $0.12</span>
@@ -206,7 +206,7 @@ input:focus,select:focus{border-color:var(--acc)}
   <div class="scroll">
     <div class="pairs" id="pairRow"></div>
     <div class="scalp-bar" id="scalpPanel">
-      <div class="scalp-title">⚡ SCALPEL V3.7</div>
+      <div class="scalp-title">⚡ SCALPEL V3.7.1</div>
       <div style="font-size:9px;color:var(--dim);margin-bottom:6px">Scalp odaklı trend (5m/15m/1h). Kısmi kâr kilitleme aktif.</div>
       <div class="scalp-presets">
         <button class="scalp-preset" id="sp5" onclick="setScalpPreset(0.05)">$0.05</button>
@@ -375,27 +375,27 @@ input:focus,select:focus{border-color:var(--acc)}
         <div class="tog-b"><div class="tog-l">Hacim Onayı</div><div class="tog-d" id="volumeConfirmDesc">Aktif (1.2x)</div></div>
       </div>
       <div class="fr"><label>Sinyal Seçimi</label>
-        <select id="signalSelection">
-          <option value="first">İlk gelen</option>
-          <option value="best" selected>En yüksek güvenli</option>
+        <select id="signalSelection" onchange="signalSelection=this.value">
+          <option value="first">İlk gelen sinyali aç</option>
+          <option value="best" selected>En yüksek güvenli sinyali aç</option>
         </select>
       </div>
-      <div class="fr"><label>Minimum Güven Eşiği (%)</label><input type="number" id="minConfidence" value="80" min="0" max="100" step="5"></div>
+      <div class="fr"><label>Minimum Güven Eşiği (%)</label><input type="number" id="minConfidence" value="75" min="0" max="100" step="5" onchange="minConfidence=parseInt(this.value)"></div>
       <div class="fr"><label>Kaldıraç</label>
-        <select id="selLeverage">
+        <select id="selLeverage" onchange="currentLeverage=parseInt(this.value)">
           <option value="2" selected>2x</option>
           <option value="3">3x</option>
           <option value="5">5x</option>
         </select>
       </div>
-      <div class="fr"><label>Stop Loss Yüzdesi (%)</label><input type="number" id="slPercent" value="0.5" step="0.05" min="0.1" max="5"></div>
-      <div class="fr"><label>İşlem başı Risk ($)</label><input type="number" id="riskAmount" value="1.5" step="0.5" min="0.5"></div>
-      <div class="fr"><label>R:R Oranı (yedek)</label><input type="number" id="userRR" value="3" step="0.5" min="1.5" max="10"></div>
+      <div class="fr"><label>Stop Loss Yüzdesi (%)</label><input type="number" id="slPercent" value="0.4" step="0.05" min="0.1" max="5" onchange="slPercent=parseFloat(this.value)"></div>
+      <div class="fr"><label>İşlem başı Risk ($)</label><input type="number" id="riskAmount" value="1.5" step="0.5" min="0.5" onchange="riskAmountUSD=parseFloat(this.value)"></div>
+      <div class="fr"><label>R:R Oranı (yedek)</label><input type="number" id="userRR" value="3" step="0.5" min="1.5" max="10" onchange="userRR=parseFloat(this.value)"></div>
     </div>
     <div class="card">
       <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">TARAMA</div>
       <div class="fr"><label>Tarama Sıklığı</label>
-        <select id="selInt" onchange="scanSec=+this.value">
+        <select id="selInt" onchange="scanSec=parseInt(this.value)">
           <option value="60">1 dakika</option>
           <option value="120" selected>2 dakika</option>
           <option value="180">3 dakika</option>
@@ -508,8 +508,8 @@ let scanSec=120,engineOn=false;
 let togAutoClose=true;
 let loopTimer=null,cdTimer2=null;
 let syncInterval=null,syncFailed=false;
-let autoTrade=false,signalSelection='best',minConfidence=80,userRR=3;
-let currentLeverage=2,slPercent=0.5,riskAmountUSD=1.5;
+let autoTrade=false,signalSelection='best',minConfidence=75,userRR=3;
+let currentLeverage=2,slPercent=0.4,riskAmountUSD=1.5;
 let profitTargetUSD=0.12;
 let challengeRulesActive=false;
 let scalpMode=true;
@@ -559,14 +559,6 @@ function setScalpPreset(val){
 // ═══════════════════════════════════
 // PROJEKSİYON
 function calcProj(){
-  var nTrades=250, wr=0.55, rr=3;
-  var tpAmt=profitTargetUSD>0?profitTargetUSD:(riskAmountUSD*rr);
-  var slAmt=tpAmt/rr;
-  var wins=Math.round(nTrades*wr);
-  var losses=nTrades-wins;
-  var grossProfit=wins*tpAmt;
-  var grossLoss=losses*slAmt;
-  var net=grossProfit-grossLoss;
   var el=function(id){return document.getElementById(id);};
   if(el('monthEarned'))el('monthEarned').textContent=(trades.reduce(function(a,t){return a+t.pnl;},0)>=0?'+':'')+'$'+trades.reduce(function(a,t){return a+t.pnl;},0).toFixed(2);
   if(el('monthTrades'))el('monthTrades').textContent=trades.length;
@@ -846,7 +838,33 @@ async function runEngine(){
 
 // ═══════════════════════════════════
 // KONTROLLER
-function toggleEng(){engineOn=!engineOn;document.getElementById('btnEng').textContent=engineOn?'⏸ Durdur':'▶ Başlat';document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';notify(engineOn?'🚀 Motor açıldı':'⏸ Motor durdu');}
+function startCD(){
+  if(cdTimer2)clearInterval(cdTimer2);
+  var left=scanSec;
+  cdTimer2=setInterval(function(){
+    left--;
+    var el=document.getElementById('eNext');
+    if(el)el.textContent=left>0?left+'s':'Taranıyor...';
+    if(left<=0)clearInterval(cdTimer2);
+  },1000);
+}
+function toggleEng(){
+  engineOn=!engineOn;
+  document.getElementById('btnEng').textContent=engineOn?'⏸ Durdur':'▶ Başlat';
+  document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';
+  document.getElementById('engBdg').className=engineOn?'bdg gold':'bdg';
+  document.getElementById('engTxt').textContent=engineOn?'MOTOR ÇALIŞIYOR':'MOTOR KAPALI';
+  document.getElementById('engSub').textContent=engineOn?'Akıllı filtreler aktif':'Pro Otonom';
+  document.getElementById('engStats').style.display=engineOn?'block':'none';
+  notify(engineOn?'🚀 Motor açıldı (tarama başladı)':'⏸ Motor durdu',engineOn?'success':'info');
+  if(engineOn){
+    startCD();
+    mainLoop();
+  } else {
+    if(loopTimer)clearTimeout(loopTimer);
+    if(cdTimer2)clearInterval(cdTimer2);
+  }
+}
 function doTogAuto(){togAutoClose=!togAutoClose;document.getElementById('togAuto').classList.toggle('on',togAutoClose);}
 function toggleAutoTrade(){autoTrade=!autoTrade;document.getElementById('togAutoTrade').classList.toggle('on',autoTrade);notify(autoTrade?'Otomatik işlem AÇIK':'Otomatik işlem KAPALI');}
 function toggleChallengeRules(){challengeRulesActive=!challengeRulesActive;document.getElementById('togChallengeRules').classList.toggle('on',challengeRulesActive);}
@@ -918,6 +936,7 @@ async function mainLoop(){
     if(appMode==='demo')refreshDemo();else await fetchLive();
     await checkPositions();await runEngine();
     updateSignalUI();updatePairRow();updateTicker();updatePosUI();
+    if(engineOn)startCD();
   }catch(e){}
   loopTimer=setTimeout(mainLoop,scanSec*1000);
 }
@@ -948,7 +967,8 @@ window.addEventListener('DOMContentLoaded',function(){
   sw('signal');initChart();startDemo();
   renderPairManager();renderPopularCoins();
   setScalpPreset(0.12);
-  addLog('APEX V3.7 SCALPEL başladı','info');
+  addLog('APEX V3.7.1 SCALPEL başladı','info');
+  addLog('✅ Motor düzeltildi, sinyal seçimi aktif','info');
 });
 </script>
 </body>
