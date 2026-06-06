@@ -589,7 +589,7 @@ select option { background: #041018; }
 <header class="hdr">
   <div class="logo">APEX<span> // SCALP</span></div>
   <div class="hdr-badges">
-    <span class="hbdg" id="bdgConn">DEMO</span>
+    <span class="hbdg live" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
     <span class="hbdg" id="bdgPos">0/2</span>
     <span class="hbdg warn" id="bdgCD" style="display:none">CD</span>
@@ -789,16 +789,11 @@ select option { background: #041018; }
 <div class="page" id="pg-settings">
   <div class="scroll">
     <div class="card">
-      <div class="sec-title">CANLI BAĞLANTI</div>
-      <div class="fr">
-        <span class="inp-label">WORKER URL</span>
-        <input id="wUrl" placeholder="https://...workers.dev" type="url">
-      </div>
+      <div class="sec-title">MOD</div>
       <div class="btn-row">
-        <button class="btn btn-acc btn-sm" onclick="connectLive()" style="flex:1">CANLI</button>
-        <button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO</button>
+        <button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO MOD</button>
       </div>
-      <div style="font-size:9px;color:var(--dim2);margin-top:6px;text-align:center;font-family:var(--mono)" id="connStatus">Demo modda çalışıyor</div>
+      <div style="font-size:9px;color:var(--dim2);margin-top:6px;text-align:center;font-family:var(--mono)" id="connStatus">Demo modda çalışıyor — Binance entegrasyonu bu sürümde yok</div>
     </div>
 
     <div class="card">
@@ -841,7 +836,7 @@ select option { background: #041018; }
    ══════════════════════════════════════════ */
 
 var START_BAL = 50;
-var COMM  = 0.0004; // Binance futures taker %0.04
+var COMM  = 0.0004; // Binance futures taker %0.04 × 2 = %0.08 round-trip
 var MAX_P = 2;
 
 var DEMO_BASE = {
@@ -1070,6 +1065,8 @@ function analyze(sym) {
   if (deathX  && rawSig === 'SHORT') reasons.push({t:'DEATH_X', cls:'short'});
   if (macd5.cross === 'UP' && rawSig === 'LONG') reasons.push({t:'MACD_CROSS_UP', cls:'long'});
   if (macd5.cross === 'DN' && rawSig === 'SHORT') reasons.push({t:'MACD_CROSS_DN', cls:'short'});
+  // ATR durumu
+  if (atrPct < 0.08) reasons.push({t:'DÜŞÜK_VOL⚠', cls:'active'});
 
   /* ── SKOR hesabı ── */
   var score = 30;
@@ -1085,12 +1082,21 @@ function analyze(sym) {
   var minS = aggressiveMode ? 40 : 60;
   if (score < minS) return null;
 
-  /* ── ATR bazlı SL/TP ── */
-  var slMult = tightSL ? 0.8 : 1.2; // ATR çarpanı
-  var tpMult = targetUSD / riskUSD;   // hedef/risk oranı
+  // Fee güvenlik kontrolü: net kâr sıfırın üstünde olmalı
+  // Tahmini fee = posVal × 0.0008, tpDist en az bunun 3 katı
+  var estFeeRate = 0.0008;
 
-  var slDist = atr5 * slMult;
-  var tpDist = slDist * tpMult;
+  /* ── ATR bazlı SL/TP ── */
+  // Fee hesabı: %0.04 taker × 2 yön = %0.08 round-trip
+  // SL en az fee × 4 = %0.32 uzakta olmalı (fee'ye yenilmemek için)
+  var minSlPct = 0.0032; // %0.32 minimum
+  var slMult   = tightSL ? 1.2 : 1.8; // ATR çarpanı (arttırıldı)
+  var tpMult   = targetUSD / riskUSD;
+
+  var atrSlDist  = atr5 * slMult;
+  var minSlDist  = price * minSlPct;
+  var slDist     = Math.max(atrSlDist, minSlDist); // büyük olan
+  var tpDist     = Math.max(slDist * tpMult, price * 0.005); // min %0.5 TP
 
   var sl, tp;
   if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
@@ -1106,6 +1112,7 @@ function analyze(sym) {
     signal: rawSig, score: score,
     price: price, sl: sl, tp: tp,
     slDist: slDist, tpDist: tpDist,
+    minSlUsed: atrSlDist < minSlDist, // true = ATR çok dar, minimum devrede
     posVal: posVal, qty: qty, comm: comm,
     reasons: reasons,
     atrPct: atrPct, vr: vr,
@@ -1423,7 +1430,8 @@ function renderPlan(an, price) {
     + '<div class="plan-row"><span class="pk">TP (+' + tpPct.toFixed(2) + '%) ATR×' + (an.tpDist/an.slDist*0.8).toFixed(1) + '</span><span class="pv tp">$' + fp(an.tp) + '  +$' + targetUSD.toFixed(3) + '</span></div>'
     + '<div class="plan-row"><span class="pk">SL (-' + slPct.toFixed(2) + '%) ATR×0.8</span><span class="pv sl">$' + fp(an.sl) + '  -$' + riskUSD.toFixed(2) + '</span></div>'
     + '<div class="plan-row"><span class="pk">LOT / POZİSYON</span><span class="pv rr">' + an.qty.toFixed(4) + ' / $' + an.posVal.toFixed(2) + '</span></div>'
-    + '<div class="plan-row"><span class="pk">KOMİSYON (est)</span><span style="color:var(--dim2)">$' + an.comm.toFixed(4) + '</span></div>'
+    + '<div class="plan-row"><span class="pk">FEE ×2 (est)</span><span style="color:var(--warn)">$' + an.comm.toFixed(4) + ' (%0.08 round-trip)</span></div>'
+    + '<div class="plan-row"><span class="pk">NET HEDEF</span><span class="pv tp">$' + Math.max(0, targetUSD - an.comm).toFixed(4) + '</span></div>'
     + '</div></div>';
 }
 
@@ -1692,16 +1700,7 @@ function fetchLive() {
   }
 }
 function connectLive() {
-  var url = document.getElementById('wUrl').value.trim(); if (!url) return notify('URL girin','error');
-  xfetch(url+'/ping', null, function(d) {
-    if (d && d.success) {
-      WORKER = url; appMode = 'live'; futBal = null;
-      document.getElementById('bdgConn').textContent = 'LIVE'; document.getElementById('bdgConn').className = 'hbdg live';
-      document.getElementById('connStatus').textContent = 'Canlı bağlantı aktif';
-      notify('Canlı bağlandı!','success'); log('Worker v'+(d.version||'?'),'ok');
-      syncBal(); if (loopTimer) clearTimeout(loopTimer); mainLoop();
-    } else notify('Worker yanıt vermedi','error');
-  }, function() { notify('Bağlantı hatası','error'); });
+  notify('Bu sürümde canlı bağlantı yok — demo mod kullanın','info');
 }
 function startDemo() {
   WORKER = ''; appMode = 'demo'; futBal = null;
