@@ -449,6 +449,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <script>
 // ═══════════════════════════════════════════════════════════════
 // AGRESIF SCALP – iOS 12 UYUMLU (ES5, XHR callback)
+// Canlı bağlantı, bakiye senkronizasyonu, sıfırlama TAM ÇALIŞIR
 // ═══════════════════════════════════════════════════════════════
 var STAGES=[{from:37.44,to:75,label:'Asama 1'},{from:75,to:90,label:'Asama 2'},{from:90,to:100,label:'Asama 3'}];
 var CHALLENGE_START=37.44, COMM=0.0004;
@@ -702,6 +703,7 @@ function runEngine(){
 function toggleEng(){engineOn=!engineOn;document.getElementById('btnEng').textContent=engineOn?'Durdur':'Baslat';document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';document.getElementById('engBdg').className=engineOn?'bdg gold':'bdg';document.getElementById('engTxt').textContent=engineOn?'MOTOR CALISIYOR':'MOTOR KAPALI';notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info');if(engineOn){mainLoop();}else{if(loopTimer)clearTimeout(loopTimer);if(cdTimer)clearInterval(cdTimer);}}
 function doTogAuto(){togAutoClose=!togAutoClose;document.getElementById('togAuto').classList.toggle('on',togAutoClose);}
 function toggleAutoTrade(){autoTrade=!autoTrade;document.getElementById('togAutoTrade').classList.toggle('on',autoTrade);notify(autoTrade?'Otomasyon AKTIF':'Otomasyon PASIF');}
+function toggleChallengeRules(){challengeRulesActive=!challengeRulesActive;document.getElementById('togChallengeRules').classList.toggle('on',challengeRulesActive);}
 function toggleConflict(){conflictActive=!conflictActive;document.getElementById('togConflict').classList.toggle('on',conflictActive);}
 function toggleVolumeConfirm(){volumeConfirmActive=!volumeConfirmActive;document.getElementById('togVolumeConfirm').classList.toggle('on',volumeConfirmActive);}
 function readSettings(){
@@ -723,19 +725,85 @@ function makeKlines(sym,n,tf){var tfMs={'5m':300000,'15m':900000,'1h':3600000,'4
 function refreshDemo(){
   var now=Date.now();for(var i=0;i<customPairs.length;i++){var sym=customPairs[i];prevP[sym]=pState[sym]?pState[sym].price:(DEMO_BASE[sym]||1);demoTick(sym);var p=pState[sym].price;if(!pData[sym])pData[sym]={};pData[sym].price=p;if(!pData[sym].lastKl||now-pData[sym].lastKl>15000){pData[sym].kl5m=makeKlines(sym,120,'5m');pData[sym].kl15m=makeKlines(sym,120,'15m');pData[sym].kl1h=makeKlines(sym,120,'1h');pData[sym].kl4h=makeKlines(sym,200,'4h');pData[sym].lastKl=now;}}analyzeAll();
 }
-function fetchLive(){/* callback zinciriyle live veri çekme */}
+function fetchLive(cb){
+  if(!WORKER)return;
+  var pairsDone=0;
+  function checkDone(){pairsDone++;if(pairsDone>=customPairs.length&&cb)cb();}
+  for(var i=0;i<customPairs.length;i++){
+    (function(sym){
+      // Fiyat çek
+      xfetch(WORKER+'/price?symbol='+sym,null,function(d){
+        if(d&&d.success){var p=parseFloat(d.data.lastPrice||d.data.price);if(p>0){prevP[sym]=pState[sym].price;pState[sym].price=p;if(!pData[sym])pData[sym]={};pData[sym].price=p;}}
+        // Kline çek
+        var tfs=['5m','15m','1h','4h'],limits=[120,120,120,200],keys=['kl5m','kl15m','kl1h','kl4h'],tfDone=0;
+        function klineDone(){tfDone++;if(tfDone>=tfs.length)checkDone();}
+        for(var j=0;j<tfs.length;j++){
+          (function(tf,lim,key){
+            xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim,null,function(d2){
+              if(d2&&d2.success&&Array.isArray(d2.data)){
+                var kl=[];for(var k=0;k<d2.data.length;k++){var r=d2.data[k];kl.push({t:+r[0],o:+r[1],h:+r[2],l:+r[3],c:+r[4],v:+r[5]});}
+                if(!pData[sym])pData[sym]={};pData[sym][key]=kl;
+              }
+              klineDone();
+            },function(){klineDone();});
+          })(tfs[j],limits[j],keys[j]);
+        }
+      },function(){checkDone();});
+    })(customPairs[i]);
+  }
+}
+
+// ── CANLI BAĞLANTI FONKSİYONLARI (TAM ÇALIŞIR) ──
+function connectLive(){
+  var url=document.getElementById('wUrl').value.trim();
+  if(!url)return notify('Worker URL girin','error');
+  if(url.charAt(url.length-1)==='/')url=url.slice(0,-1);
+  xfetch(url+'/ping',null,function(d){
+    if(d&&d.success){
+      WORKER=url;appMode='live';futBal=null;
+      document.getElementById('connBdg').textContent='LIVE';
+      document.getElementById('connBdg').className='bdg live';
+      notify('✅ Canli baglanti basarili!','success');
+      addLog('✅ Worker v'+(d.version||'?'),'ok');
+      syncBal();
+      if(loopTimer)clearTimeout(loopTimer);
+      mainLoop();
+      if(syncIv)clearInterval(syncIv);
+      syncIv=setInterval(function(){if(appMode==='live')syncBal();},30000);
+    }else{notify('Worker yanit vermedi','error');}
+  },function(e){notify('Baglanti hatasi: '+e,'error');addLog('❌ Canli baglanirken hata: '+e,'err');});
+}
+function syncBal(){
+  if(!WORKER||appMode!=='live'){document.getElementById('lastSync').textContent=appMode==='live'?'Worker yok':'Demo mod';return;}
+  xfetch(WORKER+'/balance',null,function(d){
+    if(d&&d.success&&d.balance){
+      var newBal=parseFloat(d.balance.balance||d.balance.totalWalletBalance||d.balance.availableBalance||0);
+      if(newBal>0){futBal=newBal;balance=newBal;document.getElementById('lastSync').textContent='Sync: '+new Date().toLocaleTimeString();addLog('🔄 Bakiye guncellendi: $'+newBal.toFixed(2),'ok');}
+    }else{addLog('⚠️ Bakiye cekilemedi','warn');}
+  },function(e){addLog('❌ Bakiye sync hatasi: '+e,'err');});
+}
+function resetChallenge(){
+  if(!confirm('Challenge sifirlansin mi?'))return;
+  balance=CHALLENGE_START;peakBal=CHALLENGE_START;dailyPnL=0;dailyTradeCount=0;dailyLossAmt=0;totalComm=0;futBal=null;positions=[];trades=[];posId=1;
+  notify('🔄 Sifirlandi – $'+CHALLENGE_START.toFixed(2),'info');addLog('🔄 Challenge sifirlandi','info');updatePosUI();updateChallenge();
+}
 
 // ── ANA DÖNGÜ ──
 function mainLoop(){
-  try{if(appMode==='demo')refreshDemo();else fetchLive();checkPositions();runEngine();updateSignalUI();updatePairRow();updateTicker();updatePosUI();updateCooldownUI();}catch(e){}
+  try{
+    if(appMode==='demo')refreshDemo();
+    else fetchLive(function(){analyzeAll();});
+    checkPositions();runEngine();
+    updateSignalUI();updatePairRow();updateTicker();updatePosUI();updateCooldownUI();
+  }catch(e){}
   loopTimer=setTimeout(mainLoop,scanSec*1000);
 }
 function startDemo(){WORKER='';appMode='demo';futBal=null;document.getElementById('connBdg').textContent='DEMO';document.getElementById('connBdg').className='bdg';notify('Demo mod','info');if(loopTimer)clearTimeout(loopTimer);mainLoop();}
-function connectLive(){/* canlı bağlantı */}
 
+// ── BAŞLANGIÇ ──
 window.addEventListener('DOMContentLoaded',function(){
   sw('signal');initChart();startDemo();renderPairManager();renderPopularCoins();bindSettings();readSettings();setScalpPreset(0.12);
-  addLog('APEX V3.7 AGRESIF SCALP (tam kod)','info');
+  addLog('APEX V3.7 AGRESIF SCALP (canli baglanti hazir)','info');
 });
 </script>
 </body>
