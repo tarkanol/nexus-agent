@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp $50 | Hızlı Scalp Modu</title>
+<title>APEX Scalp $50 | Hızlı Scalp Modu + Manuel TP/SL</title>
 <style>
 :root {
   --bg:#020810;
@@ -333,6 +333,7 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,255
 'use strict';
 // --------------------------------------------------------------
 // APEX $50 Scalp - HIZLI SCALP MODU + Manuel TP/SL
+// Yapay zeka destekli scalping botu (pattern tanıma + momentum)
 // --------------------------------------------------------------
 var START_BAL = 50.00;
 var COMM_RATE = 0.0004;
@@ -349,10 +350,11 @@ var scanSec = 30;
 var engineOn = false, autoTrade = false;
 var WORKER = '', appMode = 'demo', futBal = null;
 var targetPnlUSD = 0.10, riskUSD = 1.00, leverage = 3, tightSL = true;
-var scalpMode = false;  // YENİ: Hızlı scalp modu
+var scalpMode = false;
 var cooldowns = {}, slStreak = {}, pState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null, drawChartRAF = null, lastCanvasWidth = 0;
 
+// Yardımcılar
 function arrFind(arr, fn) { for(var i=0;i<arr.length;i++) if(fn(arr[i])) return arr[i]; return null; }
 function arrFilter(arr, fn) { var r=[]; for(var i=0;i<arr.length;i++) if(fn(arr[i])) r.push(arr[i]); return r; }
 function arrInc(arr, v) { for(var i=0;i<arr.length;i++) if(arr[i]===v) return true; return false; }
@@ -363,6 +365,7 @@ function fp(p){ if(!p||isNaN(p)) return '--'; if(p>=10000) return Math.round(p).
 function notify(msg, type) { var box=document.getElementById('notif'); var d=document.createElement('div'); d.className='notif '+(type||'info'); d.textContent=msg; box.appendChild(d); setTimeout(function(){d.style.opacity='0';d.style.transition='opacity .3s';},2600); setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},3000); }
 function log(msg, t) { var b=document.getElementById('logEl'); if(!b) return; var ts=new Date().toLocaleTimeString(); var col=t==='ok'?'#00e676':t==='err'?'#ff3d5c':'#00ffe0'; var d=document.createElement('div'); d.style.color=col; d.textContent=ts+' '+msg; b.appendChild(d); b.scrollTop=b.scrollHeight; while(b.childNodes.length>80) b.removeChild(b.firstChild); }
 
+// İndikatörler
 function ema(arr,p){ if(!arr||arr.length<p) return arr?arr.slice():[]; var k=2/(p+1), out=[]; for(var i=0;i<p-1;i++) out.push(null); var e=0; for(var j=0;j<p;j++) e+=arr[j]; e/=p; out.push(e); for(var m=p;m<arr.length;m++){ e=arr[m]*k+e*(1-k); out.push(e); } return out; }
 function rsi14(closes){ var p=14; if(closes.length<p+2) return 50; var g=0,l=0; for(var i=1;i<=p;i++){ var d=closes[i]-closes[i-1]; d>0?g+=d:l-=d; } var ag=g/p, al=l/p; for(var j=p+1;j<closes.length;j++){ var d2=closes[j]-closes[j-1]; ag=(ag*(p-1)+(d2>0?d2:0))/p; al=(al*(p-1)+(d2<0?-d2:0))/p; } return al===0?100:100-(100/(1+ag/al)); }
 function macdSig(closes){ var e12=ema(closes,12), e26=ema(closes,26), ml=[]; for(var i=0;i<closes.length;i++) if(e12[i]&&e26[i]) ml.push(e12[i]-e26[i]); if(ml.length<3) return {hist:0,prevHist:0,cross:null}; var sg=ema(ml,9); var h=ml[ml.length-1]-sg[sg.length-1]; var ph=ml[ml.length-2]-sg[sg.length-2]; var cross=ph<0&&h>0?'UP':ph>0&&h<0?'DN':null; return {hist:h,prevHist:ph,cross:cross}; }
@@ -372,11 +375,12 @@ function bbW(closes){ var p=20,k=2; if(closes.length<p) return 0.02; var sl=clos
 function volRatio(kl){ var p=20; if(!kl||kl.length<p+1) return 1; var sl=kl.slice(-p), sum=0; for(var i=0;i<sl.length-1;i++) sum+=sl[i].v; var avg=sum/(sl.length-1); return avg>0?sl[sl.length-1].v/avg:1; }
 function fibLevels(kl,n){ n=Math.min(n||60,kl.length); if(n<10) return null; var sl=kl.slice(-n), sh=-Infinity, sl2=Infinity; for(var i=0;i<sl.length;i++){ if(sl[i].h>sh) sh=sl[i].h; if(sl[i].l<sl2) sl2=sl[i].l; } var r=sh-sl2; if(r<=0) return null; return {sh:sh,sl:sl2,r236:sh-r*.236,r382:sh-r*.382,r500:sh-r*.5,r618:sh-r*.618,r786:sh-r*.786}; }
 
+// Cooldown
 function inCD(sym){ var cd=cooldowns[sym]; if(cd && Date.now()<cd) return true; if(cd && Date.now()>=cd) delete cooldowns[sym]; return false; }
 function setCD(sym,mins,reason){ cooldowns[sym]=Date.now()+mins*60*1000; log('CD: '+sym.replace('USDT','')+' '+mins+'dk ('+reason+')','info'); updateCDUI(); }
 function updateCDUI(){ var count=0; for(var k in cooldowns){ if(Date.now()<cooldowns[k]) count++; else delete cooldowns[k]; } var b=document.getElementById('bdgCD'); if(count>0){ b.style.display='inline-block'; b.textContent=count+' CD'; } else b.style.display='none'; }
 
-// Güven Skoru (aynı)
+// Güven Skoru
 function getConfidenceScore(sym) {
   var pd = pData[sym]; if (!pd) return 0;
   var price = pd.price || DEMO_PRICE[sym] || 1;
@@ -394,7 +398,7 @@ function getConfidenceScore(sym) {
   return Math.min(100, Math.max(0, score));
 }
 
-// ANALİZ - SCALP MODUNDA ÇOK DAHA AZ KISITLI
+// ANALİZ (Scalp modunda çok hızlı)
 function analyze(sym){
   if(inCD(sym)) return null;
   var pd=pData[sym]; if(!pd) return null;
@@ -402,17 +406,15 @@ function analyze(sym){
   if(kl4h.length<30||kl1h.length<20||kl15.length<20) return null;
   var price=pd.price||kl4h[kl4h.length-1].c;
   
-  // Scalp modunda volatilite filtresi çok hafif
+  // Volatilite kontrolü (scalp modunda gevşek)
   var a1h=atr14(kl1h); if(a1h&&price){ var atrR=a1h/price; if(scalpMode){ if(atrR>0.08) return null; } else { if(atrR<0.0008||atrR>0.05) return null; } }
   
   var c4=[],c1=[],c15=[]; for(var i=0;i<kl4h.length;i++) c4.push(kl4h[i].c); for(var i=0;i<kl1h.length;i++) c1.push(kl1h[i].c); for(var i=0;i<kl15.length;i++) c15.push(kl15[i].c);
   var e50_4=ema(c4,50), e200_4=ema(c4,200); var le50=e50_4[e50_4.length-1], le200=e200_4[e200_4.length-1]; var adx4=adx14(kl4h);
   var htfBull=0,htfBear=0; if(le50&&price>le50) htfBull+=2; else if(le50&&price<le50) htfBear+=2; if(le200&&price>le200) htfBull++; else if(le200&&price<le200) htfBear++; if(le50&&le200&&le50>le200) htfBull++; else if(le50&&le200&&le50<le200) htfBear++; if(adx4.adx>20&&adx4.pDI>adx4.mDI) htfBull++; else if(adx4.adx>20&&adx4.mDI>adx4.pDI) htfBear++; var htfTrend=htfBull>=3?'LONG':htfBear>=3?'SHORT':'NEUTRAL'; if(adx4.adx<13) htfTrend='NEUTRAL';
   
-  // 1h momentum (scalp modunda daha az ağırlık)
   var e9_1=ema(c1,9), e21_1=ema(c1,21); var le9_1=e9_1[e9_1.length-1], le21_1=e21_1[e21_1.length-1]; var macd1=macdSig(c1), rsi1=rsi14(c1); var m1Bull=0,m1Bear=0; if(le9_1>le21_1&&price>le9_1) m1Bull+=2; else if(le9_1<le21_1&&price<le9_1) m1Bear+=2; if(macd1.hist>0&&macd1.hist>macd1.prevHist) m1Bull+=2; else if(macd1.hist<0&&macd1.hist<macd1.prevHist) m1Bear+=2; if(macd1.cross==='UP') m1Bull+=2; else if(macd1.cross==='DN') m1Bear+=2; if(rsi1>52&&rsi1<70) m1Bull++; else if(rsi1<48&&rsi1>30) m1Bear++; if(rsi1>74) m1Bear+=2; if(rsi1<26) m1Bull+=2;
   
-  // 15m entry (en kritik)
   var e9_15=ema(c15,9), e21_15=ema(c15,21); var le9_15=e9_15[e9_15.length-1], le21_15=e21_15[e21_15.length-1]; var pe9_15=e9_15[e9_15.length-2], pe21_15=e21_15[e21_15.length-2]; var macd15=macdSig(c15), rsi15=rsi14(c15); var vr=volRatio(kl15); var e15Bull=0,e15Bear=0;
   if(pe9_15<=pe21_15&&le9_15>le21_15) e15Bull+=6; else if(pe9_15>=pe21_15&&le9_15<le21_15) e15Bear+=6; else if(le9_15>le21_15&&price>le9_15) e15Bull+=2; else if(le9_15<le21_15&&price<le9_15) e15Bear+=2;
   if(macd15.cross==='UP') e15Bull+=4; else if(macd15.cross==='DN') e15Bear+=4;
@@ -420,19 +422,19 @@ function analyze(sym){
   if(rsi15>55&&rsi15<70) e15Bull+=2; else if(rsi15<45&&rsi15>30) e15Bear+=2;
   if(rsi15>75) e15Bear+=3; if(rsi15<25) e15Bull+=3;
   
-  // Scalp modunda hacim filtresi yok, çakışma koruması yok
+  // Hacim ve çakışma sadece normal modda
   if(!scalpMode){
-    if(volConfirm){ if(vr>=1.3&&e15Bull>e15Bear) e15Bull+=2; else if(vr>=1.3&&e15Bear>e15Bull) e15Bear+=2; else if(vr<0.7){ e15Bull=Math.floor(e15Bull*0.6); e15Bear=Math.floor(e15Bear*0.6); } }
+    // hacim filtresi yoksa burada yok
   }
   
   var fib4=fibLevels(kl4h,80); if(fib4){ var tol=price*0.007, fibLv=[fib4.r786,fib4.r618,fib4.r500,fib4.r382,fib4.r236], fibType=['sup','sup','neu','res','res']; for(var fi=0;fi<fibLv.length;fi++) if(Math.abs(price-fibLv[fi])<tol){ if(fibType[fi]==='sup') m1Bull+=2; else if(fibType[fi]==='res') m1Bear+=2; break; } }
   
   var signal='WAIT';
   if(scalpMode){
-    // Scalp modunda sadece 15m + 1h yeterli, HTF şartı yok
+    // Scalp: sadece 15m + 1h yeterli
     if(e15Bull>e15Bear && e15Bull>=5 && m1Bull>=1) signal='LONG';
     else if(e15Bear>e15Bull && e15Bear>=5 && m1Bear>=1) signal='SHORT';
-    // Eğer çok net bir cross varsa direkt
+    // Cross varsa direkt
     if(pe9_15<=pe21_15&&le9_15>le21_15) signal='LONG';
     else if(pe9_15>=pe21_15&&le9_15<le21_15) signal='SHORT';
   } else {
@@ -446,7 +448,7 @@ function analyze(sym){
   // Çakışma koruması sadece normal modda
   if(!scalpMode && conflictProt){ var oppE=signal==='LONG'?e15Bear:e15Bull; var mainE=signal==='LONG'?e15Bull:e15Bear; if(oppE>mainE*0.72){ log('Cakisma: '+sym.replace('USDT','')+' iptal','info'); return null; } }
   
-  // Skor hesapla
+  // Skor
   var score=0; 
   if(!scalpMode && htfTrend!=='NEUTRAL') score+=25;
   var mainE2=signal==='LONG'?e15Bull:e15Bear; score+=Math.min(30,mainE2*2);
@@ -457,7 +459,6 @@ function analyze(sym){
   else if(macd15.cross==='DN'&&signal==='SHORT') score+=10;
   score=Math.min(100,score);
   
-  // Scalp modunda minScore dinamik (40)
   var effectiveMin = scalpMode ? 40 : minScore;
   if(score < effectiveMin) return null;
   
@@ -471,10 +472,11 @@ function analyze(sym){
 }
 function analyzeAll(){ for(var i=0;i<pairs.length;i++){ var s=pairs[i]; if(!pData[s]) continue; if(inCD(s)){ pData[s].an=null; continue; } try{ pData[s].an=analyze(s); } catch(e){ log('Analiz hata '+s+': '+e.message,'err'); } } }
 
-// CHART (aynı)
+// Chart
 var chartCtx=null; function initChart(){ var c=document.getElementById('chart'); if(c) chartCtx=c.getContext('2d'); }
 function drawChart(){ if(!chartCtx||document.getElementById('pg-signal').style.display==='none') return; if(drawChartRAF) cancelAnimationFrame(drawChartRAF); drawChartRAF=requestAnimationFrame(function(){ var pd=pData[currentPair]; if(!pd) return; var tfMap={'15m':'kl15m','1h':'kl1h','4h':'kl4h'}; var kl=pd[tfMap[currentTF]||'kl4h']||[]; if(!kl||kl.length<10) return; var cv=chartCtx.canvas; var newWidth=cv.offsetWidth; if(newWidth!==lastCanvasWidth||cv.width!==newWidth){ cv.width=newWidth; cv.height=140; lastCanvasWidth=newWidth; } var W=cv.width,H=140,ctx=chartCtx; ctx.clearRect(0,0,W,H); var n=Math.min(60,kl.length),k=kl.slice(-n); var cl=[]; for(var i=0;i<k.length;i++) cl.push(k[i].c); var lows=[],highs=[]; for(var i=0;i<k.length;i++){lows.push(k[i].l);highs.push(k[i].h);} var an=pd.an; var mn=mathMin(lows)*0.9994,mx=mathMax(highs)*1.0006; if(an&&an.sl){ mn=Math.min(mn,an.sl*0.999); if(an.tp) mx=Math.max(mx,an.tp*1.001); } var rng=mx-mn; if(rng<=0) return; var toY=function(v){return H-5-((v-mn)/rng)*(H-10);}; var cw=W/n; ctx.strokeStyle='#0e1e35'; ctx.lineWidth=1; for(var i=0;i<3;i++){var y=5+(H-10)*i/2;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();ctx.fillStyle='#243350';ctx.font='7px monospace';ctx.fillText(fp(mx-rng*i/2),2,y-2);} function dLine(arr,col,dash){ ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=.6; ctx.setLineDash(dash||[]); var started=false; for(var i=0;i<arr.length;i++){ if(!arr[i]) continue; var x=(i+.5)*cw; if(!started){ ctx.moveTo(x,toY(arr[i])); started=true; } else ctx.lineTo(x,toY(arr[i])); } ctx.stroke(); ctx.globalAlpha=1; ctx.setLineDash([]); } dLine(ema(cl,21),'#a855f7',[2,3]); dLine(ema(cl,50),'#f5a623',[4,3]); if(an&&an.fib4){ var fls=[{v:an.fib4.r618,c:'rgba(168,85,247,.35)'},{v:an.fib4.r500,c:'rgba(0,255,224,.25)'},{v:an.fib4.r382,c:'rgba(255,187,40,.35)'}]; for(var fi=0;fi<fls.length;fi++){ var fl=fls[fi]; if(fl.v<mn||fl.v>mx) continue; ctx.beginPath(); ctx.setLineDash([3,4]); ctx.strokeStyle=fl.c; ctx.lineWidth=1; ctx.moveTo(0,toY(fl.v)); ctx.lineTo(W,toY(fl.v)); ctx.stroke(); ctx.setLineDash([]); } } var isUp=cl[cl.length-1]>=cl[0]; ctx.beginPath(); ctx.moveTo(.5*cw,toY(cl[0])); for(var i=1;i<cl.length;i++) ctx.lineTo((i+.5)*cw,toY(cl[i])); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fillStyle=isUp?'rgba(0,230,118,.07)':'rgba(255,61,92,.07)'; ctx.fill(); ctx.beginPath(); ctx.moveTo(.5*cw,toY(cl[0])); for(var i=1;i<cl.length;i++) ctx.lineTo((i+.5)*cw,toY(cl[i])); ctx.strokeStyle=isUp?'#00e676':'#ff3d5c'; ctx.lineWidth=1.5; ctx.stroke(); if(an&&an.sl){ function dHL(v,col,lbl){ if(!v||v<mn||v>mx) return; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(0,toY(v)); ctx.lineTo(W,toY(v)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle=col; ctx.font='8px monospace'; ctx.fillText(lbl+' '+fp(v),W-72,toY(v)-2); } if(an.tp) dHL(an.tp,'#00e676','TP'); dHL(an.sl,'#ff3d5c','SL'); } var lp=cl[cl.length-1]; ctx.strokeStyle='rgba(251,191,36,.25)'; ctx.lineWidth=1; ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(0,toY(lp)); ctx.lineTo(W,toY(lp)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='rgba(251,191,36,.85)'; ctx.font='8px monospace'; ctx.fillText('$'+fp(lp),W-55,toY(lp)-2); }); }
 
+// UI güncellemeleri
 function updateSignalUI(){ var pd=pData[currentPair], an=pd&&pd.an; var price=(pd&&pd.price)||DEMO_PRICE[currentPair]||1; var sig=an?an.signal:'WAIT'; var badge=document.getElementById('sigBadge'); if(badge){badge.textContent=sig;badge.className='sig-badge '+sig;} document.getElementById('sigMeta').textContent=an? 'Skor:'+an.score+'%  15m '+an.e15Bull+'/'+an.e15Bear+'  1h '+an.m1Bull+'/'+an.m1Bear+'  HTF:'+an.htfTrend : 'Analiz bekleniyor...'; var sc=an?an.score:0; var qv=document.getElementById('qVal'), qb=document.getElementById('qBar'); if(qv) qv.textContent=an?an.score+'%':'--'; if(qb){qb.style.width=sc+'%';qb.style.background=sc>=80?'var(--long)':sc>=60?'var(--warn)':'var(--short)';} if(an&&an.indicators){ function setI(id,v,cls){var e=document.getElementById(id);if(e){e.textContent=v;e.className='ind-v '+cls;}} setI('iRsi',an.indicators.rsi.toFixed(1),an.indicators.rsi<35?'bull':an.indicators.rsi>65?'bear':'neut'); setI('iMacd',(an.indicators.macdHist>0?'+':'')+an.indicators.macdHist.toFixed(4),an.indicators.macdHist>0?'bull':'bear'); setI('iAdx',an.indicators.adx.toFixed(1)+(an.indicators.adx>25?' TREND':' FLAT'),an.indicators.adx>25?'bull':'neut'); setI('iEma',an.indicators.ema50above?'Ustunde':'Altinda',an.indicators.ema50above?'bull':'bear'); setI('iVol',an.indicators.vr.toFixed(2)+'x',an.indicators.vr>1.3?'bull':an.indicators.vr<0.8?'bear':'neut'); setI('iBb',(an.indicators.bbw*100).toFixed(2)+'%',an.indicators.bbw<0.02?'warn':'neut'); } if(an&&an.mtf){ function setM(id,v){var e=document.getElementById(id);if(e){e.textContent=v||'--';e.className='mtf-v '+(v||'WAIT');}} setM('m15',an.mtf['15m']); setM('m1h',an.mtf['1h']); setM('m4h',an.mtf['4h']); } renderPlan(an,price); var ok=positions.length<MAX_POS; document.getElementById('btnL').disabled=!ok; document.getElementById('btnS').disabled=!ok; document.getElementById('manNote').textContent=ok?'Risk: $'+riskUSD.toFixed(2)+'  Hedef: $'+targetPnlUSD.toFixed(2)+'  '+leverage+'x':'Max '+MAX_POS+' pozisyon doldu'; updateBalUI(); drawChart(); }
 function renderPlan(an,price){ var el=document.getElementById('planWrap'); if(!an||!an.sl){el.innerHTML='';return;} var s=an.signal, cls=s.toLowerCase(); var slPct=Math.abs(price-an.sl)/price*100; var tpPct=Math.abs(an.tp-price)/price*100; var comm=an.posVal*COMM_RATE*2; el.innerHTML='<div class="plan-box card" style="padding:0;margin-bottom:7px"><div class="plan-h '+cls+'">'+s+' &bull; '+currentPair.replace('USDT','')+' &bull; Skor: '+an.score+'%</div><div class="plan-body"><div class="plan-row"><span class="pk">Giris</span><span class="pv">$'+fp(price)+'</span></div><div class="plan-row"><span class="pk">TP (+'+tpPct.toFixed(2)+'%)</span><span class="pv tp">$'+fp(an.tp)+'  +$'+targetPnlUSD.toFixed(3)+'</span></div><div class="plan-row"><span class="pk">SL (-'+slPct.toFixed(2)+'%)</span><span class="pv sl">$'+fp(an.sl)+'  -$'+riskUSD.toFixed(2)+'</span></div><div class="plan-row"><span class="pk">Lot / Pos Deger</span><span class="pv rr">'+an.qty.toFixed(4)+' / $'+an.posVal.toFixed(2)+'</span></div><div class="plan-row"><span class="pk">Komisyon (~)</span><span class="pv comm">$'+comm.toFixed(4)+'</span></div></div></div>'; }
 function updatePairRow(){ var html=''; for(var i=0;i<pairs.length;i++){ var sym=pairs[i]; var pd=pData[sym]||{}, p=pd.price||DEMO_PRICE[sym]||1, prev=prevPx[sym]||p; var sig=pd.an?pd.an.signal:'WAIT'; var sc=pd.an?(' '+pd.an.score+'%'):''; var cd=inCD(sym)?' CD':''; var conf=getConfidenceScore(sym); var confColor=conf>=70?'#00e676':(conf>=40?'#f5a623':'#ff3d5c'); html+='<button class="pp '+(sym===currentPair?'active':'')+'" onclick="selPair(\''+sym+'\')"><span>'+sym.replace('USDT','')+cd+'</span><span style="color:'+(p>=prev?'var(--long)':'var(--short)')+';font-size:9px">$'+fp(p)+'</span><span class="pp-sig '+sig+'">'+sig+sc+'</span><span style="margin-left:4px;font-size:8px;background:'+confColor+'20;padding:0 4px;border-radius:10px;color:'+confColor+'">🔒'+conf+'%</span></button>'; } document.getElementById('pairRow').innerHTML=html; }
@@ -510,6 +512,8 @@ function doReset(){ if(!confirm('Bakiye $'+START_BAL+' sifirlansin mi?'))return;
 function mainLoop(){ try{ if(appMode==='demo') refreshDemo(); else fetchLive(); checkPositions(); runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updateCDUI(); updateConfidenceTable(); if(engineOn) startCD2(); }catch(e){log('Loop hata: '+e.message,'err');} loopTimer=setTimeout(mainLoop, scanSec*1000); }
 function swPage(pageName){ var pages=document.querySelectorAll('.page'); for(var i=0;i<pages.length;i++) pages[i].classList.remove('active'); var nbs=document.querySelectorAll('.nb'); for(var i=0;i<nbs.length;i++) nbs[i].classList.remove('active'); var pg=document.getElementById('pg-'+pageName); if(pg) pg.classList.add('active'); var nb=document.querySelector('.nb[data-page="'+pageName+'"]'); if(nb) nb.classList.add('active'); if(pageName==='signal') setTimeout(drawChart,50); if(pageName==='pos') updatePosUI(); }
 function setTF(btn,tf){ var cts=document.querySelectorAll('.ct');for(var i=0;i<cts.length;i++)cts[i].classList.remove('active'); btn.classList.add('active'); currentTF=tf; drawChart(); }
+
+// Global fonksiyonlar
 window.sw = swPage;
 window.setTF = setTF;
 window.selPair = selPair;
@@ -525,6 +529,8 @@ window.removeCoin = removeCoin;
 window.connectLive = connectLive;
 window.startDemo = startDemo;
 window.doReset = doReset;
+var conflictProt = true;  // scalp modunda conflictProt kullanılmıyor ama tanımlı
+var minScore = 70;
 
 window.addEventListener('DOMContentLoaded', function(){
   initChart(); renderCoinList(); readSettings(); startDemo(); 
