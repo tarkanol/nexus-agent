@@ -789,11 +789,16 @@ select option { background: #041018; }
 <div class="page" id="pg-settings">
   <div class="scroll">
     <div class="card">
-      <div class="sec-title">MOD</div>
-      <div class="btn-row">
-        <button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO MOD</button>
+      <div class="sec-title">CANLI BAĞLANTI</div>
+      <div class="fr">
+        <span class="inp-label">Worker URL</span>
+        <input type="url" id="workerUrl" placeholder="https://...workers.dev">
       </div>
-      <div style="font-size:9px;color:var(--dim2);margin-top:6px;text-align:center;font-family:var(--mono)" id="connStatus">Demo modda çalışıyor — Binance entegrasyonu bu sürümde yok</div>
+      <div class="btn-row">
+        <button class="btn btn-acc btn-sm" onclick="connectLive()">CANLIYA BAĞLAN</button>
+        <button class="btn btn-out btn-sm" onclick="startDemo()">DEMO MOD</button>
+      </div>
+      <div style="font-size:9px;color:var(--dim2);margin-top:6px;text-align:center;font-family:var(--mono)" id="connStatus">Demo modda çalışıyor</div>
     </div>
 
     <div class="card">
@@ -831,8 +836,7 @@ select option { background: #041018; }
 <script>
 'use strict';
 /* ══════════════════════════════════════════
-   APEX SCALP BOT — Temiz Yeniden Yazım
-   5m + 15m çerçevesi, gerçek price action
+   APEX SCALP BOT — CANLI MOD EKLENDİ (Worker entegrasyonu)
    ══════════════════════════════════════════ */
 
 var START_BAL = 50;
@@ -974,9 +978,8 @@ function analyze(sym) {
   /* ── ATR filtreleri ── */
   var atr5 = calcATR(kl5, 14);
   var atrPct = (atr5 / price) * 100;
-  // Çok düşük volatilite → sinyal yok, çok yüksek → riskli
-  if (atrPct < 0.03 && !aggressiveMode) return null; // ölü market
-  if (atrPct > 2.5)  return null;                    // çok yabani
+  if (atrPct < 0.03 && !aggressiveMode) return null;
+  if (atrPct > 2.5)  return null;
 
   /* ── 15m trend yönü ── */
   var c15 = kl15.map(function(k){ return k.c; });
@@ -1010,31 +1013,25 @@ function analyze(sym) {
   var rsi5  = calcRSI(c5, 14);
   var vr    = calcVolRatio(kl5);
 
-  /* ── Crossover tespiti ── */
-  var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5); // yeni altın kesişim
-  var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5); // yeni ölüm kesişimi
+  var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5);
+  var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5);
   var aboveEMA = l9_5 > l21_5;
   var belowEMA = l9_5 < l21_5;
 
-  /* ── Sinyal adayı ── */
   var rawSig = 'WAIT';
   if (goldenX || (aboveEMA && macd5.cross === 'UP')) rawSig = 'LONG';
   else if (deathX || (belowEMA && macd5.cross === 'DN')) rawSig = 'SHORT';
-  // Trend takip: EMA9 yukarıda + MACD pozitif büyüyor = long devam
   else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 52 && rsi5 < 70) rawSig = 'LONG';
   else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 48 && rsi5 > 30) rawSig = 'SHORT';
 
   if (rawSig === 'WAIT') return null;
 
-  /* ── FİLTRELER ── */
   var reasons = [], rejects = [];
 
-  // 1. Hacim filtresi (en önemli sahte breakout önleyici)
   if (vr >= 1.3) reasons.push({t:'HACİM_OK', cls:'long'});
   else if (vr < 0.7) { rejects.push('DÜŞÜK_HACİM'); if (!aggressiveMode) return null; }
   else reasons.push({t:'HACİM_ORTA', cls:'active'});
 
-  // 2. RSI aşırı bölge filtresi
   if (rawSig === 'LONG') {
     if (rsi5 > 75) { rejects.push('RSI_AŞIRI_AL'); return null; }
     if (rsi5 > 65) reasons.push({t:'RSI_YÜKSEK', cls:'active'});
@@ -1045,30 +1042,23 @@ function analyze(sym) {
     else reasons.push({t:'RSI_OK:'+rsi5.toFixed(0), cls:'short'});
   }
 
-  // 3. 15m trend onayı (en güvenilir filtre — ÇOK ÖNEMLİ)
   if (trend15 === rawSig) {
     reasons.push({t:'15m_ONAY', cls: rawSig.toLowerCase()});
   } else if (trend15 !== 'NEUTRAL' && !aggressiveMode) {
-    // Karşı trend — iptal (en sık yanlış sinyalin sebebi bu)
-    log('KARŞI_TREND filt: '+sym.replace('USDT','')+' sig='+rawSig+' trend15='+trend15, 'info');
     return null;
   } else {
     reasons.push({t:'TREND_KARŞI', cls:'active'});
   }
 
-  // 4. 1h genel onay (bonus)
   if (trend1h === rawSig) reasons.push({t:'1h_ONAY', cls: rawSig.toLowerCase()});
   else if (trend1h !== 'NEUTRAL') reasons.push({t:'1h_KARŞI', cls:'active'});
 
-  // 5. Crossover bonusu
   if (goldenX && rawSig === 'LONG') reasons.push({t:'GOLDEN_X', cls:'long'});
   if (deathX  && rawSig === 'SHORT') reasons.push({t:'DEATH_X', cls:'short'});
   if (macd5.cross === 'UP' && rawSig === 'LONG') reasons.push({t:'MACD_CROSS_UP', cls:'long'});
   if (macd5.cross === 'DN' && rawSig === 'SHORT') reasons.push({t:'MACD_CROSS_DN', cls:'short'});
-  // ATR durumu
   if (atrPct < 0.08) reasons.push({t:'DÜŞÜK_VOL⚠', cls:'active'});
 
-  /* ── SKOR hesabı ── */
   var score = 30;
   if (vr >= 1.5) score += 20; else if (vr >= 1.2) score += 10;
   if (trend15 === rawSig) score += 25;
@@ -1082,28 +1072,18 @@ function analyze(sym) {
   var minS = aggressiveMode ? 40 : 60;
   if (score < minS) return null;
 
-  // Fee güvenlik kontrolü: net kâr sıfırın üstünde olmalı
-  // Tahmini fee = posVal × 0.0008, tpDist en az bunun 3 katı
-  var estFeeRate = 0.0008;
-
-  /* ── ATR bazlı SL/TP ── */
-  // Fee hesabı: %0.04 taker × 2 yön = %0.08 round-trip
-  // SL en az fee × 4 = %0.32 uzakta olmalı (fee'ye yenilmemek için)
-  var minSlPct = 0.0032; // %0.32 minimum
-  var slMult   = tightSL ? 1.2 : 1.8; // ATR çarpanı (arttırıldı)
+  var slMult   = tightSL ? 1.2 : 1.8;
   var tpMult   = targetUSD / riskUSD;
-
   var atrSlDist  = atr5 * slMult;
-  var minSlDist  = price * minSlPct;
-  var slDist     = Math.max(atrSlDist, minSlDist); // büyük olan
-  var tpDist     = Math.max(slDist * tpMult, price * 0.005); // min %0.5 TP
+  var minSlDist  = price * 0.0032;
+  var slDist     = Math.max(atrSlDist, minSlDist);
+  var tpDist     = Math.max(slDist * tpMult, price * 0.005);
 
   var sl, tp;
   if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
   else                     { sl = price + slDist; tp = price - tpDist; }
 
-  // Para bazlı lot hesabı
-  var slDistUSD = riskUSD; // sabit risk
+  var slDistUSD = riskUSD;
   var posVal = Math.min(slDistUSD / (slDist / price), balance * 0.3);
   var qty = posVal * leverage / price;
   var comm = posVal * COMM * 2;
@@ -1112,7 +1092,7 @@ function analyze(sym) {
     signal: rawSig, score: score,
     price: price, sl: sl, tp: tp,
     slDist: slDist, tpDist: tpDist,
-    minSlUsed: atrSlDist < minSlDist, // true = ATR çok dar, minimum devrede
+    minSlUsed: atrSlDist < minSlDist,
     posVal: posVal, qty: qty, comm: comm,
     reasons: reasons,
     atrPct: atrPct, vr: vr,
@@ -1160,7 +1140,7 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-/* ─── Pozisyon işlemleri ─── */
+/* ─── Pozisyon işlemleri (Canlı mod destekli) ─── */
 function openPos(sym, side, auto, manTP, manSL) {
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
   if (positions.length >= MAX_P) { notify('Max ' + MAX_P + ' pozisyon dolu', 'error'); return; }
@@ -1173,7 +1153,6 @@ function openPos(sym, side, auto, manTP, manSL) {
   var posVal, qty, sl, tp, comm;
 
   if (manTP && manSL) {
-    // Manuel mod
     sl = side === 'LONG' ? price - manSL : price + manSL;
     tp = side === 'LONG' ? price + manTP : price - manTP;
     posVal = Math.min(riskUSD / (manSL / price), balance * 0.3);
@@ -1234,13 +1213,10 @@ function checkPositions() {
     var p = positions[i];
     var pr = (pData[p.pair] && pData[p.pair].price) || p.entry;
     var pnl = (pr - p.entry) * (p.side === 'LONG' ? 1 : -1) * p.qty;
-    // TP'ye ulaştı mı?
     if (p.side === 'LONG'  && pr >= p.tp) { closePos(p.id, 'TAKE PROFIT'); continue; }
     if (p.side === 'SHORT' && pr <= p.tp) { closePos(p.id, 'TAKE PROFIT'); continue; }
-    // SL'ye düştü mü?
     if (p.side === 'LONG'  && pr <= p.sl) { closePos(p.id, 'STOP LOSS'); continue; }
     if (p.side === 'SHORT' && pr >= p.sl) { closePos(p.id, 'STOP LOSS'); continue; }
-    // PnL bazlı erken çıkış (targetUSD'ye ulaştı)
     if (pnl >= targetUSD) { closePos(p.id, 'HEDEF ALINDI'); continue; }
   }
 }
@@ -1319,7 +1295,6 @@ function refreshDemo() {
     demoTick(sym);
     if (!pData[sym]) pData[sym] = {};
     pData[sym].price = pxState[sym].price;
-    // Her 15 sn'de kline yenile
     if (!pData[sym].lastKl || now - pData[sym].lastKl > 15000) {
       pData[sym].kl1m  = makeKlines(sym, 200, '1m');
       pData[sym].kl5m  = makeKlines(sym, 200, '5m');
@@ -1327,7 +1302,6 @@ function refreshDemo() {
       pData[sym].kl1h  = makeKlines(sym, 60,  '1h');
       pData[sym].lastKl = now;
     } else {
-      // Mevcut bar güncelle
       ['kl1m','kl5m','kl15m','kl1h'].forEach(function(key) {
         var kl = pData[sym][key];
         if (kl && kl.length) {
@@ -1341,6 +1315,232 @@ function refreshDemo() {
     }
   }
   analyzeAll();
+}
+
+/* ─── Canlı bağlantı (Worker) ─── */
+function xfetch(url, opts, onOk, onErr) {
+  var xhr = new XMLHttpRequest();
+  xhr.open(opts && opts.method ? opts.method : 'GET', url, true);
+  if (opts && opts.headers) for (var k in opts.headers) xhr.setRequestHeader(k, opts.headers[k]);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300) { try { onOk(JSON.parse(xhr.responseText)); } catch(e) { onOk(null); } }
+    else if (onErr) onErr(xhr.status);
+  };
+  xhr.onerror = function() { if (onErr) onErr('net'); };
+  xhr.send(opts && opts.body ? opts.body : null);
+}
+
+function doLiveOrder(sym, side, posVal, sl, tp, price) {
+  var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
+  xfetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({symbol:sym,side:side,usdAmount:posVal,leverage:leverage,
+    sl:parseFloat(sl.toFixed(dp)),tp:parseFloat(tp.toFixed(dp))})},
+    function(r){if(!r||!r.success){notify('Binance hatası','error'); positions.pop();}},
+    function(){notify('Binance bağlantı hatası','error'); positions.pop();});
+}
+
+function doLiveClose(sym, side) {
+  xfetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({symbol:sym,side:side})},
+    function(d){log(d&&d.success?'Kapat OK':'Kapat hata','ok');},
+    function(){log('Kapat hata','err');});
+}
+
+function syncBal() {
+  if (!WORKER || appMode !== 'live') return;
+  xfetch(WORKER+'/balance', null, function(d) {
+    if (d && d.success && d.balance && d.balance.balance) {
+      futBal = parseFloat(d.balance.balance); balance = futBal;
+      log('Bakiye senkronize: $' + futBal.toFixed(2), 'ok');
+      updateBalUI();
+    }
+  }, function() { log('Bakiye sync hatası','err'); });
+}
+
+function fetchLive() {
+  if (!WORKER) return;
+  var done = 0, total = pairs.length;
+  function afterPrices() {
+    var sym = currentPair;
+    if (!pData[sym]) pData[sym] = {};
+    var tfs = ['5m','15m','1h'], limits = [200,120,60], keys = ['kl5m','kl15m','kl1h'];
+    var kDone = 0;
+    for (var j = 0; j < tfs.length; j++) {
+      (function(tf, lim, key) {
+        xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim, null, function(d) {
+          if (d && d.success && Array.isArray(d.data)) {
+            var kl = []; for (var m = 0; m < d.data.length; m++) { var kk = d.data[m]; kl.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]}); }
+            pData[sym][key] = kl;
+          }
+          kDone++; if (kDone >= tfs.length) analyzeAll();
+        }, function() { kDone++; if (kDone >= tfs.length) analyzeAll(); });
+      })(tfs[j], limits[j], keys[j]);
+    }
+  }
+  if (!total) { afterPrices(); return; }
+  for (var i = 0; i < pairs.length; i++) {
+    (function(sym) {
+      xfetch(WORKER+'/price?symbol='+sym, null, function(d) {
+        if (d && d.success) {
+          var p = parseFloat(d.data.lastPrice || d.data.price);
+          if (p > 0) { prevPx[sym] = pxState[sym] ? pxState[sym].price : p; if (!pxState[sym]) pxState[sym] = {price:p,vel:0}; pxState[sym].price = p; if (!pData[sym]) pData[sym] = {}; pData[sym].price = p; }
+        }
+        done++; if (done >= total) afterPrices();
+      }, function() { done++; if (done >= total) afterPrices(); });
+    })(pairs[i]);
+  }
+}
+
+function connectLive() {
+  var url = document.getElementById('workerUrl').value.trim();
+  if (!url) { notify('Worker URL girin', 'error'); return; }
+  xfetch(url+'/ping', null, function(d) {
+    if (d && d.success) {
+      WORKER = url; appMode = 'live'; futBal = null;
+      document.getElementById('bdgConn').textContent = 'LIVE'; document.getElementById('bdgConn').className = 'hbdg live';
+      document.getElementById('connStatus').textContent = 'Canlı bağlantı aktif';
+      notify('Canlı bağlantı kuruldu!', 'success');
+      log('Worker v' + (d.version || '?') + ' bağlandı', 'ok');
+      syncBal();
+      if (loopTimer) clearTimeout(loopTimer);
+      mainLoop();
+    } else {
+      notify('Worker yanıt vermedi', 'error');
+    }
+  }, function() { notify('Bağlantı hatası', 'error'); });
+}
+
+function startDemo() {
+  WORKER = ''; appMode = 'demo'; futBal = null;
+  document.getElementById('bdgConn').textContent = 'DEMO'; document.getElementById('bdgConn').className = 'hbdg';
+  document.getElementById('connStatus').textContent = 'Demo modda çalışıyor';
+  notify('Demo mod aktif','info'); log('Demo mod başladı','info');
+  if (loopTimer) clearTimeout(loopTimer);
+  mainLoop();
+}
+
+/* ─── Ana döngü ─── */
+function mainLoop() {
+  try {
+    if (appMode === 'demo') refreshDemo(); else fetchLive();
+    checkPositions();
+    runEngine();
+    updateSignalUI();
+    updatePairRow();
+    updateTicker();
+    updateCDUI();
+    if (engineOn) startCountdown();
+  } catch(e) { log('Loop hatası: ' + e.message, 'err'); }
+  loopTimer = setTimeout(mainLoop, scanSec * 1000);
+}
+
+function startCountdown() {
+  if (cdTimer) clearInterval(cdTimer);
+  var left = scanSec;
+  cdTimer = setInterval(function() {
+    left--;
+    var e = document.getElementById('eNext'); if (e) e.textContent = left > 0 ? left + 's' : '...';
+    if (left <= 0) clearInterval(cdTimer);
+  }, 1000);
+}
+
+/* ─── Toggle / Ayar fonksiyonları ─── */
+function toggleEng() {
+  engineOn = !engineOn;
+  document.getElementById('btnEng').textContent = engineOn ? 'DURDUR' : 'BAŞLAT';
+  document.getElementById('bdgEng').textContent = engineOn ? 'ON' : 'OFF';
+  document.getElementById('bdgEng').className = engineOn ? 'hbdg on' : 'hbdg';
+  document.getElementById('engTxt').textContent = engineOn ? '// MOTOR ÇALIŞIYOR' : '// MOTOR KAPALI';
+  document.getElementById('engStats').style.display = engineOn ? 'grid' : 'none';
+  notify(engineOn ? 'Motor başladı' : 'Motor durdu', engineOn ? 'success' : 'info');
+  if (engineOn) startCountdown(); else if (cdTimer) clearInterval(cdTimer);
+}
+function toggleAutoTrade() {
+  autoTrade = !autoTrade;
+  document.getElementById('togAuto').classList.toggle('on', autoTrade);
+  document.getElementById('togAutoD').textContent = autoTrade ? 'Açık: sinyal gelince otomatik girer' : 'Kapalı: sadece sinyal göster';
+  notify(autoTrade ? 'Otomasyon AKTİF' : 'Otomasyon PASİF', autoTrade ? 'success' : 'info');
+}
+function toggleTight() {
+  tightSL = !tightSL;
+  document.getElementById('togTight').classList.toggle('on', tightSL);
+  document.getElementById('togTightD').textContent = tightSL ? 'Aktif: SL = 0.8x ATR (sıkı)' : 'Gevşek: SL = 1.2x ATR';
+}
+function toggleScalp() {
+  aggressiveMode = !aggressiveMode;
+  document.getElementById('togScalp').classList.toggle('on', aggressiveMode);
+  document.getElementById('togScalpD').textContent = aggressiveMode ? 'Aktif: skor eşiği 40 (çok sinyal, riskli)' : 'Kapalı: skor eşiği 60 (güvenli)';
+  notify(aggressiveMode ? 'Agresif mod AKTİF — dikkatli!' : 'Güvenli moda geçildi', aggressiveMode ? 'info' : 'success');
+}
+function readSettings() {
+  var t = document.getElementById('selTarget'); if (t) targetUSD = parseFloat(t.value);
+  var r = document.getElementById('selRisk');   if (r) riskUSD  = parseFloat(r.value);
+  var l = document.getElementById('selLev');    if (l) leverage = parseInt(l.value);
+  var s = document.getElementById('selInt');    if (s) scanSec  = parseInt(s.value);
+  updateBalUI();
+}
+function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); }
+function setTF(btn, tf) {
+  var btns = document.querySelectorAll('.tf-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active'); currentTF = tf; drawChart();
+}
+function manualOpen(side) {
+  var tp = parseFloat(document.getElementById('manTP').value);
+  var sl = parseFloat(document.getElementById('manSL').value);
+  if (isNaN(tp) || isNaN(sl) || tp <= 0 || sl <= 0) { notify('Geçerli TP/SL girin','error'); return; }
+  var an = pData[currentPair] && pData[currentPair].an;
+  if (an && an.signal !== 'WAIT' && an.signal !== side) {
+    if (!confirm('Sinyal ' + an.signal + ' ama ' + side + ' açılacak — devam?')) return;
+  }
+  openPos(currentPair, side, false, tp, sl);
+}
+function renderCoinList() {
+  var c = document.getElementById('coinList'); if (!c) return;
+  var html = '';
+  for (var i = 0; i < pairs.length; i++) {
+    var s = pairs[i];
+    html += '<span onclick="removeCoin(\'' + s + '\')" style="cursor:pointer;font-size:9px;padding:3px 8px;border-radius:2px;background:rgba(0,212,255,0.05);border:1px solid var(--brd2);color:var(--text2);font-family:var(--mono)">' + s.replace('USDT','') + ' ×</span>';
+  }
+  c.innerHTML = html;
+}
+function addCoin() {
+  var inp = document.getElementById('newCoin'); if (!inp) return;
+  var v = inp.value.trim().toUpperCase();
+  if (!v) return;
+  if (v.indexOf('USDT') === -1) v += 'USDT';
+  for (var i = 0; i < pairs.length; i++) if (pairs[i] === v) { notify(v + ' zaten var','info'); return; }
+  pairs.push(v);
+  if (!pxState[v]) pxState[v] = { price: DEMO_BASE[v] || 1, vel: 0 };
+  if (!prevPx[v])  prevPx[v]  = DEMO_BASE[v] || 1;
+  if (!pData[v])   pData[v]   = {};
+  inp.value = ''; renderCoinList(); notify(v + ' eklendi','success');
+}
+function removeCoin(s) {
+  if (pairs.length <= 1) { notify('En az 1 coin olmalı','error'); return; }
+  var newPairs = [];
+  for (var i = 0; i < pairs.length; i++) if (pairs[i] !== s) newPairs.push(pairs[i]);
+  pairs = newPairs;
+  if (currentPair === s) currentPair = pairs[0];
+  renderCoinList(); notify(s + ' kaldırıldı','info');
+}
+function doReset() {
+  if (!confirm('Bakiyeyi $50\'ye sıfırla?')) return;
+  balance = START_BAL; peakBal = START_BAL; dailyPnL = 0;
+  positions = []; trades = []; posId = 1; futBal = null;
+  notify('Sıfırlandı','info'); log('Bakiye sıfırlandı','info');
+  updatePosUI(); updateBalUI();
+}
+function swPage(name) {
+  var pages = document.querySelectorAll('.page');
+  for (var i = 0; i < pages.length; i++) pages[i].classList.remove('active');
+  var nbs = document.querySelectorAll('.nb');
+  for (var i = 0; i < nbs.length; i++) nbs[i].classList.remove('active');
+  var pg = document.getElementById('pg-'+name); if (pg) pg.classList.add('active');
+  var nb = document.querySelector('.nb[data-page="'+name+'"]'); if (nb) nb.classList.add('active');
+  if (name === 'signal') setTimeout(drawChart, 60);
+  if (name === 'pos') updatePosUI();
 }
 
 /* ─── UI Güncelleme ─── */
@@ -1362,7 +1562,6 @@ function updateSignalUI() {
   if (qv) qv.textContent = an ? an.score + '%' : '--%';
   if (qb) { qb.style.width = sc + '%'; qb.style.background = sc >= 80 ? 'var(--long)' : sc >= 60 ? 'var(--warn)' : 'var(--short)'; }
 
-  // Reasons
   var rr = document.getElementById('reasonRow');
   if (rr && an && an.reasons) {
     var html = '';
@@ -1372,7 +1571,6 @@ function updateSignalUI() {
     rr.innerHTML = html;
   } else if (rr) rr.innerHTML = '';
 
-  // İndikatörler
   if (an && an.indicators) {
     var ind = an.indicators;
     setInd('iRsi5',  ind.rsi5.toFixed(1),  ind.rsi5 < 35 ? 'bull' : ind.rsi5 > 65 ? 'bear' : 'neut');
@@ -1384,17 +1582,14 @@ function updateSignalUI() {
     setInd('iAtr',   ind.atrPct.toFixed(3) + '%', ind.atrPct > 0.1 ? 'neut' : 'bear');
   }
 
-  // MTF
   if (an && an.mtf) {
     setMTF('m5',  an.mtf['5m']);
     setMTF('m15', an.mtf['15m']);
     setMTF('m1h', an.mtf['1h']);
   }
 
-  // Plan kutusu
   renderPlan(an, price);
 
-  // Buton aktifliği
   var canOpen = positions.length < MAX_P;
   var btnL = document.getElementById('btnL'), btnS = document.getElementById('btnS');
   if (btnL) btnL.disabled = !canOpen;
@@ -1566,7 +1761,6 @@ function drawChart() {
     var toY = function(v) { return H - 8 - ((v - mn) / rng) * (H - 16); };
     var cw = W / n;
 
-    // Grid
     ctx.strokeStyle = '#0a1a28'; ctx.lineWidth = 1;
     for (var gi = 0; gi < 4; gi++) {
       var gy = 8 + (H-16) * gi / 3;
@@ -1575,7 +1769,6 @@ function drawChart() {
       ctx.fillText('$' + fp(mx - rng * gi / 3), 2, gy - 1);
     }
 
-    // EMA9 (cyan), EMA21 (orange)
     function drawEMA(e, col) {
       var arr = calcEMA(cl, e);
       ctx.beginPath(); ctx.strokeStyle = col; ctx.lineWidth = 1.2;
@@ -1592,24 +1785,20 @@ function drawChart() {
     drawEMA(9, '#00d4ff');
     drawEMA(21, '#ffaa00');
 
-    // Mum grafik
     for (var i = 0; i < k.length; i++) {
       var bar = k[i];
       var x = (i + 0.5) * cw;
       var bw = Math.max(cw * 0.7, 1);
       var isGreen = bar.c >= bar.o;
       var col2 = isGreen ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,85,0.75)';
-      // Wick
       ctx.beginPath(); ctx.strokeStyle = col2; ctx.lineWidth = 1;
       ctx.moveTo(x, toY(bar.h)); ctx.lineTo(x, toY(bar.l)); ctx.stroke();
-      // Body
       var yo = toY(bar.o), yc = toY(bar.c);
       var y1 = Math.min(yo, yc), h2 = Math.max(1, Math.abs(yo - yc));
       ctx.fillStyle = col2;
       ctx.fillRect(x - bw/2, y1, bw, h2);
     }
 
-    // SL/TP çizgileri
     function drawHL(v, col, lbl) {
       if (!v || v < mn || v > mx) return;
       ctx.setLineDash([5, 4]); ctx.strokeStyle = col; ctx.lineWidth = 1;
@@ -1620,7 +1809,6 @@ function drawChart() {
     }
     if (an) { if (an.tp) drawHL(an.tp, 'rgba(0,255,136,0.8)', 'TP'); if (an.sl) drawHL(an.sl, 'rgba(255,51,85,0.8)', 'SL'); }
 
-    // Son fiyat
     var lp = cl[cl.length-1];
     ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(255,204,68,0.3)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, toY(lp)); ctx.lineTo(W, toY(lp)); ctx.stroke();
@@ -1630,205 +1818,7 @@ function drawChart() {
   });
 }
 
-/* ─── Canlı bağlantı ─── */
-function xfetch(url, opts, onOk, onErr) {
-  var xhr = new XMLHttpRequest();
-  xhr.open(opts && opts.method ? opts.method : 'GET', url, true);
-  if (opts && opts.headers) for (var k in opts.headers) xhr.setRequestHeader(k, opts.headers[k]);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState !== 4) return;
-    if (xhr.status >= 200 && xhr.status < 300) { try { onOk(JSON.parse(xhr.responseText)); } catch(e) { onOk(null); } }
-    else if (onErr) onErr(xhr.status);
-  };
-  xhr.onerror = function() { if (onErr) onErr('net'); };
-  xhr.send(opts && opts.body ? opts.body : null);
-}
-function doLiveOrder(sym, side, posVal, sl, tp, price) {
-  var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
-  xfetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({symbol:sym,side:side,usdAmount:posVal,leverage:leverage,
-    sl:parseFloat(sl.toFixed(dp)),tp:parseFloat(tp.toFixed(dp))})},
-    function(r){if(!r||!r.success){notify('Binance hatası','error');positions.pop();}},
-    function(){notify('Binance bağlantı hatası','error');positions.pop();});
-}
-function doLiveClose(sym, side) {
-  xfetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({symbol:sym,side:side})},
-    function(d){log(d&&d.success?'Kapat OK':'Kapat hata','ok');},
-    function(){log('Kapat hata','err');});
-}
-function syncBal() {
-  if (!WORKER || appMode !== 'live') return;
-  xfetch(WORKER+'/balance', null, function(d) {
-    if (d && d.success && d.balance && d.balance.balance) {
-      futBal = parseFloat(d.balance.balance); balance = futBal;
-      log('Bakiye senkronize: $' + futBal.toFixed(2), 'ok');
-      updateBalUI();
-    }
-  }, function() { log('Bakiye sync hatası','err'); });
-}
-function fetchLive() {
-  var done = 0, total = pairs.length;
-  function afterPrices() {
-    var sym = currentPair;
-    if (!pData[sym]) pData[sym] = {};
-    var tfs = ['5m','15m','1h'], limits = [200,120,60], keys = ['kl5m','kl15m','kl1h'];
-    var kDone = 0;
-    for (var j = 0; j < tfs.length; j++) {
-      (function(tf, lim, key) {
-        xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim, null, function(d) {
-          if (d && d.success && Array.isArray(d.data)) {
-            var kl = []; for (var m = 0; m < d.data.length; m++) { var kk = d.data[m]; kl.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]}); }
-            pData[sym][key] = kl;
-          }
-          kDone++; if (kDone >= tfs.length) analyzeAll();
-        }, function() { kDone++; if (kDone >= tfs.length) analyzeAll(); });
-      })(tfs[j], limits[j], keys[j]);
-    }
-  }
-  if (!total) { afterPrices(); return; }
-  for (var i = 0; i < pairs.length; i++) {
-    (function(sym) {
-      xfetch(WORKER+'/price?symbol='+sym, null, function(d) {
-        if (d && d.success) {
-          var p = parseFloat(d.data.lastPrice || d.data.price);
-          if (p > 0) { prevPx[sym] = pxState[sym] ? pxState[sym].price : p; if (!pxState[sym]) pxState[sym] = {price:p,vel:0}; pxState[sym].price = p; if (!pData[sym]) pData[sym] = {}; pData[sym].price = p; }
-        }
-        done++; if (done >= total) afterPrices();
-      }, function() { done++; if (done >= total) afterPrices(); });
-    })(pairs[i]);
-  }
-}
-function connectLive() {
-  notify('Bu sürümde canlı bağlantı yok — demo mod kullanın','info');
-}
-function startDemo() {
-  WORKER = ''; appMode = 'demo'; futBal = null;
-  document.getElementById('bdgConn').textContent = 'DEMO'; document.getElementById('bdgConn').className = 'hbdg';
-  document.getElementById('connStatus').textContent = 'Demo modda çalışıyor';
-  notify('Demo mod aktif','info'); log('Demo mod başladı','info');
-  if (loopTimer) clearTimeout(loopTimer); mainLoop();
-}
-
-/* ─── Ana döngü ─── */
-function mainLoop() {
-  try {
-    if (appMode === 'demo') refreshDemo(); else fetchLive();
-    checkPositions();
-    runEngine();
-    updateSignalUI();
-    updatePairRow();
-    updateTicker();
-    updateCDUI();
-    if (engineOn) startCountdown();
-  } catch(e) { log('Loop hatası: ' + e.message, 'err'); }
-  loopTimer = setTimeout(mainLoop, scanSec * 1000);
-}
-
-function startCountdown() {
-  if (cdTimer) clearInterval(cdTimer);
-  var left = scanSec;
-  cdTimer = setInterval(function() {
-    left--;
-    var e = document.getElementById('eNext'); if (e) e.textContent = left > 0 ? left + 's' : '...';
-    if (left <= 0) clearInterval(cdTimer);
-  }, 1000);
-}
-
-/* ─── Toggle / Ayar fonksiyonları ─── */
-function toggleEng() {
-  engineOn = !engineOn;
-  document.getElementById('btnEng').textContent = engineOn ? 'DURDUR' : 'BAŞLAT';
-  document.getElementById('bdgEng').textContent = engineOn ? 'ON' : 'OFF';
-  document.getElementById('bdgEng').className = engineOn ? 'hbdg on' : 'hbdg';
-  document.getElementById('engTxt').textContent = engineOn ? '// MOTOR ÇALIŞIYOR' : '// MOTOR KAPALI';
-  document.getElementById('engStats').style.display = engineOn ? 'grid' : 'none';
-  notify(engineOn ? 'Motor başladı' : 'Motor durdu', engineOn ? 'success' : 'info');
-  if (engineOn) startCountdown(); else if (cdTimer) clearInterval(cdTimer);
-}
-function toggleAutoTrade() {
-  autoTrade = !autoTrade;
-  document.getElementById('togAuto').classList.toggle('on', autoTrade);
-  document.getElementById('togAutoD').textContent = autoTrade ? 'Açık: sinyal gelince otomatik girer' : 'Kapalı: sadece sinyal göster';
-  notify(autoTrade ? 'Otomasyon AKTİF' : 'Otomasyon PASİF', autoTrade ? 'success' : 'info');
-}
-function toggleTight() {
-  tightSL = !tightSL;
-  document.getElementById('togTight').classList.toggle('on', tightSL);
-  document.getElementById('togTightD').textContent = tightSL ? 'Aktif: SL = 0.8x ATR (sıkı)' : 'Gevşek: SL = 1.2x ATR';
-}
-function toggleScalp() {
-  aggressiveMode = !aggressiveMode;
-  document.getElementById('togScalp').classList.toggle('on', aggressiveMode);
-  document.getElementById('togScalpD').textContent = aggressiveMode ? 'Aktif: skor eşiği 40 (çok sinyal, riskli)' : 'Kapalı: skor eşiği 60 (güvenli)';
-  notify(aggressiveMode ? 'Agresif mod AKTİF — dikkatli!' : 'Güvenli moda geçildi', aggressiveMode ? 'info' : 'success');
-}
-function readSettings() {
-  var t = document.getElementById('selTarget'); if (t) targetUSD = parseFloat(t.value);
-  var r = document.getElementById('selRisk');   if (r) riskUSD  = parseFloat(r.value);
-  var l = document.getElementById('selLev');    if (l) leverage = parseInt(l.value);
-  var s = document.getElementById('selInt');    if (s) scanSec  = parseInt(s.value);
-  updateBalUI();
-}
-function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); }
-function setTF(btn, tf) {
-  document.querySelectorAll('.tf-btn').forEach(function(b){ b.classList.remove('active'); });
-  btn.classList.add('active'); currentTF = tf; drawChart();
-}
-function manualOpen(side) {
-  var tp = parseFloat(document.getElementById('manTP').value);
-  var sl = parseFloat(document.getElementById('manSL').value);
-  if (isNaN(tp) || isNaN(sl) || tp <= 0 || sl <= 0) { notify('Geçerli TP/SL girin','error'); return; }
-  var an = pData[currentPair] && pData[currentPair].an;
-  if (an && an.signal !== 'WAIT' && an.signal !== side) {
-    if (!confirm('Sinyal ' + an.signal + ' ama ' + side + ' açılacak — devam?')) return;
-  }
-  openPos(currentPair, side, false, tp, sl);
-}
-function renderCoinList() {
-  var c = document.getElementById('coinList'); if (!c) return;
-  var html = '';
-  for (var i = 0; i < pairs.length; i++) {
-    var s = pairs[i];
-    html += '<span onclick="removeCoin(\'' + s + '\')" style="cursor:pointer;font-size:9px;padding:3px 8px;border-radius:2px;background:rgba(0,212,255,0.05);border:1px solid var(--brd2);color:var(--text2);font-family:var(--mono)">' + s.replace('USDT','') + ' ×</span>';
-  }
-  c.innerHTML = html;
-}
-function addCoin() {
-  var inp = document.getElementById('newCoin'); if (!inp) return;
-  var v = inp.value.trim().toUpperCase();
-  if (!v) return;
-  if (v.indexOf('USDT') === -1) v += 'USDT';
-  for (var i = 0; i < pairs.length; i++) if (pairs[i] === v) { notify(v + ' zaten var','info'); return; }
-  pairs.push(v);
-  if (!pxState[v]) pxState[v] = { price: DEMO_BASE[v] || 1, vel: 0 };
-  if (!prevPx[v])  prevPx[v]  = DEMO_BASE[v] || 1;
-  if (!pData[v])   pData[v]   = {};
-  inp.value = ''; renderCoinList(); notify(v + ' eklendi','success');
-}
-function removeCoin(s) {
-  if (pairs.length <= 1) { notify('En az 1 coin olmalı','error'); return; }
-  pairs = pairs.filter(function(p){ return p !== s; });
-  if (currentPair === s) currentPair = pairs[0];
-  renderCoinList(); notify(s + ' kaldırıldı','info');
-}
-function doReset() {
-  if (!confirm('Bakiyeyi $50\'ye sıfırla?')) return;
-  balance = START_BAL; peakBal = START_BAL; dailyPnL = 0;
-  positions = []; trades = []; posId = 1; futBal = null;
-  notify('Sıfırlandı','info'); log('Bakiye sıfırlandı','info');
-  updatePosUI(); updateBalUI();
-}
-function swPage(name) {
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelectorAll('.nb').forEach(function(b){ b.classList.remove('active'); });
-  var pg = document.getElementById('pg-'+name); if (pg) pg.classList.add('active');
-  var nb = document.querySelector('.nb[data-page="'+name+'"]'); if (nb) nb.classList.add('active');
-  if (name === 'signal') setTimeout(drawChart, 60);
-  if (name === 'pos') updatePosUI();
-}
-
-/* ─── Expose globals ─── */
+/* ─── Global bağlantılar ─── */
 window.selPair = selPair;
 window.setTF   = setTF;
 window.manualOpen = manualOpen;
@@ -1845,32 +1835,29 @@ window.startDemo   = startDemo;
 window.doReset     = doReset;
 window.swPage      = swPage;
 
-/* ─── Başlatma ─── */
 window.addEventListener('DOMContentLoaded', function() {
   initChart();
   renderCoinList();
   readSettings();
   startDemo();
   log('APEX Scalp Bot başladı — 5m+15m mantığı, ATR SL/TP', 'ok');
-  log('Filtreler: 15m trend onayı + hacim + RSI aşırı bölge koruması', 'info');
+  log('Canlı mod için Ayarlar sayfasından Worker URL girin ve "CANLIYA BAĞLAN" butonuna tıklayın.', 'info');
 
-  // TF butonları
-  document.querySelectorAll('.tf-btn').forEach(function(btn) {
-    btn.onclick = function() { setTF(btn, btn.getAttribute('data-tf')); };
-  });
-  // Nav
-  document.querySelectorAll('.nb').forEach(function(btn) {
-    btn.onclick = function() { swPage(btn.getAttribute('data-page')); };
-  });
-  // Toggleler
+  var tfBtns = document.querySelectorAll('.tf-btn');
+  for (var i = 0; i < tfBtns.length; i++) {
+    tfBtns[i].onclick = (function(btn) { return function() { setTF(btn, btn.getAttribute('data-tf')); }; })(tfBtns[i]);
+  }
+  var navBtns = document.querySelectorAll('.nb');
+  for (var i = 0; i < navBtns.length; i++) {
+    navBtns[i].onclick = (function(btn) { return function() { swPage(btn.getAttribute('data-page')); }; })(navBtns[i]);
+  }
   document.getElementById('togAuto').onclick  = toggleAutoTrade;
   document.getElementById('togTight').onclick = toggleTight;
   document.getElementById('togScalp').onclick = toggleScalp;
-  // Select değişimleri
-  ['selTarget','selRisk','selLev','selInt'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.onchange = readSettings;
-  });
-  // Manuel butonlar
+  document.getElementById('selTarget').onchange = readSettings;
+  document.getElementById('selRisk').onchange   = readSettings;
+  document.getElementById('selLev').onchange    = readSettings;
+  document.getElementById('selInt').onchange    = function() { scanSec = parseInt(this.value); };
   document.getElementById('btnL').onclick = function() { manualOpen('LONG');  };
   document.getElementById('btnS').onclick = function() { manualOpen('SHORT'); };
   document.getElementById('btnEng').onclick = toggleEng;
