@@ -145,6 +145,8 @@ input:focus,select:focus{border-color:var(--acc)}
 .qbar-label{display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-bottom:4px}
 .qbar{height:5px;background:var(--brd);border-radius:3px;overflow:hidden}
 .qbar-fill{height:100%;border-radius:3px;transition:width .4s}
+.dash-coin-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:10px}
+.dash-coin-row:last-child{border-bottom:none}
 @media(max-width:375px){.btn{min-height:48px;font-size:11px}.pp{min-height:40px}.nb{min-height:48px}html,body{font-size:12px}.sig-badge{font-size:24px;padding:8px 16px;min-width:130px}}
 </style>
 </head>
@@ -296,6 +298,11 @@ input:focus,select:focus{border-color:var(--acc)}
           <div><span style="color:var(--dim)">Sonraki: </span><span id="eNext">--</span></div>
           <div><span style="color:var(--dim)">Sinyal: </span><span id="eSig">--</span></div>
           <div><span style="color:var(--dim)">Acilan: </span><span id="eOpened">0</span></div>
+        </div>
+        <!-- YENİ: Taranan Coinler Tablosu -->
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--brd)">
+          <div style="font-size:9px;color:var(--dim);margin-bottom:4px;letter-spacing:1px">TARANAN COINLER</div>
+          <div id="dashCoins"></div>
         </div>
       </div>
     </div>
@@ -449,7 +456,7 @@ input:focus,select:focus{border-color:var(--acc)}
 <script>
 // ═══════════════════════════════════════════════════════════════
 // AGRESIF SCALP – iOS 12 UYUMLU (ES5, XHR callback)
-// DASHBOARD, CANLI BAĞLANTI, SENKRONİZASYON TAM ÇALIŞIR
+// Dashboard: Taranan coinler, sinyal ve kalite bilgisi eklendi
 // ═══════════════════════════════════════════════════════════════
 var STAGES=[{from:37.44,to:75,label:'Asama 1'},{from:75,to:90,label:'Asama 2'},{from:90,to:100,label:'Asama 3'}];
 var CHALLENGE_START=37.44, COMM=0.0004;
@@ -492,7 +499,7 @@ function arrReduce(arr,fn,init){var acc=init;for(var i=0;i<arr.length;i++)acc=fn
 function mathMax(arr){var m=-Infinity;for(var i=0;i<arr.length;i++)if(arr[i]>m)m=arr[i];return m;}
 function mathMin(arr){var m=Infinity;for(var i=0;i<arr.length;i++)if(arr[i]<m)m=arr[i];return m;}
 
-// ── INDIKATÖRLER (ES5 uyumlu) ──
+// ── INDIKATÖRLER ──
 function ema(arr,p){if(!arr||arr.length<p)return arr?arr.slice():[];var k=2/(p+1),out=[];for(var i=0;i<p-1;i++)out.push(null);var e=0;for(var j=0;j<p;j++)e+=arr[j];e/=p;out.push(e);for(var m=p;m<arr.length;m++){e=arr[m]*k+e*(1-k);out.push(e);}return out;}
 function rsi(closes,p){p=p||14;if(closes.length<p+2)return 50;var g=0,l=0;for(var i=1;i<=p;i++){var d=closes[i]-closes[i-1];d>0?g+=d:l-=d;}var ag=g/p,al=l/p;for(var j=p+1;j<closes.length;j++){var d2=closes[j]-closes[j-1];ag=(ag*(p-1)+(d2>0?d2:0))/p;al=(al*(p-1)+(d2<0?-d2:0))/p;}return al===0?100:100-(100/(1+ag/al));}
 function atr(kl,p){p=p||14;if(!kl||kl.length<p+1)return kl&&kl.length>1?kl[kl.length-1].h-kl[kl.length-1].l:1;var trs=[];for(var i=1;i<kl.length;i++){var pc=kl[i-1].c;trs.push(Math.max(kl[i].h-kl[i].l,Math.abs(kl[i].h-pc),Math.abs(kl[i].l-pc)));}var sum=0;for(var j=trs.length-p;j<trs.length;j++)sum+=trs[j];return sum/p;}
@@ -508,7 +515,7 @@ function isInCooldown(sym){var cd=cooldown[sym];if(cd&&Date.now()<cd.until)retur
 function applyCooldown(sym,reason){cooldown[sym]={until:Date.now()+10*60*1000,reason:reason};addLog('Cooldown: '+sym.replace('USDT','')+' 10dk ('+reason+')','info');updateCooldownUI();}
 function updateCooldownUI(){var count=0;for(var k in cooldown)count++;var badge=document.getElementById('cooldownBdg');if(count>0){badge.style.display='inline-block';badge.textContent=count+' CD';}else{badge.style.display='none';}}
 
-// ── ANALİZ (AGRESIF SCALP) ──
+// ── ANALİZ ──
 function analyze(sym){
   if(isInCooldown(sym))return null;
   var pd=pData[sym];if(!pd)return null;
@@ -543,28 +550,18 @@ function analyze(sym){
   var qty=posValue*currentLeverage/price;
   var tpDist=profitTargetUSD/qty;
   if(dir5==='LONG')tpPrice=price+tpDist;else tpPrice=price-tpDist;
-  return{signal:dir5,score:score,eBull:dir5==='LONG'?1:0,eBear:dir5==='SHORT'?1:0,oBull:0,oBear:0,htfTrend:htf,price:price,sl:slPrice,tp:tpPrice,rrRatio:userRR,slDist:slPercent,fib4h:fib4h,indicators:{rsi:rsi5,macdHist:0,adx:adx15.adx,ema50above:price>l50_4,vr:volRatio(kl15m),bbW:0},mtf:{'1h':dir1h,'4h':htf,'1d':'WAIT'}};
+  return{signal:dir5,score:score,htfTrend:htf,price:price,sl:slPrice,tp:tpPrice,indicators:{rsi:rsi5,adx:adx15.adx,vr:volRatio(kl15m)},mtf:{'1h':dir1h,'4h':htf}};
 }
 function analyzeAll(){for(var i=0;i<customPairs.length;i++){var sym=customPairs[i];if(!pData[sym])continue;if(isInCooldown(sym)){pData[sym].analysis=null;continue;}try{pData[sym].analysis=analyze(sym);}catch(e){}}}
 
 // ── CHALLENGE UI ──
 function updateChallenge(){
   var bal=appMode==='live'&&futBal!==null?futBal:balance;
-  var si=currentStage();var stage=STAGES[si];
-  var stagePct=Math.max(0,Math.min(100,(bal-stage.from)/(stage.to-stage.from)*100));
-  var totalPct=Math.max(0,Math.min(100,(bal-CHALLENGE_START)/(100-CHALLENGE_START)*100));
   document.getElementById('chBal').textContent='$'+bal.toFixed(2);
-  document.getElementById('chTarget').textContent='Hedef: $100.00 Kalan: $'+(100-bal).toFixed(2);
-  var pct=(bal-CHALLENGE_START)/CHALLENGE_START*100;
-  var pctEl=document.getElementById('chPct');pctEl.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';pctEl.style.color=pct>=0?'var(--long)':'var(--short)';
-  document.getElementById('chStageInfo').textContent=challengeRulesActive?'Challenge':'Pro Mod';
-  document.getElementById('stageBdg').textContent=challengeRulesActive?'ASAMA '+(si+1):'PRO';
-  for(var i=0;i<3;i++){var cs=document.getElementById('cs'+(i+1)),cf=document.getElementById('cf'+(i+1));if(!cs||!cf)continue;if(i<si){cs.className='ch-stage done';cf.style.width='100%';}else if(i===si){cs.className='ch-stage active';cf.style.width=stagePct+'%';}else{cs.className='ch-stage pending';cf.style.width='0%';}}
-  var bb=document.getElementById('bigBal');if(bb)bb.textContent='$'+bal.toFixed(2);
   document.getElementById('dispBal').textContent='$'+bal.toFixed(2);
   var dd=document.getElementById('dispDay');if(dd){dd.textContent=(dailyPnL>=0?'+':'')+dailyPnL.toFixed(2);dd.style.color=dailyPnL>=0?'var(--long)':'var(--short)';}
   document.getElementById('dispTotal').textContent=(bal-CHALLENGE_START>=0?'+':'')+(bal-CHALLENGE_START).toFixed(2);
-  if(bal>=100)notify('$100 HEDEFINE ULASILDI!','success');
+  var bb=document.getElementById('bigBal');if(bb)bb.textContent='$'+bal.toFixed(2);
 }
 function currentStage(){for(var i=0;i<STAGES.length;i++)if(balance<STAGES[i].to)return i;return STAGES.length-1;}
 
@@ -576,22 +573,8 @@ function updateSignalUI(){
   var qv=document.getElementById('qScoreVal'),qb=document.getElementById('qScoreBar');
   if(qv)qv.textContent=an?an.score+'%':'--';
   if(qb){var sc=an?an.score:0;qb.style.width=sc+'%';qb.style.background=sc>=80?'var(--long)':sc>=60?'var(--warn)':'var(--short)';}
-  if(an&&an.indicators){
-    var ind=an.indicators;
-    function set(id,v,c){var el=document.getElementById(id);if(el){el.textContent=v;el.className='ind-v '+c;}}
-    set('iRsi',ind.rsi.toFixed(1),ind.rsi<35?'bull':ind.rsi>65?'bear':'neut');
-    set('iMacd','--','neut');set('iAdx',ind.adx.toFixed(1),ind.adx>25?'bull':'neut');
-    set('iEma',ind.ema50above?'Ustunde':'Altinda',ind.ema50above?'bull':'bear');
-    set('iVol',ind.vr.toFixed(2)+'x',ind.vr>1.3?'bull':ind.vr<0.8?'bear':'neut');
-    set('iBb','--','neut');
-  }
-  if(an&&an.mtf){
-    function smtf(id,v){var el=document.getElementById(id);if(el){el.textContent=v||'--';el.className='mtf-v '+(v||'WAIT');}}
-    smtf('m1h',an.mtf['1h']);smtf('m4h',an.mtf['4h']);smtf('m1d',an.mtf['1d']);smtf('mAlgn',an.htfTrend);
-  }
-  renderPlan(an,price);
-  var ok=positions.length<getMaxPos()&&(!challengeRulesActive||(dailyTradeCount<getMaxDailyTrades()&&dailyLossAmt<getMaxDailyLoss()));
-  document.getElementById('btnL').disabled=!ok;document.getElementById('btnS').disabled=!ok;
+  if(an&&an.indicators){var ind=an.indicators;function set(id,v,c){var el=document.getElementById(id);if(el){el.textContent=v;el.className='ind-v '+c;}}set('iRsi',ind.rsi.toFixed(1),ind.rsi<35?'bull':ind.rsi>65?'bear':'neut');set('iAdx',ind.adx.toFixed(1),ind.adx>25?'bull':'neut');set('iVol',ind.vr.toFixed(2)+'x',ind.vr>1.3?'bull':ind.vr<0.8?'bear':'neut');}
+  if(an&&an.mtf){function smtf(id,v){var el=document.getElementById(id);if(el){el.textContent=v||'--';el.className='mtf-v '+(v||'WAIT');}}smtf('m1h',an.mtf['1h']);smtf('m4h',an.mtf['4h']);}
   drawChart();
 }
 function renderPlan(an,price){var el=document.getElementById('planWrap');if(!an||!an.sl){el.innerHTML='';return;}var s=an.signal,cls=s.toLowerCase();var slPct=Math.abs(price-an.sl)/price*100,tpPct=Math.abs(an.tp-price)/price*100;el.innerHTML='<div class="plan card" style="padding:0;margin-bottom:8px"><div class="plan-h '+cls+'">'+s+' PLANI — '+currentPair.replace('USDT','')+'  Kalite: '+an.score+'%</div><div class="plan-body"><div class="plan-row"><span class="pk">Giris</span><span class="pv">$'+fp(price)+'</span></div><div class="plan-row"><span class="pk">TP (+'+tpPct.toFixed(2)+'%)</span><span class="pv tp">$'+fp(an.tp)+'</span></div><div class="plan-row"><span class="pk">SL (-'+slPct.toFixed(2)+'%)</span><span class="pv sl">$'+fp(an.sl)+'</span></div><div class="plan-row"><span class="pk">R:R</span><span class="pv rr">'+userRR.toFixed(1)+':1</span></div></div></div>';}
@@ -606,18 +589,14 @@ var chartCtx=null;
 function initChart(){var el=document.getElementById('chart');if(el)chartCtx=el.getContext('2d');}
 function drawChart(){
   if(!chartCtx||currentPage!=='signal')return;
-  var pd=pData[currentPair];if(!pd)return;
-  var kl=pd.kl4h||[];if(kl.length<10)return;
-  var c=chartCtx.canvas;c.width=c.offsetWidth;c.height=155;
+  var pd=pData[currentPair];if(!pd||!pd.kl4h||pd.kl4h.length<10)return;
+  var kl=pd.kl4h.slice(-60),c=chartCtx.canvas;c.width=c.offsetWidth;c.height=155;
   var W=c.width,H=155,ctx=chartCtx;ctx.clearRect(0,0,W,H);
-  var n=Math.min(60,kl.length),k=kl.slice(-n),cl=k.map(function(x){return x.c;});
-  var an=pd.analysis,mn=mathMin(k.map(function(x){return x.l;}))*0.999,mx=mathMax(k.map(function(x){return x.h;}))*1.001;
-  if(an&&an.sl){mn=Math.min(mn,an.sl*0.998);mx=Math.max(mx,(an.tp||mx)*1.002);}
-  var rng=mx-mn;if(rng<=0)return;var toY=function(v){return H-6-((v-mn)/rng)*(H-12);},cw=W/n;
+  var cl=kl.map(function(x){return x.c;});
+  var mn=mathMin(kl.map(function(x){return x.l;}))*0.999,mx=mathMax(kl.map(function(x){return x.h;}))*1.001;
+  var rng=mx-mn;if(rng<=0)return;var toY=function(v){return H-6-((v-mn)/rng)*(H-12);},cw=W/kl.length;
   ctx.beginPath();ctx.moveTo(0.5*cw,toY(cl[0]));for(var i=1;i<cl.length;i++)ctx.lineTo((i+0.5)*cw,toY(cl[i]));
   ctx.strokeStyle=cl[0]<=cl[cl.length-1]?'#00e676':'#ff3d5c';ctx.lineWidth=1.5;ctx.stroke();
-  if(an&&an.sl){ctx.setLineDash([4,4]);ctx.strokeStyle='#ff3d5c';ctx.beginPath();ctx.moveTo(0,toY(an.sl));ctx.lineTo(W,toY(an.sl));ctx.stroke();ctx.setLineDash([]);}
-  if(an&&an.tp){ctx.setLineDash([4,4]);ctx.strokeStyle='#4ade80';ctx.beginPath();ctx.moveTo(0,toY(an.tp));ctx.lineTo(W,toY(an.tp));ctx.stroke();ctx.setLineDash([]);}
 }
 function setTF(btn,tf){var cts=document.querySelectorAll('.ct');for(var i=0;i<cts.length;i++)cts[i].classList.remove('active');btn.classList.add('active');currentTF=tf;drawChart();}
 
@@ -658,41 +637,45 @@ function closePos(id,reason){
 }
 function checkPositions(){for(var i=positions.length-1;i>=0;i--){var p=positions[i],pr=(pData[p.pair]&&pData[p.pair].price)||p.entry,pnl=calcUnrealPnl(p);if(profitTargetUSD>0&&pnl>=profitTargetUSD){closePos(p.id,'SCALP HEDEF');continue;}if(p.tp&&((p.side==='LONG'&&pr>=p.tp)||(p.side==='SHORT'&&pr<=p.tp))){closePos(p.id,'TAKE PROFIT');continue;}if((p.side==='LONG'&&pr<=p.sl)||(p.side==='SHORT'&&pr>=p.sl)){closePos(p.id,'STOP LOSS');continue;}}}
 
+// ── DASHBOARD COIN TABLOSU GÜNCELLEME ──
+function updateDashboardCoins(){
+  var el=document.getElementById('dashCoins');if(!el)return;
+  var html='';
+  for(var i=0;i<customPairs.length;i++){
+    var sym=customPairs[i];
+    var an=pData[sym]&&pData[sym].analysis;
+    var price=(pData[sym]&&pData[sym].price)||DEMO_BASE[sym]||0;
+    var sig=an?an.signal:'WAIT';
+    var score=an?an.score:0;
+    var cd=isInCooldown(sym)?' (CD)':'';
+    var sigColor=sig==='LONG'?'var(--long)':sig==='SHORT'?'var(--short)':'var(--dim)';
+    html+='<div class="dash-coin-row">'+
+      '<span style="width:55px;color:var(--text)">'+sym.replace('USDT','')+cd+'</span>'+
+      '<span style="width:65px;color:var(--dim);text-align:right">$'+fp(price)+'</span>'+
+      '<span style="width:45px;color:'+sigColor+';text-align:center;font-weight:700">'+sig+'</span>'+
+      '<span style="width:35px;color:var(--warn);text-align:right">'+(an?score+'%':'--')+'</span>'+
+      '</div>';
+  }
+  el.innerHTML=html;
+}
+
 // ── ENGINE ──
 function runEngine(){
   if(!engineOn)return;
   var sigs=[];for(var i=0;i<customPairs.length;i++){var sym=customPairs[i];if(isInCooldown(sym))continue;var an=pData[sym]&&pData[sym].analysis;if(!an||an.signal==='WAIT'||an.score<minConfidence)continue;sigs.push({sym:sym,an:an,score:an.score});}
-  if(!sigs.length){document.getElementById('eSig').textContent='Sinyal yok';return;}
+  if(!sigs.length){document.getElementById('eSig').textContent='Sinyal yok';updateDashboardCoins();return;}
   sigs.sort(function(a,b){return b.score-a.score;});
   var sel=sigs[0];
   document.getElementById('eLast').textContent=new Date().toLocaleTimeString();
   document.getElementById('eSig').textContent=sel.sym.replace('USDT','')+':'+sel.an.signal+'('+sel.score+'%)';
   document.getElementById('eOpened').textContent=positions.length;
   if(autoTrade&&positions.length<getMaxPos()&&!arrIncludes(positions.map(function(p){return p.pair;}),sel.sym))openPos(sel.sym,sel.an.signal,true);
+  updateDashboardCoins();
 }
 
 // ── KONTROLLER ──
-function startCD(){
-  if(cdTimer)clearInterval(cdTimer);
-  var left=scanSec;
-  var el=document.getElementById('eNext');
-  cdTimer=setInterval(function(){
-    left--;
-    if(el)el.textContent=left>0?left+'s':'Taraniyor...';
-    if(left<=0)clearInterval(cdTimer);
-  },1000);
-}
-function toggleEng(){
-  engineOn=!engineOn;
-  document.getElementById('btnEng').textContent=engineOn?'Durdur':'Baslat';
-  document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';
-  document.getElementById('engBdg').className=engineOn?'bdg gold':'bdg';
-  document.getElementById('engTxt').textContent=engineOn?'MOTOR CALISIYOR':'MOTOR KAPALI';
-  document.getElementById('engStats').style.display=engineOn?'block':'none';
-  notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info');
-  if(engineOn){startCD();mainLoop();}
-  else{if(loopTimer)clearTimeout(loopTimer);if(cdTimer)clearInterval(cdTimer);}
-}
+function startCD(){if(cdTimer)clearInterval(cdTimer);var left=scanSec;var el=document.getElementById('eNext');cdTimer=setInterval(function(){left--;if(el)el.textContent=left>0?left+'s':'Taraniyor...';if(left<=0)clearInterval(cdTimer);},1000);}
+function toggleEng(){engineOn=!engineOn;document.getElementById('btnEng').textContent=engineOn?'Durdur':'Baslat';document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';document.getElementById('engBdg').className=engineOn?'bdg gold':'bdg';document.getElementById('engTxt').textContent=engineOn?'MOTOR CALISIYOR':'MOTOR KAPALI';document.getElementById('engStats').style.display=engineOn?'block':'none';notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info');if(engineOn){startCD();mainLoop();}else{if(loopTimer)clearTimeout(loopTimer);if(cdTimer)clearInterval(cdTimer);}}
 function doTogAuto(){togAutoClose=!togAutoClose;document.getElementById('togAuto').classList.toggle('on',togAutoClose);}
 function toggleAutoTrade(){autoTrade=!autoTrade;document.getElementById('togAutoTrade').classList.toggle('on',autoTrade);notify(autoTrade?'Otomasyon AKTIF':'Otomasyon PASIF');}
 function toggleChallengeRules(){challengeRulesActive=!challengeRulesActive;document.getElementById('togChallengeRules').classList.toggle('on',challengeRulesActive);}
@@ -759,7 +742,7 @@ function mainLoop(){
   try{
     if(appMode==='demo')refreshDemo();else fetchLive(function(){analyzeAll();});
     checkPositions();runEngine();
-    updateSignalUI();updatePairRow();updateTicker();updatePosUI();updateCooldownUI();
+    updateSignalUI();updatePairRow();updateTicker();updatePosUI();updateCooldownUI();updateDashboardCoins();
     if(engineOn)startCD();
   }catch(e){}
   loopTimer=setTimeout(mainLoop,scanSec*1000);
@@ -769,7 +752,7 @@ function startDemo(){WORKER='';appMode='demo';futBal=null;document.getElementByI
 // ── BAŞLANGIÇ ──
 window.addEventListener('DOMContentLoaded',function(){
   sw('signal');initChart();startDemo();renderPairManager();renderPopularCoins();bindSettings();readSettings();setScalpPreset(0.12);
-  addLog('APEX V3.7 AGRESIF SCALP (dashboard aktif)','info');
+  addLog('APEX V3.7 AGRESIF SCALP (Dashboard coinli)','info');
 });
 </script>
 </body>
