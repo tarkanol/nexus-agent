@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<title>APEX Pro V4.0 – Price Action Core</title>
+<title>APEX Pro V4.1 – Price Action Core</title>
 <style>
 :root{
   --bg:#020810;--panel:#07111f;--brd:#0e1e35;
@@ -39,6 +39,8 @@ header{background:var(--panel);border-bottom:1px solid var(--brd);padding:calc(e
 .card{background:var(--panel);border:1px solid var(--brd);border-radius:6px;padding:10px;margin-bottom:8px}
 .challenge-bar{background:var(--panel);border-bottom:1px solid var(--brd);padding:8px 12px;flex-shrink:0}
 .ch-bal{font-size:18px;font-weight:700;color:var(--gold)}
+.ch-target{font-size:11px;color:var(--dim)}
+.ch-pct{font-size:11px;font-weight:700}
 .sig-wrap{text-align:center;padding:14px 0 10px}
 .sig-badge{font-size:30px;font-weight:700;letter-spacing:4px;padding:10px 28px;border-radius:8px;display:inline-block;min-width:155px}
 .sig-badge.LONG{background:rgba(0,230,118,.1);color:var(--long);border:2px solid rgba(0,230,118,.3)}
@@ -50,8 +52,14 @@ canvas{display:block;width:100%;border-radius:4px}
 label{font-size:9px;color:var(--dim);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
 input,select{background:var(--deep);border:1px solid var(--brd);color:var(--text);padding:8px 10px;border-radius:5px;width:100%;font-family:inherit;font-size:12px;outline:none;min-height:38px}
 .btn{border:none;border-radius:5px;padding:11px 14px;font-weight:700;cursor:pointer;font-size:12px;font-family:inherit;min-height:44px;transition:filter .12s}
+.btn:active{filter:brightness(.85)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-acc{background:var(--acc);color:#000}
 .btn-gold{background:var(--gold);color:#000}
 .btn-outline{background:transparent;border:1px solid var(--brd);color:var(--text)}
+.brow{display:flex;margin-bottom:6px}
+.brow .btn{margin-right:6px}
+.brow .btn:last-child{margin-right:0}
 .tog-row{display:flex;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--brd)}
 .tog{width:38px;height:22px;background:var(--deep);border-radius:11px;cursor:pointer;position:relative;border:1px solid var(--brd);flex-shrink:0;transition:background .2s;margin-top:1px;min-width:38px;margin-right:10px}
 .tog.on{background:var(--acc);border-color:var(--acc)}
@@ -63,21 +71,19 @@ input,select{background:var(--deep);border:1px solid var(--brd);color:var(--text
 .notif{padding:10px 14px;border-radius:6px;font-size:11px;font-weight:700;animation:nin .2s ease;pointer-events:auto;margin-bottom:6px}
 .notif.success{background:#0a2f1a;border:1px solid var(--long);color:var(--long)}
 .notif.error{background:#2a0a10;border:1px solid var(--short);color:var(--short)}
+.notif.info{background:#1a1200;border:1px solid var(--warn);color:var(--warn)}
 @keyframes nin{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
 .pos-c{background:var(--deep);border-radius:6px;padding:10px;margin-bottom:8px;border-left:3px solid transparent}
 .pos-c.long{border-color:var(--long)}.pos-c.short{border-color:var(--short)}
 .pos-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .pos-pnl{font-size:17px;font-weight:700}
 .pos-pnl.up{color:var(--long)}.pos-pnl.dn{color:var(--short)}
-.brow{display:flex;margin-bottom:6px}
-.brow .btn{margin-right:6px}
-.brow .btn:last-child{margin-right:0}
 </style>
 </head>
 <body>
 <div id="notif"></div>
 <header>
-  <div class="logo">APEX <span>V4.0</span></div>
+  <div class="logo">APEX <span>V4.1</span></div>
   <div class="badges">
     <span class="bdg" id="connBdg">DEMO</span>
     <span class="bdg scalp" id="scalpModeBdg">SCALP $0.12</span>
@@ -122,18 +128,55 @@ input,select{background:var(--deep);border:1px solid var(--brd);color:var(--text
     </div>
 </div></div>
 
+<!-- AYARLAR SAYFASI (GERİ EKLENDİ) -->
+<div class="page" id="pg-settings"><div class="scroll">
+    <div class="card">
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">BAĞLANTI</div>
+      <div class="fr"><label>Worker URL</label><input id="wUrl" placeholder="https://...workers.dev" type="url"></div>
+      <div class="brow">
+        <button class="btn btn-acc" onclick="connect()">Canlı Bağlan</button>
+        <button class="btn btn-outline" onclick="startDemo()">Demo</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">🔥 POPÜLER COİNLER</div>
+      <div id="popularCoins" style="display:flex;flex-wrap:wrap;margin-bottom:10px"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">TARANACAK ÇİFTLER</div>
+      <div id="pairManager" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
+      <div style="display:flex">
+        <input id="newPairInput" placeholder="örn: DOGEUSDT" style="flex:1;min-height:38px;font-size:11px;margin-right:5px" onkeydown="if(event.key==='Enter')addPair()">
+        <button class="btn btn-outline" style="padding:5px 12px;min-height:38px;font-size:11px" onclick="addPair()">+ Ekle</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:9px;color:var(--dim);letter-spacing:1px;margin-bottom:8px">CHALLENGE SIFIRLA</div>
+      <button class="btn btn-outline" onclick="resetChallenge()" style="width:100%;color:var(--short);border-color:rgba(255,61,92,.3)">🔄 Sıfırla ($37.44)</button>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:9px;color:var(--dim)">LOG</span>
+        <button class="btn btn-outline" style="padding:3px 9px;min-height:32px;font-size:9px" onclick="document.getElementById('logEl').innerHTML=''">Temizle</button>
+      </div>
+      <div class="logbox" id="logEl"></div>
+    </div>
+</div></div>
+
 <nav class="nav">
   <button class="nb active" id="nb-signal" onclick="sw('signal')"><span class="ni">📡</span>Sinyal</button>
   <button class="nb" id="nb-pos" onclick="sw('pos')"><span class="ni">📂</span>Pozisyon</button>
   <button class="nb" id="nb-engine" onclick="sw('engine')"><span class="ni">⚙️</span>Motor</button>
+  <button class="nb" id="nb-settings" onclick="sw('settings')"><span class="ni">🔧</span>Ayarlar</button>
 </nav>
 
 <script>
 // ═══════════════════════════════════
 // KONFİGÜRASYON
 const CHALLENGE_START=37.44, COMM=0.0004;
+const POPULAR_COINS=['BTC','ETH','BNB','SOL','XRP','DOGE','ADA','AVAX','MATIC','DOT','LINK','LTC'];
 let customPairs=['BTCUSDT','ETHUSDT','SOLUSDT'];
-const DEMO_BASE={BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83};
+const DEMO_BASE={BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,MATICUSDT:0.7,DOTUSDT:6.5,LINKUSDT:14,LTCUSDT:70};
 let WORKER='',appMode='demo';
 let balance=CHALLENGE_START, peakBal=CHALLENGE_START;
 let dailyPnL=0, dailyTradeCount=0, totalComm=0, futBal=null;
@@ -142,27 +185,55 @@ let currentPair='BTCUSDT', currentTF='5m';
 let scanSec=120, engineOn=false;
 let autoTrade=false;
 let currentLeverage=2, slPercent=0.4, riskAmountUSD=1.5, profitTargetUSD=0.12;
-let loopTimer=null, cdTimer2=null, quickUpdateInterval=null;
+let loopTimer=null, cdTimer2=null, quickUpdateInterval=null, syncInterval=null;
 const pState={}, prevP={}, pData={};
 
-function initDataForPairs(){customPairs.forEach(s=>{let bp=DEMO_BASE[s]||1;pState[s]={price:bp,vel:0};prevP[s]=bp;if(!pData[s])pData[s]={};});}
+function initDataForPairs(){customPairs.forEach(function(s){var bp=DEMO_BASE[s]||1;pState[s]={price:bp,vel:0};prevP[s]=bp;if(!pData[s])pData[s]={};});}
 initDataForPairs();
 
 // ═══════════════════════════════════
 // UTILS
 var currentPage='signal';
-function sw(p){currentPage=p;document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));var tp=document.getElementById('pg-'+p);if(tp)tp.classList.add('active');var tb=document.getElementById('nb-'+p);if(tb)tb.classList.add('active');if(p==='signal')setTimeout(drawChart,50);}
-function notify(msg,type){var s=document.getElementById('notif');var d=document.createElement('div');d.className='notif '+(type||'info');d.textContent=msg;s.appendChild(d);setTimeout(()=>d.remove(),3000);}
+function sw(p){
+  currentPage=p;
+  document.querySelectorAll('.page').forEach(function(pg){pg.classList.remove('active');});
+  document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});
+  var tp=document.getElementById('pg-'+p);if(tp)tp.classList.add('active');
+  var tb=document.getElementById('nb-'+p);if(tb)tb.classList.add('active');
+  if(p==='signal')setTimeout(drawChart,50);
+}
+function notify(msg,type){
+  var s=document.getElementById('notif');
+  var d=document.createElement('div');
+  d.className='notif '+(type||'info');
+  d.textContent=msg;
+  s.appendChild(d);
+  setTimeout(function(){d.remove();},3000);
+}
+function addLog(msg,t){
+  var b=document.getElementById('logEl');
+  var ts=new Date().toLocaleTimeString('tr-TR');
+  var col=t==='ok'?'#00e676':t==='err'?'#ff3d5c':t==='info'?'#00ffe0':'#3a6a5a';
+  b.innerHTML+='<div style="color:'+col+'"><span style="color:#2a4a3a">'+ts+'</span> '+msg+'</div>';
+  b.scrollTop=b.scrollHeight;
+}
 function fp(p){if(!p||isNaN(p))return'--';return p>=1000?p.toFixed(2):p.toFixed(4);}
-function updateChallenge(){var bal=appMode==='live'&&futBal!==null?futBal:balance;document.getElementById('chBal').textContent='$'+bal.toFixed(2);document.getElementById('dispBal').textContent='$'+bal.toFixed(2);document.getElementById('dispDay').textContent='Günlük: '+(dailyPnL>=0?'+':'')+dailyPnL.toFixed(2);var pct=(bal-CHALLENGE_START)/CHALLENGE_START*100;document.getElementById('chPct').textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';}
+function updateChallenge(){
+  var bal=appMode==='live'&&futBal!==null?futBal:balance;
+  document.getElementById('chBal').textContent='$'+bal.toFixed(2);
+  document.getElementById('dispBal').textContent='$'+bal.toFixed(2);
+  document.getElementById('dispDay').textContent='Günlük: '+(dailyPnL>=0?'+':'')+dailyPnL.toFixed(2);
+  var pct=(bal-CHALLENGE_START)/CHALLENGE_START*100;
+  document.getElementById('chPct').textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';
+}
 
 // ═══════════════════════════════════
 // YENİ NESİL SİNYAL MOTORU (PRICE ACTION)
 function findSwings(kl, len){
-  len=len||5; let highs=[], lows=[];
-  for(let i=len; i<kl.length-len; i++){
-    let isHigh=true, isLow=true;
-    for(let j=i-len; j<=i+len; j++){
+  len=len||5; var highs=[], lows=[];
+  for(var i=len; i<kl.length-len; i++){
+    var isHigh=true, isLow=true;
+    for(var j=i-len; j<=i+len; j++){
       if(j===i) continue;
       if(kl[j].h >= kl[i].h) isHigh=false;
       if(kl[j].l <= kl[i].l) isLow=false;
@@ -178,11 +249,11 @@ function analyzePriceAction(sym){
   var kl=pd.kl5m || []; if(kl.length < 40) return null;
   var price = pd.price || kl[kl.length-1].c;
 
-  // 1. Hacim Patlaması (Alıcı/Satıcı gücü)
-  var vols = kl.slice(-10).map(k=>k.v);
-  var avgVol = vols.slice(0,-1).reduce((a,b)=>a+b,0)/9;
+  // 1. Hacim Patlaması
+  var vols = kl.slice(-10).map(function(k){return k.v;});
+  var avgVol = vols.slice(0,-1).reduce(function(a,b){return a+b;},0)/9;
   var lastVol = vols[vols.length-1];
-  if(lastVol < avgVol * 1.5) return null; // Hacim yoksa işlem yok
+  if(lastVol < avgVol * 1.5) return null;
 
   // 2. Kırılma Tespiti
   var swings = findSwings(kl, 5);
@@ -194,22 +265,21 @@ function analyzePriceAction(sym){
   else if(price < lastLow) signal = 'SHORT';
   if(signal === 'WAIT') return null;
 
-  // 3. Momentum Onayı (Peş peşe 2 yeşil/kırmızı mum)
+  // 3. Momentum Onayı
   var lastC = kl[kl.length-1].c, prevC = kl[kl.length-2].c, prev2C = kl[kl.length-3].c;
   if(signal === 'LONG' && !(lastC > prevC && prevC > prev2C)) return null;
   if(signal === 'SHORT' && !(lastC < prevC && prevC < prev2C)) return null;
 
-  // TP/SL Hesaplama (Dinamik)
+  // TP/SL Hesaplama
   var posValue=Math.min(riskAmountUSD/(slPercent/100),balance*0.25);
   var qty=(posValue*currentLeverage)/price;
   var tpMove=profitTargetUSD/qty;
   var sl = signal==='LONG' ? price*(1-slPercent/100) : price*(1+slPercent/100);
   var tp = signal==='LONG' ? price+tpMove : price-tpMove;
 
-  return { signal, conf: 85, price, sl, tp };
+  return { signal:signal, conf:85, price:price, sl:sl, tp:tp };
 }
-
-function analyzeAll(){ customPairs.forEach(sym => { if(pData[sym]) pData[sym].analysis = analyzePriceAction(sym); }); }
+function analyzeAll(){customPairs.forEach(function(sym){if(pData[sym])pData[sym].analysis=analyzePriceAction(sym);});}
 
 // ═══════════════════════════════════
 // POZİSYON YÖNETİMİ
@@ -218,38 +288,47 @@ function updatePosUI(){
   updateChallenge();
   var html='';
   if(!positions.length)html='<div style="text-align:center;padding:24px;color:var(--dim)">Açık pozisyon yok</div>';
-  else positions.forEach(p=>{
+  else positions.forEach(function(p){
     var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry, pnl=calcUnrealPnl(p);
     html+='<div class="pos-c '+(p.side.toLowerCase())+'"><div class="pos-h"><span>'+p.pair.replace('USDT','')+' '+p.side+'</span><span class="pos-pnl '+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+'</span></div><button class="btn btn-outline" onclick="closePos('+p.id+')" style="font-size:10px;padding:5px 10px;min-height:32px;">✕ Kapat</button></div>';
   });
   document.getElementById('posList').innerHTML=html;
   document.getElementById('posBdg').textContent=positions.length+'/3';
-  var histHtml=trades.slice(-5).reverse().map(t=>'<div style="font-size:10px;margin-bottom:2px;">'+t.pair.replace('USDT','')+' '+t.side+' <span style="color:'+(t.pnl>=0?'var(--long)':'var(--short)')+'">'+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(4)+'</span></div>').join('');
+  var histHtml=trades.slice(-5).reverse().map(function(t){return'<div style="font-size:10px;margin-bottom:2px;">'+t.pair.replace('USDT','')+' '+t.side+' <span style="color:'+(t.pnl>=0?'var(--long)':'var(--short)')+'">'+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(4)+'</span></div>';}).join('');
   document.getElementById('histBox').innerHTML=histHtml||'--';
 }
 async function openPos(sym,side){
-  var an=pData[sym]?pData[sym].analysis:null;
+  var pd=pData[sym]; var an=pd?pd.analysis:null;
   if(!an||!an.sl) return;
   if(positions.length>=3) return;
   var price=an.price, slPct=Math.abs(an.sl-price)/price*100;
   var posValue=Math.min(riskAmountUSD/(slPct/100),balance*0.25);
   var qty=(posValue*currentLeverage)/price, comm=posValue*COMM*2;
-  positions.push({id:posId++,pair:sym,side,entry:price,qty,lev:currentLeverage,posValue,sl:an.sl,tp:an.tp,comm,openTime:Date.now()});
+  positions.push({id:posId++,pair:sym,side:side,entry:price,qty:qty,lev:currentLeverage,posValue:posValue,sl:an.sl,tp:an.tp,comm:comm,openTime:Date.now()});
   dailyPnL-=comm; balance-=comm; totalComm+=comm; dailyTradeCount++;
   if(balance>peakBal) peakBal=balance;
   notify('✅ '+side+' '+sym.replace('USDT','')+' @$'+fp(price),'success');
+  addLog('✅ '+side+' '+sym.replace('USDT','')+' @'+fp(price)+' SL:'+fp(an.sl)+' TP:'+fp(an.tp),'ok');
+  if(appMode==='live'&&WORKER){
+    try{var r=await fetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,side:side,usdAmount:posValue,leverage:currentLeverage,sl:parseFloat(an.sl.toFixed(4)),tp:parseFloat(an.tp.toFixed(4))})}).then(function(x){return x.json();});}catch(e){}
+  }
   updatePosUI();
 }
 async function closePos(id){
-  var pos=positions.find(p=>p.id===id); if(!pos) return;
+  var pos=positions.find(function(p){return p.id===id;}); if(!pos) return;
   var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
   var mult=pos.side==='LONG'?1:-1;
   var gross=(pr-pos.entry)*mult*pos.qty, net=gross-pos.comm;
   dailyPnL+=net; balance+=net+pos.posValue; totalComm+=pos.comm;
   if(balance>peakBal) peakBal=balance;
   trades.push({pair:pos.pair,side:pos.side,pnl:net});
-  positions=positions.filter(p=>p.id!==id);
+  positions=positions.filter(function(p){return p.id!==id;});
   notify((net>=0?'🟢':'🔴')+' '+pos.pair.replace('USDT','')+' Kapatıldı $'+net.toFixed(4), net>=0?'success':'error');
+  addLog((net>=0?'🟢':'🔴')+' '+pos.pair.replace('USDT','')+' PnL:$'+net.toFixed(4)+' Bal:$'+balance.toFixed(2), net>=0?'ok':'err');
+  if(appMode==='live'&&WORKER){
+    try{var res=await fetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side})});}catch(e){}
+    await syncBal();
+  }
   updatePosUI();
 }
 async function checkPositions(){
@@ -265,9 +344,9 @@ async function checkPositions(){
 async function runEngine(){
   if(!engineOn) return;
   var signals=[];
-  customPairs.forEach(sym => {
+  customPairs.forEach(function(sym){
     var an=pData[sym]?pData[sym].analysis:null;
-    if(an && an.signal!=='WAIT') signals.push({sym, an});
+    if(an && an.signal!=='WAIT') signals.push({sym:sym, an:an});
   });
   if(!signals.length) { document.getElementById('sigInfo').textContent='Sinyal bekleniyor...'; return; }
   var sel = signals[0];
@@ -284,22 +363,22 @@ function toggleEng(){
   document.getElementById('engBdg').textContent=engineOn?'ON':'OFF';
   document.getElementById('engTxt').textContent=engineOn?'MOTOR ÇALIŞIYOR':'MOTOR KAPALI';
   notify(engineOn?'🚀 Motor açıldı':'⏸ Motor durdu');
-  if(engineOn) { startCD(); mainLoop(); }
-  else { if(loopTimer)clearTimeout(loopTimer); if(cdTimer2)clearInterval(cdTimer2); }
+  if(engineOn){ startCD(); mainLoop(); }
+  else{ if(loopTimer)clearTimeout(loopTimer); if(cdTimer2)clearInterval(cdTimer2); }
 }
-function startCD(){if(cdTimer2)clearInterval(cdTimer2);var left=scanSec;cdTimer2=setInterval(()=>{left--;if(left<=0)clearInterval(cdTimer2);},1000);}
+function startCD(){if(cdTimer2)clearInterval(cdTimer2);var left=scanSec;cdTimer2=setInterval(function(){left--;if(left<=0)clearInterval(cdTimer2);},1000);}
 function toggleAutoTrade(){autoTrade=!autoTrade;document.getElementById('togAutoTrade').classList.toggle('on',autoTrade);}
 
 // ═══════════════════════════════════
 // DATA
 function demoTick(sym){var s=pState[sym],base=DEMO_BASE[sym]||1,drift=(base-s.price)*0.0008;s.vel=s.vel*0.88+(Math.random()-0.5)*s.price*0.0003+drift;s.price=Math.max(s.price*0.85,s.price+s.vel);return s.price;}
-function makeKlines(sym,n,tf){var tfMs={'5m':300000}[tf]||300000,p=pState[sym]?pState[sym].price:(DEMO_BASE[sym]||1),kl=[];for(var i=n-1;i>=0;i--){var o=p,c=o*(1+(Math.random()-0.5)*0.008);var rng=Math.abs(o-c)*1.2;kl.unshift({t:Date.now()-(n-i)*tfMs,o,h:Math.max(o,c)+rng*0.35,l:Math.min(o,c)-rng*0.35,c,v:Math.random()*8000+1000});p=c;}if(kl.length)kl[kl.length-1].c=pState[sym]?pState[sym].price:(DEMO_BASE[sym]||1);return kl;}
+function makeKlines(sym,n,tf){var tfMs={'5m':300000}[tf]||300000,p=pState[sym]?pState[sym].price:(DEMO_BASE[sym]||1),kl=[];for(var i=n-1;i>=0;i--){var o=p,c=o*(1+(Math.random()-0.5)*0.008);var rng=Math.abs(o-c)*1.2;kl.unshift({t:Date.now()-(n-i)*tfMs,o:o,h:Math.max(o,c)+rng*0.35,l:Math.min(o,c)-rng*0.35,c:c,v:Math.random()*8000+1000});p=c;}if(kl.length)kl[kl.length-1].c=pState[sym]?pState[sym].price:(DEMO_BASE[sym]||1);return kl;}
 function refreshDemoFast(){
-  customPairs.forEach(sym=>{prevP[sym]=pState[sym].price;demoTick(sym);if(!pData[sym])pData[sym]={};pData[sym].price=pState[sym].price;
+  customPairs.forEach(function(sym){prevP[sym]=pState[sym].price;demoTick(sym);if(!pData[sym])pData[sym]={};pData[sym].price=pState[sym].price;
     var now=Date.now(); if(!pData[sym].lastKl||now-pData[sym].lastKl>15000){pData[sym].kl5m=makeKlines(sym,100,'5m');pData[sym].lastKl=now;}});
   analyzeAll(); updateUI();
 }
-function refreshDemo(){customPairs.forEach(sym=>{prevP[sym]=pState[sym].price;demoTick(sym);if(!pData[sym])pData[sym]={};pData[sym].price=pState[sym].price;pData[sym].kl5m=makeKlines(sym,100,'5m');});analyzeAll();}
+function refreshDemo(){customPairs.forEach(function(sym){prevP[sym]=pState[sym].price;demoTick(sym);if(!pData[sym])pData[sym]={};pData[sym].price=pState[sym].price;pData[sym].kl5m=makeKlines(sym,100,'5m');});analyzeAll();}
 function updateUI(){updatePosUI(); if(currentPage==='signal') drawChart();}
 
 // ═══════════════════════════════════
@@ -311,22 +390,72 @@ function drawChart(){
   var pd=pData[currentPair];if(!pd||!pd.kl5m||pd.kl5m.length<10)return;
   var kl=pd.kl5m, W=chartCtx.canvas.width, H=155, ctx=chartCtx;
   ctx.clearRect(0,0,W,H);
-  var n=Math.min(60,kl.length), k=kl.slice(-n), cl=k.map(x=>x.c);
-  var mn=Math.min(...k.map(x=>x.l))*0.999, mx=Math.max(...k.map(x=>x.h))*1.001;
+  var n=Math.min(60,kl.length), k=kl.slice(-n), cl=k.map(function(x){return x.c;});
+  var mn=Math.min.apply(null,k.map(function(x){return x.l;}))*0.999, mx=Math.max.apply(null,k.map(function(x){return x.h;}))*1.001;
   var rng=mx-mn, cw=W/n;
-  var toY=v=>H-6-((v-mn)/rng)*(H-12);
+  var toY=function(v){return H-6-((v-mn)/rng)*(H-12);};
   ctx.beginPath();ctx.moveTo(0.5*cw,toY(cl[0]));for(var i=0;i<cl.length;i++)ctx.lineTo((i+0.5)*cw,toY(cl[i]));
   ctx.strokeStyle=cl[0]<=cl[cl.length-1]?'#00e676':'#ff3d5c';ctx.lineWidth=1.5;ctx.stroke();
 }
 
 // ═══════════════════════════════════
-// BAŞLATMA
-function startDemo(){WORKER='';appMode='demo';futBal=null;if(loopTimer)clearTimeout(loopTimer);mainLoop();if(quickUpdateInterval)clearInterval(quickUpdateInterval);quickUpdateInterval=setInterval(()=>{if(appMode==='demo')refreshDemoFast();},5000);}
-async function mainLoop(){try{if(appMode==='demo')refreshDemo();await checkPositions();await runEngine();updateUI();if(engineOn)startCD();}catch(e){}loopTimer=setTimeout(mainLoop,scanSec*1000);}
+// PAIR YÖNETİMİ
+function renderPairManager(){
+  var el=document.getElementById('pairManager');if(!el)return;
+  el.innerHTML=customPairs.map(function(s){return'<span onclick="removePair(\''+s+'\')" style="cursor:pointer;font-size:10px;padding:4px 9px;border-radius:12px;background:rgba(0,255,224,.06);border:1px solid var(--brd);color:var(--text);margin-right:5px;margin-bottom:5px;display:inline-block">'+s.replace('USDT','')+' ✕</span>';}).join('');
+}
+function addPair(){
+  var inp=document.getElementById('newPairInput');if(!inp)return;
+  var val=inp.value.trim().toUpperCase();if(!val)return;
+  if(!val.endsWith('USDT'))val+='USDT';
+  if(customPairs.indexOf(val)!==-1)return;
+  customPairs.push(val);pState[val]={price:DEMO_BASE[val]||1,vel:0};prevP[val]=DEMO_BASE[val]||1;inp.value='';renderPairManager();renderPopularCoins();
+}
+function removePair(sym){if(customPairs.length<=1)return;customPairs=customPairs.filter(function(p){return p!==sym;});if(currentPair===sym)currentPair=customPairs[0];renderPairManager();renderPopularCoins();}
+function renderPopularCoins(){
+  var el=document.getElementById('popularCoins');if(!el)return;
+  el.innerHTML=POPULAR_COINS.map(function(c){var s=c+'USDT',a=customPairs.indexOf(s)!==-1;return'<button onclick="togglePopularCoin(\''+c+'\')" style="padding:4px 8px;border-radius:12px;font-size:9px;background:'+(a?'rgba(0,230,118,.2)':'var(--deep)')+';border:1px solid '+(a?'var(--long)':'var(--brd)')+';color:'+(a?'var(--long)':'var(--text)')+';min-height:32px;margin:2px">'+c+'</button>';}).join('');
+}
+function togglePopularCoin(c){var s=c+'USDT';if(customPairs.indexOf(s)!==-1)removePair(s);else{customPairs.push(s);pState[s]={price:DEMO_BASE[s]||1,vel:0};prevP[s]=DEMO_BASE[s]||1;renderPairManager();renderPopularCoins();}}
 
+// ═══════════════════════════════════
+// CANLI BAĞLANTI
+async function syncBal(){
+  if(!WORKER||appMode!=='live')return;
+  try{
+    var br=await fetch(WORKER+'/balance').then(function(r){return r.json();});
+    if(br&&br.success&&br.balance){futBal=parseFloat(br.balance.balance);balance=futBal;}
+  }catch(e){}
+}
+async function connect(){
+  var url=document.getElementById('wUrl').value.trim();if(!url)return notify('Worker URL girin','error');
+  try{
+    var d=await fetch(url+'/ping').then(function(r){return r.json();});
+    if(d&&d.success){WORKER=url;appMode='live';document.getElementById('connBdg').textContent='LIVE';document.getElementById('connBdg').className='bdg live';notify('✅ Bağlandı!','success');mainLoop();if(syncInterval)clearInterval(syncInterval);syncInterval=setInterval(function(){if(appMode==='live')syncBal();},30000);}
+  }catch(e){notify('Bağlantı hatası','error');}
+}
+function startDemo(){
+  WORKER='';appMode='demo';futBal=null;document.getElementById('connBdg').textContent='DEMO';document.getElementById('connBdg').className='bdg';
+  if(loopTimer)clearTimeout(loopTimer); mainLoop();
+  if(quickUpdateInterval)clearInterval(quickUpdateInterval); quickUpdateInterval=setInterval(function(){if(appMode==='demo')refreshDemoFast();},5000);
+}
+function resetChallenge(){balance=CHALLENGE_START;peakBal=CHALLENGE_START;dailyPnL=0;dailyTradeCount=0;totalComm=0;positions=[];trades=[];posId=1;notify('🔄 Sıfırlandı');updatePosUI();}
+
+// ═══════════════════════════════════
+// ANA DÖNGÜ
+async function mainLoop(){
+  try{if(appMode==='demo')refreshDemo();else await fetchLive();await checkPositions();await runEngine();updateUI();if(engineOn)startCD();}catch(e){}
+  loopTimer=setTimeout(mainLoop,scanSec*1000);
+}
+async function fetchLive(){if(!WORKER)return;try{var prices=await Promise.all(customPairs.map(function(s){return fetch(WORKER+'/price?symbol='+s).then(function(r){return r.json();}).catch(function(){return null;});}));customPairs.forEach(function(s,i){var pr=prices[i];if(pr&&pr.success){var p=parseFloat(pr.data.lastPrice||pr.data.price);if(p>0){prevP[s]=pState[s].price;pState[s].price=p;if(!pData[s])pData[s]={};pData[s].price=p;}}});analyzeAll();}catch(e){}}
+
+// ═══════════════════════════════════
+// BAŞLATMA
 window.addEventListener('DOMContentLoaded', function(){
   sw('signal'); initChart(); startDemo();
-  notify('APEX V4.0 PRICE ACTION başladı','info');
+  renderPairManager(); renderPopularCoins();
+  notify('APEX V4.1 PRICE ACTION başladı','info');
+  addLog('✅ Strateji: Hacim + Kırılım + Momentum','info');
 });
 </script>
 </body>
