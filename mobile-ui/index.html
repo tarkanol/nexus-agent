@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp $50 | Güven Skoru</title>
+<title>APEX Scalp $50 | Güven Skoru & 3 Kademe Sinyal</title>
 <style>
 :root {
   --bg:#020810;
@@ -147,6 +147,10 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,255
 .param-item{background:var(--deep);border-radius:6px;padding:4px 6px;}
 .param-label{color:var(--dim);font-size:8px;}
 .param-value{font-weight:700;color:var(--acc);}
+.conf-table{width:100%;font-size:10px;border-collapse:collapse;margin-top:8px;}
+.conf-table th,.conf-table td{padding:4px 2px;text-align:left;border-bottom:1px solid var(--brd);}
+.conf-table th{color:var(--gold);font-weight:700;}
+.conf-sig{font-size:8px;padding:2px 4px;border-radius:4px;display:inline-block;}
 </style>
 </head>
 <body>
@@ -259,6 +263,18 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,255
         <div><span style="color:var(--dim)">Acilan: </span><span id="eOpen">0</span></div>
       </div>
     </div>
+
+    <!-- COIN GÜVEN SKORLARI TABLOSU (Motor Dashboard'u) -->
+    <div class="card">
+      <div style="font-size:9px;color:var(--gold);margin-bottom:6px">📊 COIN GÜVEN SKORLARI</div>
+      <div style="overflow-x:auto">
+        <table class="conf-table" id="confTable">
+          <thead><tr><th>Coin</th><th>Güven Skoru</th><th>Sinyal</th><th>CD</th></tr></thead>
+          <tbody id="confTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="card" style="border-color:rgba(0,255,224,.25)">
       <div style="font-size:9px;color:var(--acc);letter-spacing:1px;margin-bottom:8px">$50 TRADER MANTIĞI</div>
       <div style="font-size:10px;color:var(--text);line-height:1.7;margin-bottom:8px">
@@ -277,6 +293,11 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,255
       <div class="tog-row"><div class="tog on" id="togConf"></div><div class="tog-b"><div class="tog-l">Cakisma Korumasi</div><div class="tog-d">Aktif: zit sinyal guclusse gec</div></div></div>
       <div class="fr" style="margin-top:8px"><label>Kaldirac</label><select id="selLev"><option value="3" selected>3x (onerilir)</option><option value="5">5x</option><option value="2">2x (cok guvenli)</option></select></div>
       <div class="fr"><label>Min Sinyal Skoru (%)</label><select id="selMinScore"><option value="60">60% (daha fazla sinyal)</option><option value="70" selected>70% (dengeli)</option><option value="80">80% (az, kaliteli)</option></select></div>
+      <div class="fr"><label>Sinyal Hassasiyeti (3 Kademe)</label><select id="selSensitivity">
+        <option value="loose">Gevşek (çok sinyal, yanlışlar olabilir)</option>
+        <option value="balanced" selected>Dengeli (önerilen)</option>
+        <option value="tight">Sıkı (az ama kaliteli sinyal)</option>
+      </select></div>
       <div class="fr"><label>Tarama Sikligi</label><select id="selInt"><option value="60" selected>1 dakika</option><option value="120">2 dakika</option><option value="30">30 saniye</option></select></div>
     </div>
     <div style="height:10px"></div>
@@ -303,7 +324,7 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,255
 <script>
 'use strict';
 // --------------------------------------------------------------
-// APEX $50 Scalp - İyileştirilmiş + Güven Skoru + Parametreler
+// APEX $50 Scalp - Güven Skoru Tablosu + 3 Kademe Sinyal Hassasiyeti
 // --------------------------------------------------------------
 var START_BAL = 50.00;
 var COMM_RATE = 0.0004;
@@ -320,6 +341,7 @@ var scanSec = 60;
 var engineOn = false, autoTrade = false;
 var WORKER = '', appMode = 'demo', futBal = null;
 var targetPnlUSD = 0.10, riskUSD = 1.00, leverage = 3, tightSL = true, volConfirm = true, conflictProt = true, minScore = 70;
+var sensitivity = 'balanced'; // 'tight', 'balanced', 'loose'
 var cooldowns = {}, slStreak = {}, pState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null, drawChartRAF = null, lastCanvasWidth = 0;
 
@@ -371,6 +393,31 @@ function getConfidenceScore(sym) {
   return Math.min(100, Math.max(0, score));
 }
 
+// Dinamik filtreler (3 kademe)
+function applySensitivity() {
+  var sel = document.getElementById('selSensitivity');
+  if(sel) sensitivity = sel.value;
+  if(sensitivity === 'tight') {
+    minScore = 80;
+    conflictProt = true;
+    volConfirm = true;
+  } else if(sensitivity === 'balanced') {
+    minScore = 70;
+    conflictProt = true;
+    volConfirm = true;
+  } else { // loose
+    minScore = 55;
+    conflictProt = false;  // gevşekte çakışma koruması kalkar
+    volConfirm = false;    // hacim şartı kalkar
+  }
+  // UI toggle'ları senkronize et (görsel)
+  var togConf = document.getElementById('togConf');
+  if(togConf) togConf.classList.toggle('on', conflictProt);
+  var togVol = document.getElementById('togVol');
+  if(togVol) togVol.classList.toggle('on', volConfirm);
+  log('Hassasiyet: '+sensitivity+' (minScore='+minScore+', conflict='+conflictProt+', vol='+volConfirm+')','info');
+}
+
 function analyze(sym){
   if(inCD(sym)) return null;
   var pd=pData[sym]; if(!pd) return null;
@@ -382,9 +429,11 @@ function analyze(sym){
   var e50_4=ema(c4,50), e200_4=ema(c4,200); var le50=e50_4[e50_4.length-1], le200=e200_4[e200_4.length-1]; var adx4=adx14(kl4h);
   var htfBull=0,htfBear=0; if(le50&&price>le50) htfBull+=2; else if(le50&&price<le50) htfBear+=2; if(le200&&price>le200) htfBull++; else if(le200&&price<le200) htfBear++; if(le50&&le200&&le50>le200) htfBull++; else if(le50&&le200&&le50<le200) htfBear++; if(adx4.adx>20&&adx4.pDI>adx4.mDI) htfBull++; else if(adx4.adx>20&&adx4.mDI>adx4.pDI) htfBear++; var htfTrend=htfBull>=3?'LONG':htfBear>=3?'SHORT':'NEUTRAL'; if(adx4.adx<13) htfTrend='NEUTRAL';
   var e9_1=ema(c1,9), e21_1=ema(c1,21); var le9_1=e9_1[e9_1.length-1], le21_1=e21_1[e21_1.length-1]; var macd1=macdSig(c1), rsi1=rsi14(c1); var m1Bull=0,m1Bear=0; if(le9_1>le21_1&&price>le9_1) m1Bull+=2; else if(le9_1<le21_1&&price<le9_1) m1Bear+=2; if(macd1.hist>0&&macd1.hist>macd1.prevHist) m1Bull+=2; else if(macd1.hist<0&&macd1.hist<macd1.prevHist) m1Bear+=2; if(macd1.cross==='UP') m1Bull+=2; else if(macd1.cross==='DN') m1Bear+=2; if(rsi1>52&&rsi1<70) m1Bull++; else if(rsi1<48&&rsi1>30) m1Bear++; if(rsi1>74) m1Bear+=2; if(rsi1<26) m1Bull+=2;
-  var e9_15=ema(c15,9), e21_15=ema(c15,21); var le9_15=e9_15[e9_15.length-1], le21_15=e21_15[e21_15.length-1]; var pe9_15=e9_15[e9_15.length-2], pe21_15=e21_15[e21_15.length-2]; var macd15=macdSig(c15), rsi15=rsi14(c15); var vr=volRatio(kl15); var e15Bull=0,e15Bear=0; if(pe9_15<=pe21_15&&le9_15>le21_15) e15Bull+=6; else if(pe9_15>=pe21_15&&le9_15<le21_15) e15Bear+=6; else if(le9_15>le21_15&&price>le9_15) e15Bull+=2; else if(le9_15<le21_15&&price<le9_15) e15Bear+=2; if(macd15.cross==='UP') e15Bull+=4; else if(macd15.cross==='DN') e15Bear+=4; if(macd15.hist>0&&macd15.hist>macd15.prevHist) e15Bull+=2; else if(macd15.hist<0&&macd15.hist<macd15.prevHist) e15Bear+=2; if(rsi15>55&&rsi15<70) e15Bull+=2; else if(rsi15<45&&rsi15>30) e15Bear+=2; if(rsi15>75) e15Bear+=3; if(rsi15<25) e15Bull+=3; if(volConfirm){ if(vr>=1.3&&e15Bull>e15Bear) e15Bull+=2; else if(vr>=1.3&&e15Bear>e15Bull) e15Bear+=2; else if(vr<0.7){ e15Bull=Math.floor(e15Bull*0.6); e15Bear=Math.floor(e15Bear*0.6); } }
+  var e9_15=ema(c15,9), e21_15=ema(c15,21); var le9_15=e9_15[e9_15.length-1], le21_15=e21_15[e21_15.length-1]; var pe9_15=e9_15[e9_15.length-2], pe21_15=e21_15[e21_15.length-2]; var macd15=macdSig(c15), rsi15=rsi14(c15); var vr=volRatio(kl15); var e15Bull=0,e15Bear=0; if(pe9_15<=pe21_15&&le9_15>le21_15) e15Bull+=6; else if(pe9_15>=pe21_15&&le9_15<le21_15) e15Bear+=6; else if(le9_15>le21_15&&price>le9_15) e15Bull+=2; else if(le9_15<le21_15&&price<le9_15) e15Bear+=2; if(macd15.cross==='UP') e15Bull+=4; else if(macd15.cross==='DN') e15Bear+=4; if(macd15.hist>0&&macd15.hist>macd15.prevHist) e15Bull+=2; else if(macd15.hist<0&&macd15.hist<macd15.prevHist) e15Bear+=2; if(rsi15>55&&rsi15<70) e15Bull+=2; else if(rsi15<45&&rsi15>30) e15Bear+=2; if(rsi15>75) e15Bear+=3; if(rsi15<25) e15Bull+=3;
+  if(volConfirm){ if(vr>=1.3&&e15Bull>e15Bear) e15Bull+=2; else if(vr>=1.3&&e15Bear>e15Bull) e15Bear+=2; else if(vr<0.7){ e15Bull=Math.floor(e15Bull*0.6); e15Bear=Math.floor(e15Bear*0.6); } }
   var fib4=fibLevels(kl4h,80); if(fib4){ var tol=price*0.007, fibLv=[fib4.r786,fib4.r618,fib4.r500,fib4.r382,fib4.r236], fibType=['sup','sup','neu','res','res']; for(var fi=0;fi<fibLv.length;fi++) if(Math.abs(price-fibLv[fi])<tol){ if(fibType[fi]==='sup') m1Bull+=2; else if(fibType[fi]==='res') m1Bear+=2; break; } }
-  var signal='WAIT'; if(htfTrend==='LONG'&&e15Bull>e15Bear&&m1Bull>=2&&e15Bull>=7) signal='LONG'; else if(htfTrend==='SHORT'&&e15Bear>e15Bull&&m1Bear>=2&&e15Bear>=7) signal='SHORT'; else if(htfTrend==='NEUTRAL'&&e15Bull>e15Bear&&e15Bull>=10&&m1Bull>=3) signal='LONG'; else if(htfTrend==='NEUTRAL'&&e15Bear>e15Bull&&e15Bear>=10&&m1Bear>=3) signal='SHORT'; if(signal==='WAIT') return null; if(conflictProt){ var oppE=signal==='LONG'?e15Bear:e15Bull; var mainE=signal==='LONG'?e15Bull:e15Bear; if(oppE>mainE*0.72){ log('Cakisma: '+sym.replace('USDT','')+' iptal','info'); return null; } }
+  var signal='WAIT'; if(htfTrend==='LONG'&&e15Bull>e15Bear&&m1Bull>=2&&e15Bull>=7) signal='LONG'; else if(htfTrend==='SHORT'&&e15Bear>e15Bull&&m1Bear>=2&&e15Bear>=7) signal='SHORT'; else if(htfTrend==='NEUTRAL'&&e15Bull>e15Bear&&e15Bull>=10&&m1Bull>=3) signal='LONG'; else if(htfTrend==='NEUTRAL'&&e15Bear>e15Bull&&e15Bear>=10&&m1Bear>=3) signal='SHORT'; if(signal==='WAIT') return null;
+  if(conflictProt){ var oppE=signal==='LONG'?e15Bear:e15Bull; var mainE=signal==='LONG'?e15Bull:e15Bear; if(oppE>mainE*0.72){ log('Cakisma: '+sym.replace('USDT','')+' iptal','info'); return null; } }
   var score=0; if(htfTrend!=='NEUTRAL') score+=25; var mainE2=signal==='LONG'?e15Bull:e15Bear; score+=Math.min(30,mainE2*2); if((signal==='LONG'?m1Bull:m1Bear)>=3) score+=15; if(vr>=1.3) score+=10; else if(vr>=1.1) score+=5; if(adx4.adx>25) score+=10; else if(adx4.adx>18) score+=6; if(macd15.cross==='UP'&&signal==='LONG') score+=10; else if(macd15.cross==='DN'&&signal==='SHORT') score+=10; score=Math.min(100,score);
   var slPct=tightSL?0.3:0.5; var sl,tp; if(signal==='LONG'){ sl=price*(1-slPct/100); tp=price*(1+slPct/100*(targetPnlUSD/riskUSD+0.5)); } else { sl=price*(1+slPct/100); tp=price*(1-slPct/100*(targetPnlUSD/riskUSD+0.5)); } var posVal=Math.min(riskUSD/(slPct/100),balance*0.25); var qty=posVal*leverage/price; var tpDist=qty>0?targetPnlUSD/qty:price*(slPct/100)*2; if(signal==='LONG') tp=price+tpDist; else tp=price-tpDist;
   return { signal:signal,score:score,e15Bull:e15Bull,e15Bear:e15Bear,m1Bull:m1Bull,m1Bear:m1Bear,htfTrend:htfTrend,price:price,sl:sl,tp:tp,slPct:slPct,posVal:posVal,qty:qty, indicators:{rsi:rsi15,macdHist:macd15.hist,adx:adx4.adx,ema50above:le50&&price>le50,vr:vr,bbw:bbW(c15)},fib4:fib4, mtf:{'15m':e15Bull>e15Bear?'LONG':e15Bear>e15Bull?'SHORT':'WAIT','1h':m1Bull>m1Bear?'LONG':m1Bear>m1Bull?'SHORT':'WAIT','4h':htfTrend} };
@@ -407,8 +456,30 @@ function manualOpen(side){ var an=pData[currentPair]&&pData[currentPair].an; if(
 function closePos(id,reason){ var pos=null,idx=-1; for(var i=0;i<positions.length;i++){if(positions[i].id===id){pos=positions[i];idx=i;break;}} if(!pos)return; var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry; var gross=(pr-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty; var net=gross-pos.comm; dailyPnL+=net; balance+=net+pos.posVal; totalComm+=pos.comm; if(net<0&&(reason.indexOf('SL')!==-1||reason.indexOf('STOP')!==-1)){ slStreak[pos.pair]=(slStreak[pos.pair]||0)+1; if(slStreak[pos.pair]>=2){setCD(pos.pair,15,'2 SL');slStreak[pos.pair]=0;} }else{slStreak[pos.pair]=0;} if(balance>peakBal) peakBal=balance; trades.push({pair:pos.pair,side:pos.side,pnl:net,reason:reason,entry:pos.entry,exit:pr}); positions.splice(idx,1); var icon=(reason.indexOf('TP')!==-1||reason.indexOf('SCALP')!==-1)?'WIN':(reason.indexOf('SL')!==-1?'SL':'CHK'); notify(icon+' '+pos.pair.replace('USDT','')+' '+(net>=0?'+':'')+'$'+net.toFixed(4),net>=0?'success':'error'); log(icon+' '+pos.pair.replace('USDT','')+' '+reason+' PnL:$'+net.toFixed(4)+' Bal:$'+balance.toFixed(2),net>=0?'ok':'err'); if(appMode==='live'&&WORKER){ xfetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side})},function(d){log(d&&d.success?'Canli kapat OK':'Kapat hata','ok');},function(){log('Kapat net hata','err');}); } updatePosUI(); updateSignalUI(); }
 function checkPositions(){ for(var i=positions.length-1;i>=0;i--){ var p=positions[i]; var pr=(pData[p.pair]&&pData[p.pair].price)||p.entry; var pnl=unrealPnl(p); if(pnl>=targetPnlUSD){ closePos(p.id,'SCALP TP'); continue; } if(p.tp&&((p.side==='LONG'&&pr>=p.tp)||(p.side==='SHORT'&&pr<=p.tp))){ closePos(p.id,'TAKE PROFIT'); continue; } if((p.side==='LONG'&&pr<=p.sl)||(p.side==='SHORT'&&pr>=p.sl)){ closePos(p.id,'STOP LOSS'); continue; } } }
 function runEngine(){ if(!engineOn) return; document.getElementById('eLast').textContent=new Date().toLocaleTimeString(); var sigs=[]; for(var i=0;i<pairs.length;i++){ var s=pairs[i]; if(inCD(s))continue; var an=pData[s]&&pData[s].an; if(!an||an.signal==='WAIT')continue; if(an.score<minScore)continue; sigs.push({sym:s,an:an}); } if(!sigs.length){ document.getElementById('eSig').textContent='Sinyal yok'; return; } sigs.sort(function(a,b){return b.an.score-a.an.score;}); var sel=sigs[0]; document.getElementById('eSig').textContent=sel.sym.replace('USDT','')+' '+sel.an.signal+'('+sel.an.score+'%)'; document.getElementById('eOpen').textContent=positions.length; if(autoTrade){ var canOpen=positions.length<MAX_POS; var already=false; for(var i=0;i<positions.length;i++) if(positions[i].pair===sel.sym){already=true;break;} if(canOpen&&!already) openPos(sel.sym,sel.an.signal,true); } else{ log('SINYAL: '+sel.sym+' '+sel.an.signal+' K:'+sel.an.score+'%','info'); } }
+
+// Güven skoru tablosunu güncelleme (Motor sayfası)
+function updateConfidenceTable() {
+  var tbody = document.getElementById('confTbody');
+  if(!tbody) return;
+  var html = '';
+  for(var i=0;i<pairs.length;i++) {
+    var sym = pairs[i];
+    var conf = getConfidenceScore(sym);
+    var color = conf>=70?'#00e676':(conf>=40?'#f5a623':'#ff3d5c');
+    var sig = (pData[sym] && pData[sym].an) ? pData[sym].an.signal : 'WAIT';
+    var cd = inCD(sym) ? '🔴 CD' : '-';
+    html += '<tr><td>'+sym.replace('USDT','')+'</td><td style="color:'+color+';font-weight:700">'+conf+'%</td><td><span class="conf-sig" style="background:'+(sig==='LONG'?'rgba(0,230,118,0.2)':sig==='SHORT'?'rgba(255,61,92,0.2)':'rgba(75,85,99,0.2)')+';color:'+(sig==='LONG'?'#00e676':sig==='SHORT'?'#ff3d5c':'#9ca3af')+'">'+sig+'</span></td><td>'+cd+'</td></tr>';
+  }
+  tbody.innerHTML = html;
+}
+
 function startCD2(){ if(cdTimer)clearInterval(cdTimer); var left=scanSec; cdTimer=setInterval(function(){ left--; var e=document.getElementById('eNext'); if(e) e.textContent=left>0?left+'s':'...'; if(left<=0)clearInterval(cdTimer); },1000); }
-function toggleEng(){ engineOn=!engineOn; document.getElementById('btnEng').textContent=engineOn?'Durdur':'Baslat'; document.getElementById('bdgEng').textContent=engineOn?'MOTOR ON':'MOTOR OFF'; document.getElementById('bdgEng').className=engineOn?'bdg on':'bdg'; document.getElementById('engTxt').textContent=engineOn?'MOTOR CALISIYOR':'MOTOR KAPALI'; document.getElementById('engStat').style.display=engineOn?'grid':'none'; notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info'); if(engineOn)startCD2(); else if(cdTimer)clearInterval(cdTimer); }
+function toggleEng(){
+  engineOn=!engineOn; document.getElementById('btnEng').textContent=engineOn?'Durdur':'Baslat';
+  document.getElementById('bdgEng').textContent=engineOn?'MOTOR ON':'MOTOR OFF'; document.getElementById('bdgEng').className=engineOn?'bdg on':'bdg';
+  document.getElementById('engTxt').textContent=engineOn?'MOTOR CALISIYOR':'MOTOR KAPALI'; document.getElementById('engStat').style.display=engineOn?'grid':'none';
+  notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info'); if(engineOn)startCD2(); else if(cdTimer)clearInterval(cdTimer);
+}
 function toggleAutoTrade(){ autoTrade=!autoTrade; document.getElementById('togAuto').classList.toggle('on',autoTrade); document.getElementById('togAutoD').textContent=autoTrade?'Acik: sinyal gelince pozisyon acar':'Kapali: sadece sinyal goster'; notify(autoTrade?'Otomasyon AKTIF':'Otomasyon PASIF',autoTrade?'success':'info'); }
 function toggleTight(){ tightSL=!tightSL; document.getElementById('togTight').classList.toggle('on',tightSL); document.getElementById('togTightD').textContent=tightSL?'Aktif: SL %0.3 (siki)':'Kapali: SL %0.5'; }
 function toggleVol(){ volConfirm=!volConfirm; document.getElementById('togVol').classList.toggle('on',volConfirm); }
@@ -426,7 +497,7 @@ function syncBal(){ if(!WORKER||appMode!=='live')return; xfetch(WORKER+'/balance
 function connectLive(){ var url=document.getElementById('wUrl').value.trim();if(!url)return notify('URL girin','error'); xfetch(url+'/ping',null,function(d){ if(d&&d.success){ WORKER=url;appMode='live';futBal=null; document.getElementById('bdgConn').textContent='LIVE';document.getElementById('bdgConn').className='bdg live'; document.getElementById('connStatus').textContent='Canli baglanti aktif'; notify('Canli baglanti!','success');log('Worker v'+(d.version||'?'),'ok'); syncBal();if(loopTimer)clearTimeout(loopTimer);mainLoop(); }else notify('Worker yanit vermedi','error'); },function(){notify('Baglanti hatasi','error');}); }
 function startDemo(){ WORKER='';appMode='demo';futBal=null; document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='bdg'; document.getElementById('connStatus').textContent='Demo modda calisiyor'; notify('Demo mod','info');log('Demo mod basladi','info'); if(loopTimer)clearTimeout(loopTimer);mainLoop(); }
 function doReset(){ if(!confirm('Bakiye $'+START_BAL+' sifirlansin mi?'))return; balance=START_BAL;peakBal=START_BAL;dailyPnL=0;totalComm=0; positions=[];trades=[];posId=1;futBal=null; notify('Sifirlandi','info');log('Sifirlandi','info'); updatePosUI();updateBalUI(); }
-function mainLoop(){ try{ if(appMode==='demo') refreshDemo(); else fetchLive(); checkPositions(); runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updateCDUI(); if(engineOn) startCD2(); }catch(e){log('Loop hata: '+e.message,'err');} loopTimer=setTimeout(mainLoop, scanSec*1000); }
+function mainLoop(){ try{ if(appMode==='demo') refreshDemo(); else fetchLive(); checkPositions(); runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updateCDUI(); updateConfidenceTable(); if(engineOn) startCD2(); }catch(e){log('Loop hata: '+e.message,'err');} loopTimer=setTimeout(mainLoop, scanSec*1000); }
 function swPage(pageName){ var pages=document.querySelectorAll('.page'); for(var i=0;i<pages.length;i++) pages[i].classList.remove('active'); var nbs=document.querySelectorAll('.nb'); for(var i=0;i<nbs.length;i++) nbs[i].classList.remove('active'); var pg=document.getElementById('pg-'+pageName); if(pg) pg.classList.add('active'); var nb=document.querySelector('.nb[data-page="'+pageName+'"]'); if(nb) nb.classList.add('active'); if(pageName==='signal') setTimeout(drawChart,50); if(pageName==='pos') updatePosUI(); }
 function setTF(btn,tf){ var cts=document.querySelectorAll('.ct');for(var i=0;i<cts.length;i++)cts[i].classList.remove('active'); btn.classList.add('active'); currentTF=tf; drawChart(); }
 window.sw = swPage;
@@ -447,15 +518,16 @@ window.startDemo = startDemo;
 window.doReset = doReset;
 
 window.addEventListener('DOMContentLoaded', function(){
-  initChart(); renderCoinList(); readSettings(); startDemo(); 
-  log('APEX $50 Scalp (Güven Skoru + Parametreler) basladi','info'); 
+  initChart(); renderCoinList(); readSettings(); applySensitivity(); startDemo(); 
+  log('APEX $50 Scalp (Güven Skoru + 3 Kademe Sinyal) basladi','info'); 
   log('$'+targetPnlUSD.toFixed(2)+'/islem hedef  Risk: $'+riskUSD.toFixed(2)+'  Lev: '+leverage+'x','info'); 
-  log('iOS uyumlu - performans, UI, güven skoru eklendi','info');
+  log('Hassasiyet: '+sensitivity+' (minScore='+minScore+')','info');
   var cts = document.querySelectorAll('.ct');
   for(var i=0;i<cts.length;i++){ cts[i].onclick = (function(btn){ return function(){ setTF(btn, btn.getAttribute('data-tf')); }; })(cts[i]); }
   var navBtns = document.querySelectorAll('.nb');
   for(var i=0;i<navBtns.length;i++){ navBtns[i].onclick = (function(btn){ return function(){ swPage(btn.getAttribute('data-page')); }; })(navBtns[i]); }
   var selInt = document.getElementById('selInt'); if(selInt){ selInt.onchange = function(){ scanSec = parseInt(this.value); }; }
+  var selSens = document.getElementById('selSensitivity'); if(selSens){ selSens.onchange = function(){ applySensitivity(); }; }
   document.getElementById('togAuto').onclick = toggleAutoTrade;
   document.getElementById('togTight').onclick = toggleTight;
   document.getElementById('togVol').onclick = toggleVol;
