@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | Son Sürüm (Tablar Çalışıyor)</title>
+<title>APEX Scalp | Son Sürüm</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -183,7 +183,6 @@ select option{background:#041018;}
 </div>
 <div class="ticker" id="tickerEl"></div>
 
-<!-- SINYAL SAYFASI -->
 <div class="page active" id="pg-signal">
   <div class="scroll">
     <div class="pairs" id="pairRow"></div>
@@ -239,7 +238,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- POZISYON SAYFASI -->
 <div class="page" id="pg-pos">
   <div class="scroll">
     <div class="stats-grid">
@@ -263,7 +261,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- MOTOR SAYFASI -->
 <div class="page" id="pg-engine">
   <div class="scroll">
     <div class="card">
@@ -288,7 +285,7 @@ select option{background:#041018;}
         <span class="inp-label">Maksimum Pozisyon Buyuklugu ($)</span>
         <select id="selMaxPosSize">
           <option value="5">5 USD</option>
-          <option value="10" selected>10 USD (oneri)</option>
+          <option value="10" selected>10 USD</option>
           <option value="20">20 USD</option>
           <option value="30">30 USD</option>
           <option value="50">50 USD</option>
@@ -302,8 +299,8 @@ select option{background:#041018;}
         </select>
       </div>
       <div class="tog-row"><div class="tog off" id="togAuto"></div><div><div class="tog-title">Otomatik Islem</div><div class="tog-desc" id="togAutoD">Kapali: sadece sinyal goster</div></div></div>
-      <div class="tog-row"><div class="tog on" id="togTight"></div><div><div class="tog-title">Siki SL</div><div class="tog-desc" id="togTightD">Aktif: SL = ATR x0.4 (siki)</div></div></div>
-      <div class="tog-row"><div class="tog off" id="togScalp"></div><div><div class="tog-title">Agresif Mod</div><div class="tog-desc" id="togScalpD">Kapali: skor esigi 60 (guvenli)</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togTight"></div><div><div class="tog-title">Siki SL</div><div class="tog-desc" id="togTightD">Aktif: SL = ATR x0.4</div></div></div>
+      <div class="tog-row"><div class="tog off" id="togScalp"></div><div><div class="tog-title">Agresif Mod</div><div class="tog-desc" id="togScalpD">Kapali: skor esigi 60</div></div></div>
     </div>
     <div class="card">
       <div class="sec-title">RISK / HEDEF</div>
@@ -326,7 +323,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- AYARLAR SAYFASI -->
 <div class="page" id="pg-settings">
   <div class="scroll">
     <div class="card">
@@ -636,7 +632,6 @@ function setConnStatus(msg,color){var el=document.getElementById('connStatus');i
 function startDemo(){WORKER='';appMode='demo';futBal=null;document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='hbdg';setConnStatus('Demo modda calisiyor','var(--dim2)');notify('Demo mod','info');log('Demo mod basladi','info');if(loopTimer)clearTimeout(loopTimer);mainLoop();}
 function mainLoop(){try{if(appMode==='demo')refreshDemo();else fetchLive();runEngine();updateSignalUI();updatePairRow();updateTicker();updateCDUI();updateCoinScoreTable();if(engineOn)startCountdown();}catch(e){log('Loop hatasi: '+e.message,'err');}loopTimer=setTimeout(mainLoop,scanSec*1000);}
 function startCountdown(){if(cdTimer)clearInterval(cdTimer);var left=scanSec;cdTimer=setInterval(function(){left--;var e=document.getElementById('eNext');if(e)e.textContent=left>0?left+'s':'...';if(left<=0)clearInterval(cdTimer);},1000);}
-
 function updateCoinScoreTable(){
   var el=document.getElementById('coinScoreTable');if(!el)return;
   var rows='',sorted=pairs.slice().sort(function(a,b){var sa=(pData[a]&&pData[a].an)?pData[a].an.score:0,sb=(pData[b]&&pData[b].an)?pData[b].an.score:0;return sb-sa;});
@@ -705,7 +700,7 @@ function updatePosUI(){
   updateBalUI();var html='';
   if(!positions.length){html='<div style="text-align:center;padding:24px;color:var(--dim2);font-family:var(--mono);font-size:11px">// ACIK POZISYON YOK</div>';}
   else{for(var i=0;i<positions.length;i++){var p=positions[i],pr=(pData[p.pair]&&pData[p.pair].price)||p.entry;
-    var pnl=p.realPnl!==undefined?p.realPnl:(pr-p.entry)*(p.side==='LONG'?1:-1)*p.qty;
+    var pnl=p.realPnl!==undefined?p.realPnl:(pr-p.entry)*(p.side==='LONG'?1:-1)*pos.qty;
     var prog=targetUSD>0?Math.max(0,Math.min(100,pnl/targetUSD*100)):0,pc=pnl>=0?'var(--long)':'var(--short)';
     var beTag=p.breakeven?'<span style="font-size:8px;color:var(--long);margin-left:4px">BE</span>':'';
     html+='<div class="pos-card '+p.side.toLowerCase()+'"><div class="pos-hd"><div style="display:flex;align-items:center;gap:6px"><span class="pos-sym">'+p.pair.replace('USDT','')+'</span><span class="pos-side-badge '+p.side+'">'+p.side+'</span>'+beTag+'</div><div class="pos-pnl '+(pnl>=0?'up':'dn')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(4)+'</div></div><div class="pos-grid"><div class="pg-cell"><div class="pg-l">GIRIS</div><div class="pg-v">'+fp(p.entry)+'</div></div><div class="pg-cell"><div class="pg-l">SIMDI</div><div class="pg-v" style="color:'+pc+'">'+fp(pr)+'</div></div><div class="pg-cell"><div class="pg-l">SL</div><div class="pg-v" style="color:var(--short)">'+fp(p.sl)+'</div></div><div class="pg-cell"><div class="pg-l">TP</div><div class="pg-v" style="color:var(--long)">'+fp(p.tp)+'</div></div></div><div class="pbar-track"><div class="pbar-fill" style="width:'+prog+'%;background:'+pc+'"></div></div><div style="display:flex;gap:5px"><button class="btn btn-out btn-sm" onclick="closePos('+p.id+',\'Manuel\')">KAPAT</button><button class="btn btn-sm" style="background:rgba(255,170,0,0.1);color:var(--warn);border:1px solid rgba(255,170,0,0.3)" onclick="closePos('+p.id+',\'ERKEN CIK\')">+$0.05 AL</button></div></div>';}}
@@ -772,8 +767,8 @@ function swPage(name){
 }
 function toggleEng(){engineOn=!engineOn;document.getElementById('btnEng').textContent=engineOn?'DURDUR':'BASLAT';document.getElementById('bdgEng').textContent=engineOn?'ON':'OFF';document.getElementById('bdgEng').className=engineOn?'hbdg on':'hbdg';document.getElementById('engTxt').textContent=engineOn?'// MOTOR CALISIYOR':'// MOTOR KAPALI';document.getElementById('engStats').style.display=engineOn?'grid':'none';notify(engineOn?'Motor basladi':'Motor durdu',engineOn?'success':'info');if(engineOn)startCountdown();else if(cdTimer)clearInterval(cdTimer);}
 function toggleAutoTrade(){autoTrade=!autoTrade;document.getElementById('togAuto').classList.toggle('on',autoTrade);document.getElementById('togAutoD').textContent=autoTrade?'Acik: sinyal gelince otomatik girer':'Kapali: sadece sinyal goster';notify(autoTrade?'Otomasyon AKTIF':'Otomasyon PASIF',autoTrade?'success':'info');}
-function toggleTight(){tightSL=!tightSL;document.getElementById('togTight').classList.toggle('on',tightSL);document.getElementById('togTightD').textContent=tightSL?'Aktif: SL = ATR x0.4 (siki)':'Gevşek: SL = ATR x0.6';}
-function toggleScalp(){aggressiveMode=!aggressiveMode;document.getElementById('togScalp').classList.toggle('on',aggressiveMode);document.getElementById('togScalpD').textContent=aggressiveMode?'Aktif: skor esigi 40 (riskli)':'Kapali: skor esigi 60 (guvenli)';notify(aggressiveMode?'Agresif mod AKTIF':'Guvenli mod','info');}
+function toggleTight(){tightSL=!tightSL;document.getElementById('togTight').classList.toggle('on',tightSL);document.getElementById('togTightD').textContent=tightSL?'Aktif: SL = ATR x0.4':'Gevşek: SL = ATR x0.6';}
+function toggleScalp(){aggressiveMode=!aggressiveMode;document.getElementById('togScalp').classList.toggle('on',aggressiveMode);document.getElementById('togScalpD').textContent=aggressiveMode?'Aktif: skor esigi 40':'Kapali: skor esigi 60';notify(aggressiveMode?'Agresif mod AKTIF':'Guvenli mod','info');}
 
 window.selPair=selPair;window.setTF=setTF;window.manualOpen=manualOpen;window.closePos=closePos;
 window.toggleEng=toggleEng;window.toggleAutoTrade=toggleAutoTrade;window.toggleTight=toggleTight;window.toggleScalp=toggleScalp;
