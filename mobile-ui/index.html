@@ -550,10 +550,8 @@ function runTracker(){
         for(var j=0;j<d.data.length;j++){
           if(d.data[j].symbol===p.pair){
             found=true;
-            /* Binance gercek PnL */
             var rp=parseFloat(d.data[j].unrealizedProfit||d.data[j].unRealizedProfit||0);
             if(!isNaN(rp))p.realPnl=rp;
-            /* Binance gercek fiyat */
             var mp=parseFloat(d.data[j].markPrice||d.data[j].entryPrice||0);
             if(mp>0&&pData[p.pair])pData[p.pair].price=mp;
             break;
@@ -724,7 +722,7 @@ function updateSignalUI(){
   if(qv)qv.textContent=an?an.score+'%':'--%';
   if(qb){qb.style.width=sc+'%';qb.style.background=sc>=80?'var(--long)':sc>=60?'var(--warn)':'var(--short)';}
   var rr=document.getElementById('reasonRow');
-  if(rr&&an&&an.reasons){var rh='';for(var i=0;i<an.reasons.length;i++)rh+='<span class="reason-tag '+(an.reasons[i].cls||'")>'+an.reasons[i].t+'</span>';rr.innerHTML=rh;}else if(rr)rr.innerHTML='';
+  if(rr&&an&&an.reasons){var rh='';for(var i=0;i<an.reasons.length;i++)rh+='<span class="reason-tag '+(an.reasons[i].cls||'')+'">'+an.reasons[i].t+'</span>';rr.innerHTML=rh;}else if(rr)rr.innerHTML='';
   if(an&&an.indicators){var ind=an.indicators;
     setInd('iRsi5',ind.rsi5.toFixed(1),ind.rsi5<35?'bull':ind.rsi5>65?'bear':'neut');
     setInd('iRsi15',ind.rsi15.toFixed(1),ind.rsi15<35?'bull':ind.rsi15>65?'bear':'neut');
