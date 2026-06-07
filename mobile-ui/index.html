@@ -832,7 +832,7 @@ select option { background: #041018; }
     <div class="card">
       <div class="sec-title">TARANACAK COİNLER</div>
       <div id="coinList" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
-      <div style="font-size:9px;color:var(--dim2);margin-bottom:6px;font-family:var(--mono)">Önerilen: BTC ETH SOL BNB XRP</div>
+      <div style="font-size:9px;color:var(--dim2);margin-bottom:6px;font-family:var(--mono)">Virgülle toplu ekle: BTC, ETH, SOL veya BTCUSDT, ETHUSDT</div>
       <div style="display:flex;gap:5px">
         <input id="newCoin" placeholder="Örn: DOGE" style="flex:1;font-size:11px">
         <button class="btn btn-out btn-sm" onclick="addCoin()" style="min-width:50px">EKLE</button>
@@ -928,6 +928,7 @@ function log(msg, t) {
 }
 
 /* ─── İndikatörler ─── */
+function logPos(msg,t){var b=document.getElementById('posLogBox');if(!b)return;var ts=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});var col=t==='ok'?'#00cc66':t==='err'?'#ff3355':'#00d4ff';var d=document.createElement('div');d.style.color=col;d.textContent=ts+' '+msg;b.appendChild(d);b.scrollTop=b.scrollHeight;while(b.childNodes.length>50)b.removeChild(b.firstChild);}
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.slice() : [];
   var k = 2 / (p + 1), out = [];
@@ -2110,16 +2111,28 @@ function renderCoinList() {
   c.innerHTML = html;
 }
 function addCoin() {
-  var inp = document.getElementById('newCoin'); if (!inp) return;
-  var v = inp.value.trim().toUpperCase();
-  if (!v) return;
-  if (v.indexOf('USDT') === -1) v += 'USDT';
-  for (var i = 0; i < pairs.length; i++) if (pairs[i] === v) { notify(v + ' zaten var','info'); return; }
-  pairs.push(v);
-  if (!pxState[v]) pxState[v] = { price: DEMO_BASE[v] || 1, vel: 0 };
-  if (!prevPx[v])  prevPx[v]  = DEMO_BASE[v] || 1;
-  if (!pData[v])   pData[v]   = {};
-  inp.value = ''; renderCoinList(); notify(v + ' eklendi','success');
+  var inp = document.getElementById('newCoin');
+  if (!inp) return;
+  var raw = inp.value.trim().toUpperCase();
+  if (!raw) return;
+  var parts = raw.split(/[,\s]+/), added = [];
+  for (var i = 0; i < parts.length; i++) {
+    var v = parts[i].trim();
+    if (!v) continue;
+    if (v.indexOf('USDT') === -1) v += 'USDT';
+    var exists = false;
+    for (var j = 0; j < pairs.length; j++) if (pairs[j] === v) { exists = true; break; }
+    if (exists) continue;
+    pairs.push(v);
+    if (!pxState[v]) pxState[v] = { price: DEMO_BASE[v] || 1, vel: 0 };
+    if (!prevPx[v])  prevPx[v]  = DEMO_BASE[v] || 1;
+    if (!pData[v])   pData[v]   = {};
+    added.push(v.replace('USDT', ''));
+  }
+  if (added.length > 0) notify(added.join(', ') + ' eklendi', 'success');
+  else notify('Zaten listede veya geçersiz coin', 'info');
+  inp.value = '';
+  renderCoinList();
 }
 function removeCoin(s) {
   if (pairs.length <= 1) { notify('En az 1 coin olmalı','error'); return; }
