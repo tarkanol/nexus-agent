@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>APEX Scalp Bot</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+/* Google Fonts kaldırıldı — system font fallback */
 
 :root {
   --bg: #020a0f;
@@ -1361,16 +1361,11 @@ function refreshDemo() {
       pData[sym].lastKl = now;
     } else {
       // Mevcut bar güncelle
-      ['kl1m','kl5m','kl15m','kl1h'].forEach(function(key) {
-        var kl = pData[sym][key];
-        if (kl && kl.length) {
-          var last = kl[kl.length-1];
-          last.c = pxState[sym].price;
-          last.h = Math.max(last.h, last.c);
-          last.l = Math.min(last.l, last.c);
-          last.v += Math.random() * 50;
-        }
-      });
+      var _klkeys=['kl1m','kl5m','kl15m','kl1h'];
+      for(var _ki=0;_ki<_klkeys.length;_ki++){
+        var kl=pData[sym][_klkeys[_ki]];
+        if(kl&&kl.length){var last=kl[kl.length-1];last.c=pxState[sym].price;last.h=Math.max(last.h,last.c);last.l=Math.min(last.l,last.c);last.v+=Math.random()*50;}
+      }
     }
   }
   analyzeAll();
@@ -1968,7 +1963,7 @@ function readSettings() {
 }
 function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); }
 function setTF(btn, tf) {
-  document.querySelectorAll('.tf-btn').forEach(function(b){ b.classList.remove('active'); });
+  (function(){var _qs3764=document.querySelectorAll('.tf-btn');for(var _qi3764=0;_qi3764<_qs3764.length;_qi3764++){var b=_qs3764[_qi3764];b.classList.remove('active');}})();;
   btn.classList.add('active'); currentTF = tf; drawChart();
 }
 function manualOpen(side) {
@@ -2093,8 +2088,8 @@ function doReset() {
   updatePosUI(); updateBalUI();
 }
 function swPage(name) {
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelectorAll('.nb').forEach(function(b){ b.classList.remove('active'); });
+  var _pg=document.querySelectorAll('.page'); for(var _pi=0;_pi<_pg.length;_pi++) _pg[_pi].classList.remove('active');
+  var _nb=document.querySelectorAll('.nb'); for(var _ni=0;_ni<_nb.length;_ni++) _nb[_ni].classList.remove('active');
   var pg = document.getElementById('pg-'+name); if (pg) pg.classList.add('active');
   var nb = document.querySelector('.nb[data-page="'+name+'"]'); if (nb) nb.classList.add('active');
   if (name === 'signal') setTimeout(drawChart, 60);
@@ -2128,21 +2123,21 @@ window.addEventListener('DOMContentLoaded', function() {
   log('Filtreler: 15m trend onayı + hacim + RSI aşırı bölge koruması', 'info');
 
   // TF butonları
-  document.querySelectorAll('.tf-btn').forEach(function(btn) {
-    btn.onclick = function() { setTF(btn, btn.getAttribute('data-tf')); };
-  });
+  var _tfBtns=document.querySelectorAll('.tf-btn');
+  for(var _tfi=0;_tfi<_tfBtns.length;_tfi++){
+    (function(btn){btn.onclick=function(){setTF(btn,btn.getAttribute('data-tf'));};})(_tfBtns[_tfi]);
+  }
   // Nav
-  document.querySelectorAll('.nb').forEach(function(btn) {
-    btn.onclick = function() { swPage(btn.getAttribute('data-page')); };
-  });
+  var _navBtns=document.querySelectorAll('.nb');
+  for(var _nvi=0;_nvi<_navBtns.length;_nvi++){
+    (function(btn){btn.onclick=function(){swPage(btn.getAttribute('data-page'));};})(_navBtns[_nvi]);
+  }
   // Toggleler
   document.getElementById('togAuto').onclick  = toggleAutoTrade;
   document.getElementById('togTight').onclick = toggleTight;
   document.getElementById('togScalp').onclick = toggleScalp;
   // Select değişimleri
-  ['selTarget','selRisk','selLev','selInt'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.onchange = readSettings;
-  });
+  var _ids=['selTarget','selRisk','selLev','selInt']; for(var _ii=0;_ii<_ids.length;_ii++){ var _el=document.getElementById(_ids[_ii]); if(_el) _el.onchange=readSettings; }
   // Manuel butonlar
   document.getElementById('btnL').onclick = function() { manualOpen('LONG');  };
   document.getElementById('btnS').onclick = function() { manualOpen('SHORT'); };
