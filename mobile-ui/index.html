@@ -1896,8 +1896,6 @@ function updateCoinScoreTable() {
     var sym = sorted[i];
     var pd  = pData[sym] || {};
     var an  = pd.an;
-    var sig = an ? an.an.signal : (pd.an ? pd.an.signal : 'WAIT');
-    // düzelt: an direkt analiz objesi
     var an2  = pd.an;
     var sig2 = an2 ? an2.signal : 'WAIT';
     var sc2  = an2 ? an2.score  : 0;
