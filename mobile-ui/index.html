@@ -1696,35 +1696,91 @@ function syncBal() {
   }, function() { log('Bakiye sync hatası','err'); });
 }
 function fetchLive() {
-  var done = 0, total = pairs.length;
-  function afterPrices() {
-    var sym = currentPair;
-    if (!pData[sym]) pData[sym] = {};
-    var tfs = ['1m','5m','15m','1h'], limits = [200,200,120,60], keys = ['kl1m','kl5m','kl15m','kl1h'];
-    var kDone = 0;
-    for (var j = 0; j < tfs.length; j++) {
-      (function(tf, lim, key) {
-        xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim, null, function(d) {
-          if (d && d.success && Array.isArray(d.data)) {
-            var kl = []; for (var m = 0; m < d.data.length; m++) { var kk = d.data[m]; kl.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]}); }
-            pData[sym][key] = kl;
-          }
-          kDone++; if (kDone >= tfs.length) analyzeAll();
-        }, function() { kDone++; if (kDone >= tfs.length) analyzeAll(); });
-      })(tfs[j], limits[j], keys[j]);
-    }
-  }
-  if (!total) { afterPrices(); return; }
+  if (!WORKER) return;
+  var now = Date.now();
+  var priceDone = 0, total = pairs.length;
+  if (!total) return;
+
   for (var i = 0; i < pairs.length; i++) {
     (function(sym) {
       xfetch(WORKER+'/price?symbol='+sym, null, function(d) {
         if (d && d.success) {
-          var p = parseFloat(d.data.lastPrice || d.data.price);
-          if (p > 0) { prevPx[sym] = pxState[sym] ? pxState[sym].price : p; if (!pxState[sym]) pxState[sym] = {price:p,vel:0}; pxState[sym].price = p; if (!pData[sym]) pData[sym] = {}; pData[sym].price = p; }
+          var p = parseFloat(d.data.lastPrice || d.data.price || 0);
+          if (p > 0) {
+            prevPx[sym] = pxState[sym] ? pxState[sym].price : p;
+            if (!pxState[sym]) pxState[sym] = {price:p, vel:0};
+            pxState[sym].price = p;
+            if (!pData[sym]) pData[sym] = {};
+            pData[sym].price = p;
+          }
         }
-        done++; if (done >= total) afterPrices();
-      }, function() { done++; if (done >= total) afterPrices(); });
+        priceDone++;
+        if (priceDone >= total) doFetchKlines();
+      }, function() {
+        priceDone++;
+        if (priceDone >= total) doFetchKlines();
+      });
     })(pairs[i]);
+  }
+
+  function doFetchKlines() {
+    var tfs = ['5m','15m','1h'];
+    var limits = [200, 120, 60];
+    var keys   = ['kl5m','kl15m','kl1h'];
+    var needFetch = [];
+
+    for (var pi = 0; pi < pairs.length; pi++) {
+      var sym = pairs[pi];
+      if (!pData[sym]) pData[sym] = {};
+      // 60 saniyeden yeni kline varsa sadece son bari güncelle
+      if (pData[sym].lastKl && (now - pData[sym].lastKl) < 60000) {
+        for (var ki = 0; ki < keys.length; ki++) {
+          var kl = pData[sym][keys[ki]];
+          if (kl && kl.length && pxState[sym]) {
+            var last = kl[kl.length-1];
+            last.c = pxState[sym].price;
+            last.h = Math.max(last.h, last.c);
+            last.l = Math.min(last.l, last.c);
+          }
+        }
+      } else {
+        needFetch.push(sym);
+      }
+    }
+
+    if (needFetch.length === 0) { analyzeAll(); return; }
+
+    var totalReq = needFetch.length * tfs.length;
+    var doneReq  = 0;
+
+    function oneDone() {
+      doneReq++;
+      if (doneReq >= totalReq) analyzeAll();
+    }
+
+    for (var ni = 0; ni < needFetch.length; ni++) {
+      (function(sym) {
+        for (var j = 0; j < tfs.length; j++) {
+          (function(tf, lim, key) {
+            xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim, null,
+              function(d) {
+                if (d && d.success && Array.isArray(d.data)) {
+                  var kl = [];
+                  for (var m = 0; m < d.data.length; m++) {
+                    var kk = d.data[m];
+                    kl.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]});
+                  }
+                  pData[sym][key] = kl;
+                  pData[sym].lastKl = Date.now();
+                }
+                oneDone();
+              },
+              function() { oneDone(); }
+            );
+          })(tfs[j], limits[j], keys[j]);
+        }
+      })(needFetch[ni]);
+    }
   }
 }
 /* ════════════════════════════════
