@@ -1849,7 +1849,7 @@ function doLiveClose(sym, side) {
       setTimeout(syncBal, 2000);
     } else {
       log('Kapatma hatası: ' + JSON.stringify(d), 'err');
-      notify('Kapatma hatası — Binance'i kontrol et!', 'error');
+      notify('Kapatma hatası — Binance kontrol et!', 'error');
     }
   }, function(code) {
     log('Kapatma net hatası: ' + code, 'err');
