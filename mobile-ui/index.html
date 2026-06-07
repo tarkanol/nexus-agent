@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | Pozisyon Logu ile Gerçek Zamanlı Takip</title>
+<title>APEX Scalp | Son Sürüm</title>
 <style>
-/* AYNI CSS (kısaltılmış ama tam çalışır) */
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -180,7 +179,6 @@ select option{background:#041018;}
 <nav class="nav"><button class="nb active" data-page="signal"><span class="ni">📡</span>Sinyal</button><button class="nb" data-page="pos"><span class="ni">📂</span>Pozisyon</button><button class="nb" data-page="engine"><span class="ni">⚙</span>Motor</button><button class="nb" data-page="settings"><span class="ni">🔧</span>Ayarlar</button></nav>
 <script>
 'use strict';
-/* YENİ: POZİSYON LOGU İLE GERÇEK ZAMANLI TAKİP */
 var START_BAL=50,COMM=0.0004,MAX_P=2,DEMO_BASE={BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,LINKUSDT:14};
 var balance=START_BAL,peakBal=START_BAL,dailyPnL=0,positions=[],trades=[],posId=1,pairs=['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'],currentPair='BTCUSDT',currentTF='5m',scanSec=30,engineOn=false,autoTrade=false,WORKER='',appMode='demo',futBal=null,targetUSD=0.10,riskUSD=1.00,leverage=3,tightSL=true,aggressiveMode=false,cooldowns={},slStreak={},pxState={},prevPx={},pData={},loopTimer=null,cdTimer=null,chartRAF=null,lastCW=0,chartCtx=null,positionTrackerInterval=null;
 function fp(p){if(!p||isNaN(p))return '--';if(p>=10000)return Math.round(p).toLocaleString();if(p>=1000)return p.toFixed(2);if(p>=10)return p.toFixed(3);if(p>=1)return p.toFixed(4);if(p>=0.01)return p.toFixed(5);return p.toFixed(6);}
@@ -197,7 +195,79 @@ function analyzeAll(){for(var i=0;i<pairs.length;i++){var s=pairs[i];if(inCD(s))
 function inCD(sym){var cd=cooldowns[sym];if(cd&&Date.now()<cd)return true;if(cd)delete cooldowns[sym];return false;}
 function setCD(sym,mins,reason){cooldowns[sym]=Date.now()+mins*60000;log('CD: '+sym.replace('USDT','')+' '+mins+'dk ('+reason+')','info');updateCDUI();}
 function updateCDUI(){var n=0;for(var k in cooldowns){if(Date.now()<cooldowns[k])n++;else delete cooldowns[k];}var b=document.getElementById('bdgCD');if(b){b.style.display=n>0?'inline-block':'none';b.textContent=n+' CD';}}
-function openPos(sym,side,auto,manTP,manSL){if(inCD(sym)){notify(sym+' cooldown','error');return;}if(positions.length>=MAX_P){notify('Max '+MAX_P+' pozisyon dolu','error');return;}for(var i=0;i<positions.length;i++)if(positions[i].pair===sym){notify(sym+' zaten açık','error');return;}var pd=pData[sym],an=pd&&pd.an;var price=an?an.price:(pData[sym]?pData[sym].price:DEMO_BASE[sym]||1);var posVal,qty,sl,tp,comm;if(manTP&&manSL){sl=side==='LONG'?price-manSL:price+manSL;tp=side==='LONG'?price+manTP:price-manTP;posVal=Math.min(riskUSD/(manSL/price),balance*0.3);if(isNaN(posVal)||posVal<1)posVal=1;qty=posVal*leverage/price;comm=posVal*COMM*2;}else if(an){sl=an.sl;tp=an.tp;posVal=an.posVal;qty=an.qty;comm=an.comm;}else{notify('Sinyal yok veya TP/SL gerekli','error');return;}var newPos={id:posId++,pair:sym,side:side,entry:price,qty:qty,posVal:posVal,sl:sl,tp:tp,comm:comm,atrAtOpen:an?an.atrPct:0.2,lastPrice:price};if(appMode==='live'&&WORKER){xfetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:sym,side:side,usdAmount:posVal,leverage:leverage,sl:sl,tp:tp})},function(r){if(r&&r.success){balance-=comm;dailyPnL-=comm;positions.push(newPos);if(balance>peakBal)peakBal=balance;log('Order başarılı: '+sym+' '+side,'ok');notify(side+' '+sym.replace('USDT','')+' açıldı','success');updatePosUI();updateSignalUI();startPositionTracker();}else{log('Order hatası: '+(r?JSON.stringify(r):'worker cevap yok'),'err');notify('Order başarısız, pozisyon açılmadı','error');}},function(code){log('Order net hatası: '+code,'err');notify('Bağlantı hatası, pozisyon açılamadı','error');});}else{balance-=comm;dailyPnL-=comm;positions.push(newPos);if(balance>peakBal)peakBal=balance;log((auto?'[AUTO] ':'')+side+' '+sym.replace('USDT','')+' @'+fp(price)+' SL:'+fp(sl)+' TP:'+fp(tp),'ok');notify((auto?'AUTO ':'')+side+' '+sym.replace('USDT','')+' açıldı','success');updatePosUI();updateSignalUI();startPositionTracker();}}
+function openPos(sym, side, auto, manTP, manSL) {
+  if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
+  if (positions.length >= MAX_P) { notify('Max ' + MAX_P + ' pozisyon dolu', 'error'); return; }
+  for (var i = 0; i < positions.length; i++) if (positions[i].pair === sym) { notify(sym + ' zaten açık', 'error'); return; }
+
+  var pd = pData[sym], an = pd && pd.an;
+  var price = an ? an.price : (pData[sym] ? pData[sym].price : DEMO_BASE[sym] || 1);
+  var posVal, qty, sl, tp, comm;
+
+  if (manTP && manSL) {
+    sl = side === 'LONG' ? price - manSL : price + manSL;
+    tp = side === 'LONG' ? price + manTP : price - manTP;
+    posVal = Math.min(riskUSD / (manSL / price), balance * 0.3);
+    if (isNaN(posVal) || posVal < 1) posVal = 1;
+    qty = posVal * leverage / price;
+    comm = posVal * COMM * 2;
+  } else if (an) {
+    sl = an.sl; tp = an.tp;
+    posVal = an.posVal; qty = an.qty; comm = an.comm;
+  } else {
+    notify('Sinyal yok veya TP/SL gerekli', 'error');
+    return;
+  }
+
+  var newPos = {
+    id: posId++, pair: sym, side: side, entry: price,
+    qty: qty, posVal: posVal, sl: sl, tp: tp, comm: comm,
+    atrAtOpen: an ? an.atrPct : 0.2, lastPrice: price
+  };
+
+  if (appMode === 'live' && WORKER) {
+    notify('Order gönderiliyor...', 'info');
+    xfetch(WORKER + '/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: sym, side: side, usdAmount: posVal,
+        leverage: leverage, sl: sl, tp: tp
+      })
+    }, function(r) {
+      log('Order yanıtı: ' + JSON.stringify(r), 'info');
+      var isSuccess = (r && (r.success === true || r.ok === true || r.status === 'ok'));
+      if (isSuccess) {
+        balance -= comm;
+        dailyPnL -= comm;
+        positions.push(newPos);
+        if (balance > peakBal) peakBal = balance;
+        log('Order başarılı: ' + sym + ' ' + side, 'ok');
+        notify(side + ' ' + sym.replace('USDT', '') + ' açıldı', 'success');
+        updatePosUI();
+        updateSignalUI();
+        startPositionTracker();
+      } else {
+        var errMsg = r && r.error ? r.error : 'Worker cevap vermedi veya başarısız';
+        log('Order hatası: ' + errMsg, 'err');
+        notify('Order başarısız: ' + errMsg, 'error');
+      }
+    }, function(code, xhr) {
+      log('Order network hatası: kod=' + code, 'err');
+      notify('Bağlantı hatası: ' + code, 'error');
+    });
+  } else {
+    balance -= comm;
+    dailyPnL -= comm;
+    positions.push(newPos);
+    if (balance > peakBal) peakBal = balance;
+    log((auto ? '[AUTO] ' : '') + side + ' ' + sym.replace('USDT', '') + ' @' + fp(price) + ' SL:' + fp(sl) + ' TP:' + fp(tp), 'ok');
+    notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT', '') + ' açıldı', 'success');
+    updatePosUI();
+    updateSignalUI();
+    startPositionTracker();
+  }
+}
 function closePos(id,reason){var pos=null,idx=-1;for(var i=0;i<positions.length;i++){if(positions[i].id===id){pos=positions[i];idx=i;break;}}if(!pos)return;var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;var gross=(pr-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty;var net=gross-pos.comm;balance+=net+pos.posVal;dailyPnL+=net;if(balance>peakBal)peakBal=balance;var isSL=reason.indexOf('STOP')!==-1||reason.indexOf('SL')!==-1;if(net<0&&isSL){slStreak[pos.pair]=(slStreak[pos.pair]||0)+1;if(slStreak[pos.pair]>=2){setCD(pos.pair,15,'2 SL üst üste');slStreak[pos.pair]=0;}}else if(net>0){slStreak[pos.pair]=0;}trades.push({pair:pos.pair,side:pos.side,pnl:net,reason:reason,entry:pos.entry,exit:pr});positions.splice(idx,1);var icon=net>0?'✓ WIN':'✗ SL';notify(icon+' '+pos.pair.replace('USDT','')+' '+(net>=0?'+':'')+'$'+net.toFixed(4),net>=0?'success':'error');log(icon+' '+pos.pair.replace('USDT','')+' '+reason+' PnL:$'+net.toFixed(4)+' Bal:$'+balance.toFixed(2),net>=0?'ok':'err');if(appMode==='live'&&WORKER){xfetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side})},function(d){if(d&&d.success)log('Worker kapat OK','ok');},function(){log('Worker kapat net hata','err');});}updatePosUI();updateSignalUI();if(positions.length===0)stopPositionTracker();}
 function startPositionTracker(){if(positionTrackerInterval)clearInterval(positionTrackerInterval);positionTrackerInterval=setInterval(function(){if(positions.length===0){if(positionTrackerInterval)clearInterval(positionTrackerInterval);positionTrackerInterval=null;return;}for(var i=0;i<positions.length;i++){var pos=positions[i];var sym=pos.pair;var price=(pData[sym]&&pData[sym].price)||pos.entry;pos.lastPrice=price;var currentPnl=(price-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty;var targetRatio=currentPnl/targetUSD;var trailingStart=0.25;var trailingStep=0.05;var newSL=pos.sl;var newTP=pos.tp;var changed=false;var reason='';if(targetRatio>=0.25){var trailOffset=Math.min(0.8,Math.max(0.25,Math.floor(targetRatio/trailingStep)*trailingStep));if(pos.side==='LONG'){var candidateSL=price-(price-pos.entry)*trailOffset*0.8;if(candidateSL>pos.sl){newSL=candidateSL;changed=true;reason='TRAIL_STOP_KAR_'+Math.floor(targetRatio*100)+'%';}}else{var candidateSL=price+(pos.entry-price)*trailOffset*0.8;if(candidateSL<pos.sl){newSL=candidateSL;changed=true;reason='TRAIL_STOP_KAR_'+Math.floor(targetRatio*100)+'%';}}}if(targetRatio>=0.6){if(pos.side==='LONG'){var extraTP=price+(price-pos.entry)*0.5;if(extraTP>pos.tp){newTP=extraTP;changed=true;reason+=' TP_UZAT';}}else{var extraTP=price-(pos.entry-price)*0.5;if(extraTP<pos.tp){newTP=extraTP;changed=true;reason+=' TP_UZAT';}}}if(targetRatio>=0.9){if(pos.side==='LONG'){newTP=price+0.001;changed=true;reason='TP_KAPATMAYA_YAKIN';}else{newTP=price-0.001;changed=true;reason='TP_KAPATMAYA_YAKIN';}}if(changed&&(Math.abs(newTP-pos.tp)>0.00001||Math.abs(newSL-pos.sl)>0.00001)){pos.tp=newTP;pos.sl=newSL;var logMsg=`[LIVE] ${pos.pair.replace('USDT','')} ${pos.side} | ${reason} | KAR:${currentPnl.toFixed(4)}/$${targetUSD.toFixed(2)} | YENİ TP:${fp(newTP)} SL:${fp(newSL)}`;log(logMsg,'ok');logPos(logMsg,'ok');if(appMode==='live'&&WORKER){var dp=pos.entry>1000?2:pos.entry>10?3:4;xfetch(WORKER+'/update_tpsl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:pos.pair,side:pos.side,tp:parseFloat(newTP.toFixed(dp)),sl:parseFloat(newSL.toFixed(dp))})},function(r){if(r&&r.success)log(`Worker TP/SL güncellendi: ${pos.pair}`,'ok');},function(){log(`Worker TP/SL güncellenemedi (lokal devam)`,'info');});}updatePosUI();}}},1000);}
 function stopPositionTracker(){if(positionTrackerInterval){clearInterval(positionTrackerInterval);positionTrackerInterval=null;}}
@@ -206,7 +276,7 @@ function runEngine(){if(!engineOn)return;document.getElementById('eLast').textCo
 function demoTick(sym){var s=pxState[sym];var base=DEMO_BASE[sym]||1;s.vel=s.vel*0.9+(Math.random()-0.5)*s.price*0.0004+(base-s.price)*0.001;s.price=Math.max(s.price*0.5,s.price+s.vel);}
 function makeKlines(sym,n,tf){var msMap={'1m':60000,'5m':300000,'15m':900000,'1h':3600000};var ms=msMap[tf]||300000;var p=pxState[sym]?pxState[sym].price:(DEMO_BASE[sym]||1);var kl=[];for(var i=n-1;i>=0;i--){var drift=(Math.random()-0.49)*0.005;var o=p,c=o*(1+drift);var range=Math.abs(o-c)*(1+Math.random()*0.8);kl.unshift({t:Date.now()-i*ms,o:o,h:Math.max(o,c)+range*Math.random()*0.5,l:Math.min(o,c)-range*Math.random()*0.5,c:c,v:500+Math.random()*5000});p=c;}if(kl.length&&pxState[sym])kl[kl.length-1].c=pxState[sym].price;return kl;}
 function refreshDemo(){var now=Date.now();for(var i=0;i<pairs.length;i++){var sym=pairs[i];prevPx[sym]=pxState[sym]?pxState[sym].price:(DEMO_BASE[sym]||1);if(!pxState[sym])pxState[sym]={price:DEMO_BASE[sym]||1,vel:0};demoTick(sym);if(!pData[sym])pData[sym]={};pData[sym].price=pxState[sym].price;if(!pData[sym].lastKl||now-pData[sym].lastKl>15000){pData[sym].kl1m=makeKlines(sym,200,'1m');pData[sym].kl5m=makeKlines(sym,200,'5m');pData[sym].kl15m=makeKlines(sym,120,'15m');pData[sym].kl1h=makeKlines(sym,60,'1h');pData[sym].lastKl=now;}else{var klkeys=['kl1m','kl5m','kl15m','kl1h'];for(var ki=0;ki<klkeys.length;ki++){var kl=pData[sym][klkeys[ki]];if(kl&&kl.length){var last=kl[kl.length-1];last.c=pxState[sym].price;last.h=Math.max(last.h,last.c);last.l=Math.min(last.l,last.c);last.v+=Math.random()*50;}}}}analyzeAll();}
-function xfetch(url,opts,onOk,onErr){var xhr=new XMLHttpRequest();xhr.open(opts&&opts.method?opts.method:'GET',url,true);if(opts&&opts.headers)for(var k in opts.headers)xhr.setRequestHeader(k,opts.headers[k]);xhr.onreadystatechange=function(){if(xhr.readyState!==4)return;if(xhr.status>=200&&xhr.status<300){try{onOk(JSON.parse(xhr.responseText));}catch(e){onOk(null);}}else if(onErr)onErr(xhr.status);};xhr.onerror=function(){if(onErr)onErr('net');};xhr.send(opts&&opts.body?opts.body:null);}
+function xfetch(url,opts,onOk,onErr){var xhr=new XMLHttpRequest();xhr.open(opts&&opts.method?opts.method:'GET',url,true);if(opts&&opts.headers)for(var k in opts.headers)xhr.setRequestHeader(k,opts.headers[k]);xhr.onreadystatechange=function(){if(xhr.readyState!==4)return;if(xhr.status>=200&&xhr.status<300){try{onOk(JSON.parse(xhr.responseText));}catch(e){onOk(null);}}else{if(onErr)onErr(xhr.status,xhr);}};xhr.onerror=function(){if(onErr)onErr('net',xhr);};xhr.send(opts&&opts.body?opts.body:null);}
 function syncBal(){if(!WORKER||appMode!=='live')return;xfetch(WORKER+'/balance',null,function(d){if(d&&d.success&&d.balance&&d.balance.balance){futBal=parseFloat(d.balance.balance);balance=futBal;log('Bakiye senkronize: $'+futBal.toFixed(2),'ok');updateBalUI();}},function(){log('Bakiye sync hatası','err');});}
 function fetchLive(){if(!WORKER)return;var now=Date.now();var priceDone=0,total=pairs.length;if(!total)return;for(var i=0;i<pairs.length;i++){(function(sym){xfetch(WORKER+'/price?symbol='+sym,null,function(d){if(d&&d.success){var p=parseFloat(d.data.lastPrice||d.data.price||0);if(p>0){prevPx[sym]=pxState[sym]?pxState[sym].price:p;if(!pxState[sym])pxState[sym]={price:p,vel:0};pxState[sym].price=p;if(!pData[sym])pData[sym]={};pData[sym].price=p;}}priceDone++;if(priceDone>=total)doFetchKlines();},function(){priceDone++;if(priceDone>=total)doFetchKlines();});})(pairs[i]);}function doFetchKlines(){var tfs=['5m','15m','1h'],limits=[200,120,60],keys=['kl5m','kl15m','kl1h'],needFetch=[];for(var pi=0;pi<pairs.length;pi++){var sym=pairs[pi];if(!pData[sym])pData[sym]={};if(pData[sym].lastKl&&(now-pData[sym].lastKl)<60000){for(var ki=0;ki<keys.length;ki++){var kl=pData[sym][keys[ki]];if(kl&&kl.length&&pxState[sym]){var last=kl[kl.length-1];last.c=pxState[sym].price;last.h=Math.max(last.h,last.c);last.l=Math.min(last.l,last.c);}}}else{needFetch.push(sym);}}if(needFetch.length===0){analyzeAll();return;}var totalReq=needFetch.length*tfs.length,doneReq=0;function oneDone(){doneReq++;if(doneReq>=totalReq)analyzeAll();}for(var ni=0;ni<needFetch.length;ni++){(function(sym){for(var j=0;j<tfs.length;j++){(function(tf,lim,key){xfetch(WORKER+'/klines?symbol='+sym+'&interval='+tf+'&limit='+lim,null,function(d){if(d&&d.success&&Array.isArray(d.data)){var kl=[];for(var m=0;m<d.data.length;m++){var kk=d.data[m];kl.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]});}pData[sym][key]=kl;pData[sym].lastKl=Date.now();}oneDone();},function(){oneDone();});})(tfs[j],limits[j],keys[j]);}})(needFetch[ni]);}}}
 function connectLive(){var url=(document.getElementById('wUrl').value||'').trim();if(!url){notify('Worker URL girin','error');return;}if(!url.startsWith('http')){notify('URL https:// ile başlamalı','error');return;}WORKER=url.replace(/\/+$/,'');setConnStatus('Bağlanıyor...','var(--warn)');xfetch(WORKER+'/ping',null,function(d){if(d&&d.success){appMode='live';var ver=d.version?' v'+d.version:'';setConnStatus('🟢 Canlı bağlantı aktif'+ver,'var(--long)');document.getElementById('bdgConn').textContent='LIVE';document.getElementById('bdgConn').className='hbdg live';notify('Worker bağlandı'+ver,'success');log('Canlı mod başladı — Worker'+ver,'ok');syncBal();if(loopTimer)clearTimeout(loopTimer);mainLoop();}else{WORKER='';appMode='demo';setConnStatus('❌ Worker yanıt vermedi','var(--short)');notify('Worker yanıt vermedi','error');}},function(code){WORKER='';appMode='demo';setConnStatus('❌ Bağlantı hatası ('+code+')','var(--short)');notify('Bağlantı hatası: '+code,'error');});}
@@ -240,7 +310,7 @@ function initChart(){var c=document.getElementById('chart');if(c)chartCtx=c.getC
 function drawChart(){if(!chartCtx)return;var pg=document.getElementById('pg-signal');if(!pg||!pg.classList.contains('active'))return;if(chartRAF)cancelAnimationFrame(chartRAF);chartRAF=requestAnimationFrame(function(){var pd=pData[currentPair];if(!pd)return;var tfMap={'1m':'kl1m','5m':'kl5m','15m':'kl15m','1h':'kl1h'};var kl=pd[tfMap[currentTF]||'kl5m']||[];if(!kl||kl.length<5)return;var cv=chartCtx.canvas;var W=cv.offsetWidth;if(W!==lastCW||cv.width!==W){cv.width=W;cv.height=150;lastCW=W;}var H=150,ctx=chartCtx;ctx.clearRect(0,0,W,H);var n=Math.min(80,kl.length),k=kl.slice(-n);var cl=k.map(function(x){return x.c;});var mn=Infinity,mx=-Infinity;for(var i=0;i<k.length;i++){if(k[i].l<mn)mn=k[i].l;if(k[i].h>mx)mx=k[i].h;}var an=pd.an;if(an){if(an.sl){mn=Math.min(mn,an.sl*0.9995);mx=Math.max(mx,an.sl*1.0005);}if(an.tp){mn=Math.min(mn,an.tp*0.9995);mx=Math.max(mx,an.tp*1.0005);}}var rng=mx-mn;if(rng<=0)return;var toY=function(v){return H-8-((v-mn)/rng)*(H-16);};var cw=W/n;ctx.strokeStyle='#0a1a28';ctx.lineWidth=1;for(var gi=0;gi<4;gi++){var gy=8+(H-16)*gi/3;ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();ctx.fillStyle='#1a3a55';ctx.font='7px Share Tech Mono,monospace';ctx.fillText('$'+fp(mx-rng*gi/3),2,gy-1);}function drawEMA(e,col){var arr=calcEMA(cl,e);ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.globalAlpha=0.7;ctx.setLineDash([]);var started=false;for(var i=0;i<arr.length;i++){if(!arr[i])continue;var x=(i+0.5)*cw;if(!started){ctx.moveTo(x,toY(arr[i]));started=true;}else ctx.lineTo(x,toY(arr[i]));}ctx.stroke();ctx.globalAlpha=1;}drawEMA(9,'#00d4ff');drawEMA(21,'#ffaa00');for(var i=0;i<k.length;i++){var bar=k[i];var x=(i+0.5)*cw;var bw=Math.max(cw*0.7,1);var isGreen=bar.c>=bar.o;var col2=isGreen?'rgba(0,255,136,0.75)':'rgba(255,51,85,0.75)';ctx.beginPath();ctx.strokeStyle=col2;ctx.lineWidth=1;ctx.moveTo(x,toY(bar.h));ctx.lineTo(x,toY(bar.l));ctx.stroke();var yo=toY(bar.o),yc=toY(bar.c);var y1=Math.min(yo,yc),h2=Math.max(1,Math.abs(yo-yc));ctx.fillStyle=col2;ctx.fillRect(x-bw/2,y1,bw,h2);}function drawHL(v,col,lbl){if(!v||v<mn||v>mx)return;ctx.setLineDash([5,4]);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,toY(v));ctx.lineTo(W,toY(v));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='8px Share Tech Mono,monospace';ctx.fillText(lbl+' '+fp(v),W-70,toY(v)-2);}if(an){if(an.tp)drawHL(an.tp,'rgba(0,255,136,0.8)','TP');if(an.sl)drawHL(an.sl,'rgba(255,51,85,0.8)','SL');}var lp=cl[cl.length-1];ctx.setLineDash([2,4]);ctx.strokeStyle='rgba(255,204,68,0.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,toY(lp));ctx.lineTo(W,toY(lp));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,204,68,0.9)';ctx.font='8px Share Tech Mono,monospace';ctx.fillText('$'+fp(lp),W-62,toY(lp)-2);});}
 function unrealPnl(pos){var pr=(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;return(pr-pos.entry)*(pos.side==='LONG'?1:-1)*pos.qty;}
 window.selPair=selPair;window.setTF=setTF;window.manualOpen=manualOpen;window.closePos=closePos;window.toggleEng=toggleEng;window.toggleAutoTrade=toggleAutoTrade;window.toggleTight=toggleTight;window.toggleScalp=toggleScalp;window.readSettings=readSettings;window.addCoin=addCoin;window.removeCoin=removeCoin;window.connectLive=connectLive;window.startDemo=startDemo;window.doReset=doReset;window.swPage=swPage;
-window.addEventListener('DOMContentLoaded',function(){initChart();renderCoinList();readSettings();startDemo();log('APEX Scalp Bot başladı — YENİ: HER SANİYE TRAILING STOP AKTİF','ok');log('Pozisyon açıldığında anlık takip başlar, kâr arttıkça SL yukarı çekilir, TP genişletilir. Pozisyon takip logu ayrıca Pozisyon sayfasında.','info');var tfBtns=document.querySelectorAll('.tf-btn');for(var i=0;i<tfBtns.length;i++){(function(btn){btn.onclick=function(){setTF(btn,btn.getAttribute('data-tf'));};})(tfBtns[i]);}var navBtns=document.querySelectorAll('.nb');for(var i=0;i<navBtns.length;i++){(function(btn){btn.onclick=function(){swPage(btn.getAttribute('data-page'));};})(navBtns[i]);}document.getElementById('togAuto').onclick=toggleAutoTrade;document.getElementById('togTight').onclick=toggleTight;document.getElementById('togScalp').onclick=toggleScalp;var ids=['selTarget','selRisk','selLev','selInt'];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el)el.onchange=readSettings;}document.getElementById('btnL').onclick=function(){manualOpen('LONG');};document.getElementById('btnS').onclick=function(){manualOpen('SHORT');};document.getElementById('btnEng').onclick=toggleEng;});
+window.addEventListener('DOMContentLoaded',function(){initChart();renderCoinList();readSettings();startDemo();log('APEX Scalp Bot başladı — HER SANİYE TRAILING STOP AKTİF','ok');log('Canlı mod: Worker bağlantısı aktif, order gönderimi düzeltildi.','info');var tfBtns=document.querySelectorAll('.tf-btn');for(var i=0;i<tfBtns.length;i++){(function(btn){btn.onclick=function(){setTF(btn,btn.getAttribute('data-tf'));};})(tfBtns[i]);}var navBtns=document.querySelectorAll('.nb');for(var i=0;i<navBtns.length;i++){(function(btn){btn.onclick=function(){swPage(btn.getAttribute('data-page'));};})(navBtns[i]);}document.getElementById('togAuto').onclick=toggleAutoTrade;document.getElementById('togTight').onclick=toggleTight;document.getElementById('togScalp').onclick=toggleScalp;var ids=['selTarget','selRisk','selLev','selInt'];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el)el.onchange=readSettings;}document.getElementById('btnL').onclick=function(){manualOpen('LONG');};document.getElementById('btnS').onclick=function(){manualOpen('SHORT');};document.getElementById('btnEng').onclick=toggleEng;});
 </script>
 </body>
 </html>
