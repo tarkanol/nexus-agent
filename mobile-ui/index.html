@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp Bot</title>
+<title>APEX Scalp Bot | Dinamik TP/SL</title>
 <style>
-/* Google Fonts kaldırıldı — system font fallback */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
 
 :root {
   --bg: #020a0f;
@@ -825,7 +825,8 @@ select option { background: #041018; }
         <span style="color:var(--acc)">GET</span> /price?symbol=BTCUSDT — fiyat<br>
         <span style="color:var(--acc)">GET</span> /klines?symbol=X&interval=5m&limit=200<br>
         <span style="color:var(--long)">POST</span> /order — {symbol,side,usdAmount,leverage,sl,tp}<br>
-        <span style="color:var(--short)">POST</span> /close — {symbol,side}
+        <span style="color:var(--short)">POST</span> /close — {symbol,side}<br>
+        <span style="color:var(--gold)">POST</span> /update_tpsl — {symbol,side,tp,sl} (opsiyonel)
       </div>
     </div>
 
@@ -864,12 +865,11 @@ select option { background: #041018; }
 <script>
 'use strict';
 /* ══════════════════════════════════════════
-   APEX SCALP BOT — Temiz Yeniden Yazım
-   5m + 15m çerçevesi, gerçek price action
+   APEX SCALP BOT — DİNAMİK TP/SL GÜNCELLEME
    ══════════════════════════════════════════ */
 
 var START_BAL = 50;
-var COMM  = 0.0004; // Binance futures taker %0.04 × 2 = %0.08 round-trip
+var COMM  = 0.0004;
 var MAX_P = 2;
 
 var DEMO_BASE = {
@@ -986,16 +986,7 @@ function calcVolRatio(kl) {
   return avg > 0 ? sl[sl.length-1].v / avg : 1;
 }
 
-/* ─── ANA ANALİZ FONKSİYONU ─── */
-/*
-  MANTIK:
-  1. 15m trend yönü (genel yön filtresi — karşı yönde açma)
-  2. 5m EMA9/EMA21 crossover (ana giriş sinyali)
-  3. MACD histogram büyüyor mu? (momentum onayı)
-  4. RSI < 70 (LONG) / > 30 (SHORT) — aşırı bölgede girme
-  5. Hacim > ortalama (sahte breakout filtresi)
-  6. ATR bazlı SL/TP (volatiliteye uygun, sabit % değil)
-*/
+/* ─── ANA ANALİZ FONKSİYONU (aynı) ─── */
 function analyze(sym) {
   var pd = pData[sym];
   if (!pd) return null;
@@ -1003,25 +994,18 @@ function analyze(sym) {
   if (kl5.length < 30 || kl15.length < 20) return null;
 
   var price = pd.price || kl5[kl5.length-1].c;
-
-  /* ── ATR filtreleri ── */
   var atr5 = calcATR(kl5, 14);
   var atrPct = (atr5 / price) * 100;
-  // Çok düşük volatilite → sinyal yok, çok yüksek → riskli
-  if (atrPct < 0.03 && !aggressiveMode) return null; // ölü market
-  if (atrPct > 2.5)  return null;                    // çok yabani
+  if (atrPct < 0.03 && !aggressiveMode) return null;
+  if (atrPct > 2.5)  return null;
 
-  /* ── 15m trend yönü ── */
   var c15 = kl15.map(function(k){ return k.c; });
   var e9_15  = calcEMA(c15, 9),  e21_15 = calcEMA(c15, 21);
   var l9_15  = e9_15[e9_15.length-1];
   var l21_15 = e21_15[e21_15.length-1];
   var rsi15  = calcRSI(c15, 14);
-  var trend15 = (l9_15 && l21_15)
-    ? (l9_15 > l21_15 ? 'LONG' : l9_15 < l21_15 ? 'SHORT' : 'NEUTRAL')
-    : 'NEUTRAL';
+  var trend15 = (l9_15 && l21_15) ? (l9_15 > l21_15 ? 'LONG' : l9_15 < l21_15 ? 'SHORT' : 'NEUTRAL') : 'NEUTRAL';
 
-  /* ── 1h genel trend ── */
   var trend1h = 'NEUTRAL';
   if (kl1h.length >= 20) {
     var c1h = kl1h.map(function(k){ return k.c; });
@@ -1030,7 +1014,6 @@ function analyze(sym) {
     if (l21_1h && l50_1h) trend1h = l21_1h > l50_1h ? 'LONG' : 'SHORT';
   }
 
-  /* ── 5m sinyali ── */
   var c5 = kl5.map(function(k){ return k.c; });
   var e9_5  = calcEMA(c5, 9),  e21_5 = calcEMA(c5, 21);
   var l9_5  = e9_5[e9_5.length-1];
@@ -1043,65 +1026,47 @@ function analyze(sym) {
   var rsi5  = calcRSI(c5, 14);
   var vr    = calcVolRatio(kl5);
 
-  /* ── Crossover tespiti ── */
-  var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5); // yeni altın kesişim
-  var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5); // yeni ölüm kesişimi
+  var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5);
+  var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5);
   var aboveEMA = l9_5 > l21_5;
   var belowEMA = l9_5 < l21_5;
 
-  /* ── Sinyal adayı ── */
   var rawSig = 'WAIT';
   if (goldenX || (aboveEMA && macd5.cross === 'UP')) rawSig = 'LONG';
   else if (deathX || (belowEMA && macd5.cross === 'DN')) rawSig = 'SHORT';
-  // Trend takip: EMA9 yukarıda + MACD pozitif büyüyor = long devam
   else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 52 && rsi5 < 70) rawSig = 'LONG';
   else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 48 && rsi5 > 30) rawSig = 'SHORT';
 
   if (rawSig === 'WAIT') return null;
 
-  /* ── FİLTRELER ── */
-  var reasons = [], rejects = [];
-
-  // 1. Hacim filtresi (en önemli sahte breakout önleyici)
+  var reasons = [];
   if (vr >= 1.3) reasons.push({t:'HACİM_OK', cls:'long'});
-  else if (vr < 0.7) { rejects.push('DÜŞÜK_HACİM'); if (!aggressiveMode) return null; }
+  else if (vr < 0.7) { if (!aggressiveMode) return null; }
   else reasons.push({t:'HACİM_ORTA', cls:'active'});
 
-  // 2. RSI aşırı bölge filtresi
   if (rawSig === 'LONG') {
-    if (rsi5 > 75) { rejects.push('RSI_AŞIRI_AL'); return null; }
+    if (rsi5 > 75) return null;
     if (rsi5 > 65) reasons.push({t:'RSI_YÜKSEK', cls:'active'});
     else reasons.push({t:'RSI_OK:'+rsi5.toFixed(0), cls:'long'});
   } else {
-    if (rsi5 < 25) { rejects.push('RSI_AŞIRI_SAT'); return null; }
+    if (rsi5 < 25) return null;
     if (rsi5 < 35) reasons.push({t:'RSI_DÜŞÜK', cls:'active'});
     else reasons.push({t:'RSI_OK:'+rsi5.toFixed(0), cls:'short'});
   }
 
-  // 3. 15m trend onayı (en güvenilir filtre — ÇOK ÖNEMLİ)
-  if (trend15 === rawSig) {
-    reasons.push({t:'15m_ONAY', cls: rawSig.toLowerCase()});
-  } else if (trend15 !== 'NEUTRAL' && !aggressiveMode) {
-    // Karşı trend — iptal (en sık yanlış sinyalin sebebi bu)
-    log('KARŞI_TREND filt: '+sym.replace('USDT','')+' sig='+rawSig+' trend15='+trend15, 'info');
-    return null;
-  } else {
-    reasons.push({t:'TREND_KARŞI', cls:'active'});
-  }
+  if (trend15 === rawSig) reasons.push({t:'15m_ONAY', cls: rawSig.toLowerCase()});
+  else if (trend15 !== 'NEUTRAL' && !aggressiveMode) return null;
+  else reasons.push({t:'TREND_KARŞI', cls:'active'});
 
-  // 4. 1h genel onay (bonus)
   if (trend1h === rawSig) reasons.push({t:'1h_ONAY', cls: rawSig.toLowerCase()});
   else if (trend1h !== 'NEUTRAL') reasons.push({t:'1h_KARŞI', cls:'active'});
 
-  // 5. Crossover bonusu
   if (goldenX && rawSig === 'LONG') reasons.push({t:'GOLDEN_X', cls:'long'});
   if (deathX  && rawSig === 'SHORT') reasons.push({t:'DEATH_X', cls:'short'});
   if (macd5.cross === 'UP' && rawSig === 'LONG') reasons.push({t:'MACD_CROSS_UP', cls:'long'});
   if (macd5.cross === 'DN' && rawSig === 'SHORT') reasons.push({t:'MACD_CROSS_DN', cls:'short'});
-  // ATR durumu
   if (atrPct < 0.08) reasons.push({t:'DÜŞÜK_VOL⚠', cls:'active'});
 
-  /* ── SKOR hesabı ── */
   var score = 30;
   if (vr >= 1.5) score += 20; else if (vr >= 1.2) score += 10;
   if (trend15 === rawSig) score += 25;
@@ -1115,28 +1080,20 @@ function analyze(sym) {
   var minS = aggressiveMode ? 40 : 60;
   if (score < minS) return null;
 
-  // Fee güvenlik kontrolü: net kâr sıfırın üstünde olmalı
-  // Tahmini fee = posVal × 0.0008, tpDist en az bunun 3 katı
-  var estFeeRate = 0.0008;
-
-  /* ── ATR bazlı SL/TP ── */
-  // Fee hesabı: %0.04 taker × 2 yön = %0.08 round-trip
-  // SL en az fee × 4 = %0.32 uzakta olmalı (fee'ye yenilmemek için)
-  var minSlPct = 0.0032; // %0.32 minimum
-  var slMult   = tightSL ? 1.2 : 1.8; // ATR çarpanı (arttırıldı)
+  var minSlPct = 0.0032;
+  var slMult   = tightSL ? 1.2 : 1.8;
   var tpMult   = targetUSD / riskUSD;
 
   var atrSlDist  = atr5 * slMult;
   var minSlDist  = price * minSlPct;
-  var slDist     = Math.max(atrSlDist, minSlDist); // büyük olan
-  var tpDist     = Math.max(slDist * tpMult, price * 0.005); // min %0.5 TP
+  var slDist     = Math.max(atrSlDist, minSlDist);
+  var tpDist     = Math.max(slDist * tpMult, price * 0.005);
 
   var sl, tp;
   if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
-  else                     { sl = price + slDist; tp = price - tpDist; }
+  else                    { sl = price + slDist; tp = price - tpDist; }
 
-  // Para bazlı lot hesabı
-  var slDistUSD = riskUSD; // sabit risk
+  var slDistUSD = riskUSD;
   var posVal = Math.min(slDistUSD / (slDist / price), balance * 0.3);
   var qty = posVal * leverage / price;
   var comm = posVal * COMM * 2;
@@ -1145,7 +1102,7 @@ function analyze(sym) {
     signal: rawSig, score: score,
     price: price, sl: sl, tp: tp,
     slDist: slDist, tpDist: tpDist,
-    minSlUsed: atrSlDist < minSlDist, // true = ATR çok dar, minimum devrede
+    minSlUsed: atrSlDist < minSlDist,
     posVal: posVal, qty: qty, comm: comm,
     reasons: reasons,
     atrPct: atrPct, vr: vr,
@@ -1193,7 +1150,7 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-/* ─── Pozisyon işlemleri ─── */
+/* ─── Pozisyon işlemleri (Dinamik TP/SL eklendi) ─── */
 function openPos(sym, side, auto, manTP, manSL) {
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
   if (positions.length >= MAX_P) { notify('Max ' + MAX_P + ' pozisyon dolu', 'error'); return; }
@@ -1206,7 +1163,6 @@ function openPos(sym, side, auto, manTP, manSL) {
   var posVal, qty, sl, tp, comm;
 
   if (manTP && manSL) {
-    // Manuel mod
     sl = side === 'LONG' ? price - manSL : price + manSL;
     tp = side === 'LONG' ? price + manTP : price - manTP;
     posVal = Math.min(riskUSD / (manSL / price), balance * 0.3);
@@ -1221,7 +1177,7 @@ function openPos(sym, side, auto, manTP, manSL) {
 
   balance -= comm; dailyPnL -= comm;
   positions.push({ id: posId++, pair: sym, side: side, entry: price,
-    qty: qty, posVal: posVal, sl: sl, tp: tp, comm: comm });
+    qty: qty, posVal: posVal, sl: sl, tp: tp, comm: comm, atrAtOpen: an ? an.atrPct : 0.2 });
   if (balance > peakBal) peakBal = balance;
 
   var label = (auto ? '[AUTO] ' : '') + side + ' ' + sym.replace('USDT','') + ' @' + fp(price);
@@ -1262,19 +1218,138 @@ function closePos(id, reason) {
   updatePosUI(); updateSignalUI();
 }
 
+// DİNAMİK TP/SL GÜNCELLEME FONKSİYONLARI
+function updateDynamicTPSL(pos) {
+  var sym = pos.pair;
+  var pd = pData[sym];
+  if (!pd || !pd.an) return;
+  
+  var an = pd.an;
+  var price = pd.price || pos.entry;
+  var currentPnl = (price - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
+  var targetReached = currentPnl / targetUSD;
+  
+  var trend15 = an.mtf['15m'];
+  var macdHist = an.indicators.macd.hist;
+  var rsi = an.indicators.rsi5;
+  var atr = an.atrPct;
+  var vr = an.vr;
+  
+  var newTP = pos.tp, newSL = pos.sl;
+  var changed = false;
+  var reason = '';
+  
+  if (targetReached < 0.1) {
+    if (trend15 !== pos.side && trend15 !== 'NEUTRAL') {
+      var tightSlDist = an.slDist * 0.7;
+      if (pos.side === 'LONG') newSL = Math.max(newSL, price - tightSlDist);
+      else newSL = Math.min(newSL, price + tightSlDist);
+      changed = true;
+      reason = 'KARŞI_TREND_SL_SIKI';
+    }
+  }
+  else if (targetReached >= 0.25 && ((pos.side === 'LONG' && pos.sl < pos.entry) || (pos.side === 'SHORT' && pos.sl > pos.entry))) {
+    newSL = pos.entry;
+    changed = true;
+    reason = 'BREAKEVEN';
+  }
+  else if (targetReached >= 0.5 && trend15 === pos.side) {
+    var newSlDist = (currentPnl * 0.3) / (pos.qty * (pos.side === 'LONG' ? 1 : -1));
+    if (pos.side === 'LONG') newSL = price - newSlDist;
+    else newSL = price + newSlDist;
+    var extra = Math.max(an.tpDist * 1.2, price * 0.005);
+    if (pos.side === 'LONG') newTP = price + extra;
+    else newTP = price - extra;
+    changed = true;
+    reason = 'KAR_PROTEKSIYONU+TP_UZAT';
+  }
+  else if (targetReached >= 0.8 && trend15 === pos.side) {
+    var trailDist = an.slDist * 0.8;
+    if (pos.side === 'LONG') newSL = Math.max(newSL, price - trailDist);
+    else newSL = Math.min(newSL, price + trailDist);
+    changed = true;
+    reason = 'TRAILING_STOP';
+  }
+  else if (targetReached >= 0.9 && ((pos.side === 'LONG' && rsi > 70) || (pos.side === 'SHORT' && rsi < 30) || an.indicators.macd.cross !== null)) {
+    var closeDist = price * 0.001;
+    if (pos.side === 'LONG') newTP = price + closeDist;
+    else newTP = price - closeDist;
+    changed = true;
+    reason = 'DONUS_SINYALI_ERKEN_KAPAT';
+  }
+  
+  var atrRatio = an.atrPct / (pos.atrAtOpen || 0.2);
+  if (!pos.atrAtOpen) { pos.atrAtOpen = an.atrPct; atrRatio = 1; }
+  else if (Math.abs(atrRatio - 1) > 0.3) {
+    var limit = Math.min(1.5, Math.max(0.7, atrRatio));
+    if (pos.side === 'LONG') {
+      newSL = price - an.slDist * limit;
+      newTP = price + an.tpDist * limit;
+    } else {
+      newSL = price + an.slDist * limit;
+      newTP = price - an.tpDist * limit;
+    }
+    changed = true;
+    reason = 'ATR_ADAPTASYONU';
+  }
+  
+  if (changed && (Math.abs(newTP - pos.tp) > 0.0001 || Math.abs(newSL - pos.sl) > 0.0001)) {
+    applyDynamicTPSL(pos, newTP, newSL, reason);
+  }
+}
+
+function applyDynamicTPSL(pos, newTP, newSL, reason) {
+  if (pos.side === 'LONG') {
+    if (newTP <= pos.entry || newSL >= pos.entry) return;
+  } else {
+    if (newTP >= pos.entry || newSL <= pos.entry) return;
+  }
+  if (Math.abs(newTP - pos.tp) / pos.entry < 0.0005 && Math.abs(newSL - pos.sl) / pos.entry < 0.0005) return;
+  
+  var oldTP = pos.tp, oldSL = pos.sl;
+  pos.tp = newTP;
+  pos.sl = newSL;
+  
+  log(`[DYNAMIC] ${pos.pair.replace('USDT','')} ${pos.side} | ${reason} | TP:${fp(oldTP)}→${fp(newTP)} SL:${fp(oldSL)}→${fp(newSL)}`, 'ok');
+  
+  if (appMode === 'live' && WORKER) {
+    var dp = pos.entry > 1000 ? 2 : pos.entry > 10 ? 3 : 4;
+    xfetch(WORKER + '/update_tpsl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: pos.pair,
+        side: pos.side,
+        tp: parseFloat(newTP.toFixed(dp)),
+        sl: parseFloat(newSL.toFixed(dp))
+      })
+    }, function(r) {
+      if (r && r.success) log(`Worker TP/SL güncellendi: ${pos.pair}`, 'ok');
+      else log(`Worker TP/SL güncellenemedi (lokal geçerli)`, 'info');
+    }, function(code) {
+      log(`Worker TP/SL sync hatası: ${code} (lokal güncellendi)`, 'info');
+    });
+  }
+  updatePosUI();
+}
+
 function checkPositions() {
   for (var i = positions.length - 1; i >= 0; i--) {
     var p = positions[i];
     var pr = (pData[p.pair] && pData[p.pair].price) || p.entry;
     var pnl = (pr - p.entry) * (p.side === 'LONG' ? 1 : -1) * p.qty;
-    // TP'ye ulaştı mı?
+    
     if (p.side === 'LONG'  && pr >= p.tp) { closePos(p.id, 'TAKE PROFIT'); continue; }
     if (p.side === 'SHORT' && pr <= p.tp) { closePos(p.id, 'TAKE PROFIT'); continue; }
-    // SL'ye düştü mü?
     if (p.side === 'LONG'  && pr <= p.sl) { closePos(p.id, 'STOP LOSS'); continue; }
     if (p.side === 'SHORT' && pr >= p.sl) { closePos(p.id, 'STOP LOSS'); continue; }
-    // PnL bazlı erken çıkış (targetUSD'ye ulaştı)
     if (pnl >= targetUSD) { closePos(p.id, 'HEDEF ALINDI'); continue; }
+    
+    var now = Date.now();
+    if (!p.lastTPSLUpdate || (now - p.lastTPSLUpdate) > 30000) {
+      updateDynamicTPSL(p);
+      p.lastTPSLUpdate = now;
+    }
   }
 }
 
@@ -1352,7 +1427,6 @@ function refreshDemo() {
     demoTick(sym);
     if (!pData[sym]) pData[sym] = {};
     pData[sym].price = pxState[sym].price;
-    // Her 15 sn'de kline yenile
     if (!pData[sym].lastKl || now - pData[sym].lastKl > 15000) {
       pData[sym].kl1m  = makeKlines(sym, 200, '1m');
       pData[sym].kl5m  = makeKlines(sym, 200, '5m');
@@ -1360,7 +1434,6 @@ function refreshDemo() {
       pData[sym].kl1h  = makeKlines(sym, 60,  '1h');
       pData[sym].lastKl = now;
     } else {
-      // Mevcut bar güncelle
       var _klkeys=['kl1m','kl5m','kl15m','kl1h'];
       for(var _ki=0;_ki<_klkeys.length;_ki++){
         var kl=pData[sym][_klkeys[_ki]];
@@ -1381,56 +1454,44 @@ function updateSignalUI() {
   if (badge) { badge.textContent = sig; badge.className = 'sig-badge ' + sig; }
 
   var meta = document.getElementById('sigMeta');
-  if (meta) meta.textContent = an
-    ? 'SKOR:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  ATR:' + an.atrPct.toFixed(3) + '%'
-    : 'Analiz bekleniyor...';
+  if (meta) meta.textContent = an ? 'SKOR:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  ATR:' + an.atrPct.toFixed(3) + '%' : 'Analiz bekleniyor...';
 
   var qv = document.getElementById('qVal'), qb = document.getElementById('qBar');
   var sc = an ? an.score : 0;
   if (qv) qv.textContent = an ? an.score + '%' : '--%';
   if (qb) { qb.style.width = sc + '%'; qb.style.background = sc >= 80 ? 'var(--long)' : sc >= 60 ? 'var(--warn)' : 'var(--short)'; }
 
-  // Reasons
   var rr = document.getElementById('reasonRow');
   if (rr && an && an.reasons) {
     var html = '';
-    for (var i = 0; i < an.reasons.length; i++) {
-      html += '<span class="reason-tag ' + (an.reasons[i].cls || '') + '">' + an.reasons[i].t + '</span>';
-    }
+    for (var i = 0; i < an.reasons.length; i++) html += '<span class="reason-tag ' + (an.reasons[i].cls || '') + '">' + an.reasons[i].t + '</span>';
     rr.innerHTML = html;
   } else if (rr) rr.innerHTML = '';
 
-  // İndikatörler
   if (an && an.indicators) {
     var ind = an.indicators;
     setInd('iRsi5',  ind.rsi5.toFixed(1),  ind.rsi5 < 35 ? 'bull' : ind.rsi5 > 65 ? 'bear' : 'neut');
     setInd('iRsi15', ind.rsi15.toFixed(1), ind.rsi15 < 35 ? 'bull' : ind.rsi15 > 65 ? 'bear' : 'neut');
     setInd('iMacd',  (ind.macd.hist >= 0 ? '+' : '') + ind.macd.hist.toFixed(5), ind.macd.hist > 0 ? 'bull' : 'bear');
-    setInd('iEma',   ind.goldenX ? 'GOLDEN_X' : ind.deathX ? 'DEATH_X' : ind.aboveEMA ? 'YUKARI' : 'AŞAĞI',
-           ind.goldenX ? 'bull' : ind.deathX ? 'bear' : ind.aboveEMA ? 'bull' : 'bear');
+    setInd('iEma',   ind.goldenX ? 'GOLDEN_X' : ind.deathX ? 'DEATH_X' : ind.aboveEMA ? 'YUKARI' : 'AŞAĞI', ind.goldenX ? 'bull' : ind.deathX ? 'bear' : ind.aboveEMA ? 'bull' : 'bear');
     setInd('iVol',   ind.vr.toFixed(2) + 'x', ind.vr >= 1.3 ? 'bull' : ind.vr < 0.8 ? 'bear' : 'neut');
     setInd('iAtr',   ind.atrPct.toFixed(3) + '%', ind.atrPct > 0.1 ? 'neut' : 'bear');
   }
 
-  // MTF
   if (an && an.mtf) {
     setMTF('m5',  an.mtf['5m']);
     setMTF('m15', an.mtf['15m']);
     setMTF('m1h', an.mtf['1h']);
   }
 
-  // Plan kutusu
   renderPlan(an, price);
 
-  // Buton aktifliği
   var canOpen = positions.length < MAX_P;
   var btnL = document.getElementById('btnL'), btnS = document.getElementById('btnS');
   if (btnL) btnL.disabled = !canOpen;
   if (btnS) btnS.disabled = !canOpen;
   var mn = document.getElementById('manNote');
-  if (mn) mn.textContent = canOpen
-    ? 'Risk: $'+riskUSD.toFixed(2)+'  Hedef: $'+targetUSD.toFixed(2)+'  '+leverage+'x kaldıraç'
-    : 'MAX ' + MAX_P + ' POZİSYON DOLU';
+  if (mn) mn.textContent = canOpen ? 'Risk: $'+riskUSD.toFixed(2)+'  Hedef: $'+targetUSD.toFixed(2)+'  '+leverage+'x kaldıraç' : 'MAX ' + MAX_P + ' POZİSYON DOLU';
 
   updateBalUI();
   drawChart();
@@ -1594,7 +1655,6 @@ function drawChart() {
     var toY = function(v) { return H - 8 - ((v - mn) / rng) * (H - 16); };
     var cw = W / n;
 
-    // Grid
     ctx.strokeStyle = '#0a1a28'; ctx.lineWidth = 1;
     for (var gi = 0; gi < 4; gi++) {
       var gy = 8 + (H-16) * gi / 3;
@@ -1603,7 +1663,6 @@ function drawChart() {
       ctx.fillText('$' + fp(mx - rng * gi / 3), 2, gy - 1);
     }
 
-    // EMA9 (cyan), EMA21 (orange)
     function drawEMA(e, col) {
       var arr = calcEMA(cl, e);
       ctx.beginPath(); ctx.strokeStyle = col; ctx.lineWidth = 1.2;
@@ -1620,24 +1679,20 @@ function drawChart() {
     drawEMA(9, '#00d4ff');
     drawEMA(21, '#ffaa00');
 
-    // Mum grafik
     for (var i = 0; i < k.length; i++) {
       var bar = k[i];
       var x = (i + 0.5) * cw;
       var bw = Math.max(cw * 0.7, 1);
       var isGreen = bar.c >= bar.o;
       var col2 = isGreen ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,85,0.75)';
-      // Wick
       ctx.beginPath(); ctx.strokeStyle = col2; ctx.lineWidth = 1;
       ctx.moveTo(x, toY(bar.h)); ctx.lineTo(x, toY(bar.l)); ctx.stroke();
-      // Body
       var yo = toY(bar.o), yc = toY(bar.c);
       var y1 = Math.min(yo, yc), h2 = Math.max(1, Math.abs(yo - yc));
       ctx.fillStyle = col2;
       ctx.fillRect(x - bw/2, y1, bw, h2);
     }
 
-    // SL/TP çizgileri
     function drawHL(v, col, lbl) {
       if (!v || v < mn || v > mx) return;
       ctx.setLineDash([5, 4]); ctx.strokeStyle = col; ctx.lineWidth = 1;
@@ -1648,7 +1703,6 @@ function drawChart() {
     }
     if (an) { if (an.tp) drawHL(an.tp, 'rgba(0,255,136,0.8)', 'TP'); if (an.sl) drawHL(an.sl, 'rgba(255,51,85,0.8)', 'SL'); }
 
-    // Son fiyat
     var lp = cl[cl.length-1];
     ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(255,204,68,0.3)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, toY(lp)); ctx.lineTo(W, toY(lp)); ctx.stroke();
@@ -1658,7 +1712,7 @@ function drawChart() {
   });
 }
 
-/* ─── Canlı bağlantı ─── */
+/* ─── Canlı bağlantı (Worker) ─── */
 function xfetch(url, opts, onOk, onErr) {
   var xhr = new XMLHttpRequest();
   xhr.open(opts && opts.method ? opts.method : 'GET', url, true);
@@ -1671,6 +1725,7 @@ function xfetch(url, opts, onOk, onErr) {
   xhr.onerror = function() { if (onErr) onErr('net'); };
   xhr.send(opts && opts.body ? opts.body : null);
 }
+
 function doLiveOrder(sym, side, posVal, sl, tp, price) {
   var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
   xfetch(WORKER+'/order',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -1679,12 +1734,14 @@ function doLiveOrder(sym, side, posVal, sl, tp, price) {
     function(r){if(!r||!r.success){notify('Binance hatası','error');positions.pop();}},
     function(){notify('Binance bağlantı hatası','error');positions.pop();});
 }
+
 function doLiveClose(sym, side) {
   xfetch(WORKER+'/close',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({symbol:sym,side:side})},
     function(d){log(d&&d.success?'Kapat OK':'Kapat hata','ok');},
     function(){log('Kapat hata','err');});
 }
+
 function syncBal() {
   if (!WORKER || appMode !== 'live') return;
   xfetch(WORKER+'/balance', null, function(d) {
@@ -1695,6 +1752,7 @@ function syncBal() {
     }
   }, function() { log('Bakiye sync hatası','err'); });
 }
+
 function fetchLive() {
   if (!WORKER) return;
   var now = Date.now();
@@ -1732,7 +1790,6 @@ function fetchLive() {
     for (var pi = 0; pi < pairs.length; pi++) {
       var sym = pairs[pi];
       if (!pData[sym]) pData[sym] = {};
-      // 60 saniyeden yeni kline varsa sadece son bari güncelle
       if (pData[sym].lastKl && (now - pData[sym].lastKl) < 60000) {
         for (var ki = 0; ki < keys.length; ki++) {
           var kl = pData[sym][keys[ki]];
@@ -1783,14 +1840,11 @@ function fetchLive() {
     }
   }
 }
-/* ════════════════════════════════
-   CANLI MOD — Cloudflare Worker
-   ════════════════════════════════ */
+
 function connectLive() {
   var url = (document.getElementById('wUrl').value || '').trim();
   if (!url) { notify('Worker URL girin', 'error'); return; }
   if (!url.startsWith('http')) { notify('URL https:// ile başlamalı', 'error'); return; }
-  // Sondaki slash'ı kaldır
   WORKER = url.replace(/\/+$/, '');
   setConnStatus('Bağlanıyor...', 'var(--warn)');
   xfetch(WORKER + '/ping', null, function(d) {
@@ -1822,91 +1876,6 @@ function setConnStatus(msg, color) {
   if (el) { el.textContent = msg; el.style.color = color || 'var(--dim2)'; }
 }
 
-function syncBal() {
-  if (!WORKER || appMode !== 'live') return;
-  xfetch(WORKER + '/balance', null, function(d) {
-    if (d && d.success) {
-      // Worker farklı formatlarda dönebilir
-      var b = d.balance;
-      var val = null;
-      if (typeof b === 'number') val = b;
-      else if (b && b.balance)      val = parseFloat(b.balance);
-      else if (b && b.availableBalance) val = parseFloat(b.availableBalance);
-      else if (b && b.totalWalletBalance) val = parseFloat(b.totalWalletBalance);
-      if (val !== null && !isNaN(val) && val > 0) {
-        futBal = val; balance = val;
-        log('Bakiye sync: $' + val.toFixed(2), 'ok');
-        updateBalUI();
-      } else {
-        log('Bakiye parse hatası — raw: ' + JSON.stringify(b), 'err');
-      }
-    } else {
-      log('Bakiye alınamadı: ' + JSON.stringify(d), 'err');
-    }
-  }, function(code) {
-    log('Bakiye sync hata: ' + code, 'err');
-  });
-}
-
-function doLiveOrder(sym, side, posVal, sl, tp, price) {
-  if (!WORKER) return;
-  var dp = price > 1000 ? 1 : price > 100 ? 2 : price > 10 ? 3 : price > 1 ? 4 : 5;
-  var body = JSON.stringify({
-    symbol:    sym,
-    side:      side,
-    usdAmount: parseFloat(posVal.toFixed(2)),
-    leverage:  leverage,
-    sl:        parseFloat(sl.toFixed(dp)),
-    tp:        parseFloat(tp.toFixed(dp))
-  });
-  log('Order gönderiliyor: ' + sym + ' ' + side + ' $' + posVal.toFixed(2), 'info');
-  xfetch(WORKER + '/order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body
-  }, function(r) {
-    if (r && r.success) {
-      log('Order tamam: ' + sym + ' ' + side, 'ok');
-      notify('Order gönderildi ✓', 'success');
-      // Bakiye güncelle
-      setTimeout(syncBal, 2000);
-    } else {
-      log('Order hata: ' + JSON.stringify(r), 'err');
-      notify('Order hatası! Pozisyon iptal edildi', 'error');
-      // Açılan pozisyonu geri al
-      for (var i = positions.length - 1; i >= 0; i--) {
-        if (positions[i].pair === sym && positions[i].side === side) {
-          balance += positions[i].comm; // komisyonu geri ver
-          positions.splice(i, 1); break;
-        }
-      }
-      updatePosUI(); updateSignalUI();
-    }
-  }, function(code) {
-    log('Order net hatası: ' + code, 'err');
-    notify('Bağlantı hatası — order gönderilemedi', 'error');
-  });
-}
-
-function doLiveClose(sym, side) {
-  if (!WORKER) return;
-  xfetch(WORKER + '/close', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ symbol: sym, side: side })
-  }, function(d) {
-    if (d && d.success) {
-      log('Pozisyon kapatıldı: ' + sym, 'ok');
-      setTimeout(syncBal, 2000);
-    } else {
-      log('Kapatma hatası: ' + JSON.stringify(d), 'err');
-      notify('Kapatma hatası — Binance kontrol et!', 'error');
-    }
-  }, function(code) {
-    log('Kapatma net hatası: ' + code, 'err');
-    notify('Kapatma bağlantı hatası!', 'error');
-  });
-}
 function startDemo() {
   WORKER = ''; appMode = 'demo'; futBal = null;
   document.getElementById('bdgConn').textContent = 'DEMO';
@@ -1931,7 +1900,6 @@ function mainLoop() {
     updateCDUI();
     updateCoinScoreTable();
     if (engineOn) startCountdown();
-    // Her 10 döngüde bir bakiye sync (canlı modda)
     _loopCount++;
     if (appMode === 'live' && WORKER && _loopCount % 10 === 0) syncBal();
   } catch(e) { log('Loop hatası: ' + e.message, 'err'); }
@@ -1942,7 +1910,6 @@ function updateCoinScoreTable() {
   var el = document.getElementById('coinScoreTable');
   if (!el) return;
   var rows = '';
-  // Sırala: sinyal olanlar üste, skora göre
   var sorted = pairs.slice().sort(function(a, b) {
     var sa = (pData[a] && pData[a].an) ? pData[a].an.score : 0;
     var sb = (pData[b] && pData[b].an) ? pData[b].an.score : 0;
@@ -1952,13 +1919,12 @@ function updateCoinScoreTable() {
     var sym = sorted[i];
     var pd  = pData[sym] || {};
     var an  = pd.an;
-    var an2  = pd.an;
-    var sig2 = an2 ? an2.signal : 'WAIT';
-    var sc2  = an2 ? an2.score  : 0;
+    var sig2 = an ? an.signal : 'WAIT';
+    var sc2  = an ? an.score  : 0;
     var pr   = pd.price || DEMO_BASE[sym] || 0;
     var cd   = inCD(sym);
     var sigCol = sig2 === 'LONG' ? 'var(--long)' : sig2 === 'SHORT' ? 'var(--short)' : 'var(--dim2)';
-    var scBar  = sc2 > 0 ? ('<span style="display:inline-block;width:' + Math.round(sc2 * 0.4) + 'px;height:6px;background:' + sigCol + ';border-radius:2px;vertical-align:middle;margin-left:4px;opacity:0.7"></span>') : '';
+    var scBar  = sc2 > 0 ? '<span style="display:inline-block;width:' + Math.round(sc2 * 0.4) + 'px;height:6px;background:' + sigCol + ';border-radius:2px;vertical-align:middle;margin-left:4px;opacity:0.7"></span>' : '';
     var cdBadge = cd ? '<span style="color:var(--short);font-size:8px"> CD</span>' : '';
     rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--brd)">'
       + '<span style="color:var(--text2);min-width:50px">' + sym.replace('USDT','') + cdBadge + '</span>'
@@ -2017,7 +1983,7 @@ function readSettings() {
 }
 function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); }
 function setTF(btn, tf) {
-  (function(){var _qs3764=document.querySelectorAll('.tf-btn');for(var _qi3764=0;_qi3764<_qs3764.length;_qi3764++){var b=_qs3764[_qi3764];b.classList.remove('active');}})();;
+  var _qs3764=document.querySelectorAll('.tf-btn');for(var _qi3764=0;_qi3764<_qs3764.length;_qi3764++){var b=_qs3764[_qi3764];b.classList.remove('active');}
   btn.classList.add('active'); currentTF = tf; drawChart();
 }
 function manualOpen(side) {
@@ -2029,82 +1995,6 @@ function manualOpen(side) {
     if (!confirm('Sinyal ' + an.signal + ' ama ' + side + ' açılacak — devam?')) return;
   }
   openPos(currentPair, side, false, tp, sl);
-}
-function toggleTPSL(id) {
-  var el = document.getElementById('tpsl_' + id);
-  if (el) el.classList.toggle('open');
-}
-
-function applyTPSL(id) {
-  var pos = null;
-  for (var i = 0; i < positions.length; i++) {
-    if (positions[i].id === id) { pos = positions[i]; break; }
-  }
-  if (!pos) return;
-
-  var tpEl = document.getElementById('tp_' + id);
-  var slEl = document.getElementById('sl_' + id);
-  if (!tpEl || !slEl) return;
-
-  var newTP = parseFloat(tpEl.value);
-  var newSL = parseFloat(slEl.value);
-
-  if (isNaN(newTP) || isNaN(newSL) || newTP <= 0 || newSL <= 0) {
-    notify('Geçerli değer girin', 'error'); return;
-  }
-
-  // Mantık kontrolü
-  if (pos.side === 'LONG') {
-    if (newTP <= pos.entry) { notify('LONG: TP > giriş fiyatı olmalı', 'error'); return; }
-    if (newSL >= pos.entry) { notify('LONG: SL < giriş fiyatı olmalı', 'error'); return; }
-  } else {
-    if (newTP >= pos.entry) { notify('SHORT: TP < giriş fiyatı olmalı', 'error'); return; }
-    if (newSL <= pos.entry) { notify('SHORT: SL > giriş fiyatı olmalı', 'error'); return; }
-  }
-
-  // Fee kontrolü: TP mesafesi fee'den büyük olmalı
-  var tpDist = Math.abs(newTP - pos.entry);
-  var minDist = pos.entry * 0.001; // min %0.1
-  if (tpDist < minDist) {
-    notify('TP çok yakın — min %0.1 uzaklık', 'error'); return;
-  }
-
-  var oldTP = pos.tp, oldSL = pos.sl;
-  pos.tp = newTP;
-  pos.sl = newSL;
-
-  log('TP/SL güncellendi: ' + pos.pair.replace('USDT','') + ' TP:' + fp(newTP) + ' SL:' + fp(newSL), 'ok');
-  notify('TP/SL güncellendi ✓', 'success');
-
-  // Canlı modda worker'a gönder
-  if (appMode === 'live' && WORKER) {
-    var dp = pos.entry > 1000 ? 2 : pos.entry > 10 ? 3 : 4;
-    xfetch(WORKER + '/update_tpsl', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        symbol: pos.pair,
-        side:   pos.side,
-        tp: parseFloat(newTP.toFixed(dp)),
-        sl: parseFloat(newSL.toFixed(dp))
-      })
-    }, function(r) {
-      if (r && r.success) {
-        log('Worker TP/SL sync OK', 'ok');
-      } else {
-        // Worker desteklemiyorsa sadece lokal güncelle — hata verme
-        log('Worker TP/SL sync yok (lokal güncellendi)', 'info');
-        pos.tp = newTP; pos.sl = newSL; // zaten set edildi
-      }
-    }, function(code) {
-      log('Worker TP/SL sync hata: ' + code + ' (lokal güncellendi)', 'info');
-    });
-  }
-
-  // Paneli kapat ve UI yenile
-  var el = document.getElementById('tpsl_' + id);
-  if (el) el.classList.remove('open');
-  updatePosUI();
 }
 
 function renderCoinList() {
@@ -2174,25 +2064,20 @@ window.addEventListener('DOMContentLoaded', function() {
   readSettings();
   startDemo();
   log('APEX Scalp Bot başladı — 5m+15m mantığı, ATR SL/TP', 'ok');
-  log('Filtreler: 15m trend onayı + hacim + RSI aşırı bölge koruması', 'info');
+  log('Dinamik TP/SL güncelleme AKTİF — pozisyonlar otomatik optimize edilecek', 'info');
 
-  // TF butonları
   var _tfBtns=document.querySelectorAll('.tf-btn');
   for(var _tfi=0;_tfi<_tfBtns.length;_tfi++){
     (function(btn){btn.onclick=function(){setTF(btn,btn.getAttribute('data-tf'));};})(_tfBtns[_tfi]);
   }
-  // Nav
   var _navBtns=document.querySelectorAll('.nb');
   for(var _nvi=0;_nvi<_navBtns.length;_nvi++){
     (function(btn){btn.onclick=function(){swPage(btn.getAttribute('data-page'));};})(_navBtns[_nvi]);
   }
-  // Toggleler
   document.getElementById('togAuto').onclick  = toggleAutoTrade;
   document.getElementById('togTight').onclick = toggleTight;
   document.getElementById('togScalp').onclick = toggleScalp;
-  // Select değişimleri
   var _ids=['selTarget','selRisk','selLev','selInt']; for(var _ii=0;_ii<_ids.length;_ii++){ var _el=document.getElementById(_ids[_ii]); if(_el) _el.onchange=readSettings; }
-  // Manuel butonlar
   document.getElementById('btnL').onclick = function() { manualOpen('LONG');  };
   document.getElementById('btnS').onclick = function() { manualOpen('SHORT'); };
   document.getElementById('btnEng').onclick = toggleEng;
