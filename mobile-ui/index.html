@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V4.1</title>
+<title>APEX Scalp | V4.2</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -172,7 +172,7 @@ select option{background:#041018;}
 <body>
 <div id="notif"></div>
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V4.1</span></div>
+  <div class="logo">APEX<span> // SCALP V4.2</span></div>
   <div class="hdr-badges">
     <span class="hbdg" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
@@ -658,7 +658,8 @@ function openPos(sym, side, auto, manTP, manSL) {
         sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
     function(r) {
       if (r && (r.success || r.ok || r.status === 'ok')) {
-        balance -= comm; dailyPnL -= comm;
+        balance = (typeof balance === 'number' ? balance : START_BAL) - comm;
+        dailyPnL -= comm;
         positions.push(newPos);
         if (balance > peakBal) peakBal = balance;
         var lm = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
@@ -672,7 +673,8 @@ function openPos(sym, side, auto, manTP, manSL) {
       }
     }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
-    balance -= comm; dailyPnL -= comm;
+    balance = (typeof balance === 'number' ? balance : START_BAL) - comm;
+    dailyPnL -= comm;
     positions.push(newPos);
     if (balance > peakBal) peakBal = balance;
     var lm2 = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
@@ -721,7 +723,8 @@ function finalizeClose(pos, idx, net, reason, pr) {
     if (fidx >= 0) positions.splice(fidx, 1);
     else return;
   }
-  balance += net + pos.posVal; dailyPnL += net;
+  balance = (typeof balance === 'number' ? balance : START_BAL) + net + (pos.posVal || 0);
+  dailyPnL += net;
   if (balance > peakBal) peakBal = balance;
   if (net < 0 && (reason.indexOf('STOP') !== -1 || reason.indexOf('SL') !== -1)) {
     slStreak[pos.pair] = (slStreak[pos.pair] || 0) + 1;
@@ -973,8 +976,9 @@ function syncBal() {
   if (!WORKER || appMode !== 'live') return;
   xfetch(WORKER + '/balance', null, function(d) {
     if (!d || !d.success) {
-      log('Bakiye alınamadı: yanıt başarısız', 'err');
-      notify('Bakiye alınamadı', 'error');
+      var errMsg = d && d.error ? d.error : 'yanıt başarısız';
+      log('Bakiye alınamadı: ' + errMsg, 'err');
+      notify('Bakiye alınamadı: ' + errMsg, 'error');
       return;
     }
     var val = null;
@@ -1239,6 +1243,11 @@ function updateTicker() {
 }
 function updateBalUI() {
   var bal = (appMode === 'live' && futBal !== null) ? futBal : balance;
+  if (typeof bal !== 'number' || isNaN(bal)) {
+    log('Bakiye bozuldu, varsayılana dönülüyor (' + bal + ')', 'err');
+    bal = START_BAL;
+    balance = START_BAL;
+  }
   var pct = (bal - START_BAL) / START_BAL * 100;
   var prog = Math.max(0, Math.min(100, (bal - START_BAL) / (100 - START_BAL) * 100));
   document.getElementById('balNum').textContent = '$' + bal.toFixed(2);
@@ -1581,7 +1590,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (sel) sel.onchange = readSettings;
   }
   startDemo();
-  log('APEX V4.1 — Gelişmiş Bakiye Sync & Sembol Uyarısı', 'ok');
+  log('APEX V4.2 — Kararlı Bakiye & Gelişmiş Hata Ayıklama', 'ok');
 });
 </script>
 </body>
