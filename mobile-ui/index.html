@@ -388,7 +388,7 @@ var maxPositionSize = 10;
 var cooldowns = {}, slStreak = {}, pxState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null, trackerTimer = null, chartRAF = null;
 var lastCW = 0, chartCtx = null;
-var trackerTick = 0;
+var trackerTick = 0, balanceSyncCounter = 0;
 var lastSentSL = {}, lastSentTP = {};
 var closingPositions = {};
 
@@ -662,11 +662,11 @@ function openPos(sym, side, auto, manTP, manSL) {
         log('ORDER OK: ' + lm, 'ok'); logPos('ACILDI: ' + lm, 'ok');
         notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT','') + ' acildi', 'success');
         startTracker(); updatePosUI(); updateSignalUI();
+        syncBal();
       } else {
         var em = r && r.error ? r.error : 'basarisiz';
         log('Order err: ' + em + ' (' + sym + ')', 'err');
         notify('Order basarisiz: ' + em, 'error');
-        // ===== FIX: Gecersiz sembol otomatik CD + uyari =====
         if (em && (em.indexOf('bulunamad') !== -1 || em.indexOf('Invalid symbol') !== -1 ||
             em.indexOf('does not exist') !== -1 || em.indexOf('sembol') !== -1 ||
             em.indexOf('invalid') !== -1 || em.indexOf('-1121') !== -1)) {
@@ -674,7 +674,6 @@ function openPos(sym, side, auto, manTP, manSL) {
           log('UYARI: ' + sym + ' Futures listesinde yok! Ayarlar > Coin listesinden kaldirin.', 'err');
           notify(sym.replace('USDT','') + ' Futures\'ta yok! Listeden kaldirin.', 'error');
         }
-        // ===================================================
       }
     }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
@@ -708,6 +707,7 @@ function closePos(id, reason) {
         delete closingPositions[id];
         finalizeClose(pos, idx, net, reason, pr);
         if (d && d.success) log('Kapat OK', 'ok');
+        syncBal();
       },
       function(err) {
         delete closingPositions[id];
@@ -752,6 +752,7 @@ function finalizeClose(pos, idx, net, reason, pr) {
 function startTracker() {
   if (trackerTimer) clearInterval(trackerTimer);
   trackerTick = 0;
+  balanceSyncCounter = 0;
   trackerTimer = setInterval(runTracker, 2000);
   logPos('Tracker basladi (2s aralik, Binance sync aktif)', 'ok');
 }
@@ -765,6 +766,7 @@ function runTracker() {
   if (positions.length === 0) { stopTracker(); return; }
   trackerTick++;
   var et = document.getElementById('eTrack'); if (et) et.textContent = 'AKTIF #' + trackerTick;
+
   if (appMode === 'live' && WORKER) {
     xfetch(WORKER + '/open_positions', null, function(d) {
       if (!d || !d.success || !Array.isArray(d.data)) { runTrailLogic(); return; }
@@ -780,14 +782,6 @@ function runTracker() {
             if (!isNaN(rp)) p.realPnl = rp;
             mp = parseFloat(d.data[j].markPrice || d.data[j].entryPrice || 0);
             if (mp > 0) { if (!pData[p.pair]) pData[p.pair] = {}; pData[p.pair].price = mp; }
-            var bSl = parseFloat(d.data[j].stopPrice || 0);
-            var bTp = parseFloat(d.data[j].takeProfitPrice || 0);
-            if (bSl > 0) p.bnbSl = bSl;
-            if (bTp > 0) p.bnbTp = bTp;
-            if (d.data[j].bid && d.data[j].ask) {
-              var spread = (d.data[j].ask - d.data[j].bid) / d.data[j].bid;
-              if (pData[p.pair]) pData[p.pair].spread = spread;
-            }
             break;
           }
         }
@@ -806,6 +800,8 @@ function runTracker() {
         bp.textContent = (totalRealPnl >= 0 ? '+' : '') + '$' + totalRealPnl.toFixed(4);
         bp.style.color = totalRealPnl >= 0 ? 'var(--long)' : 'var(--short)';
       }
+      balanceSyncCounter++;
+      if (balanceSyncCounter % 6 === 0) syncBal();
       runTrailLogic();
     }, function() { runTrailLogic(); });
   } else {
@@ -979,19 +975,15 @@ function xfetch(url, opts, onOk, onErr) {
   xhr.send(opts && opts.body ? opts.body : null);
 }
 
-// ===== FIX 1: extractBalance + syncBal (v42-fix) =====
 function extractBalance(d) {
   if (!d) return null;
-  // Dogrudan sayi
   if (typeof d.balance === 'number' && d.balance > 0) return d.balance;
-  // Nested data objesi
   if (d.data) {
     var data = d.data;
     if (typeof data.availableBalance === 'number' && data.availableBalance > 0) return data.availableBalance;
     if (typeof data.totalWalletBalance === 'number' && data.totalWalletBalance > 0) return data.totalWalletBalance;
     if (typeof data.balance === 'number' && data.balance > 0) return data.balance;
     if (typeof data.crossWalletBalance === 'number' && data.crossWalletBalance > 0) return data.crossWalletBalance;
-    // Dizi formati (Binance /fapi/v2/balance)
     if (Array.isArray(data)) {
       for (var i = 0; i < data.length; i++) {
         if (data[i].asset === 'USDT' || data[i].asset === 'BUSD') {
@@ -1001,12 +993,10 @@ function extractBalance(d) {
       }
     }
   }
-  // balance nested obje
   if (d.balance && typeof d.balance === 'object') {
     var b = d.balance;
     return parseFloat(b.availableBalance || b.totalWalletBalance || b.walletBalance || b.balance || 0) || null;
   }
-  // balance string olarak gelmis
   if (typeof d.balance === 'string') {
     var sv = parseFloat(d.balance);
     if (!isNaN(sv) && sv > 0) return sv;
@@ -1020,7 +1010,6 @@ function syncBal() {
     if (!d || !d.success) {
       var errMsg = d && d.error ? d.error : 'yanit basarisiz';
       log('Bakiye alinamadi: ' + errMsg, 'err');
-      notify('Bakiye alinamadi: ' + errMsg, 'error');
       return;
     }
     var val = extractBalance(d);
@@ -1030,8 +1019,7 @@ function syncBal() {
       log('Bakiye sync: $' + balance.toFixed(2), 'ok');
       updateBalUI();
     } else {
-      // balance null geldi — /open_positions ile dene
-      log('Balance null, /open_positions ile deneniyor...', 'info');
+      log('Bakiye null, /open_positions ile deneniyor...', 'info');
       xfetch(WORKER + '/open_positions', null, function(dp) {
         if (dp && dp.success && dp.walletBalance) {
           var wv = parseFloat(dp.walletBalance);
@@ -1041,19 +1029,11 @@ function syncBal() {
             updateBalUI(); return;
           }
         }
-        log('Bakiye null — Worker /balance endpoint balance:null donuyor. Worker kodunu kontrol edin. Ham: ' + JSON.stringify(d).slice(0,150), 'err');
-        notify('Bakiye null geldi — Worker guncellenmeli (asagiya bakin)', 'error');
-        log('>>> Worker duzeltme: /balance endpoint\'inde balance field\'ini doldur. Ornek: {success:true, balance: parseFloat(account.availableBalance)}', 'err');
-      }, function() {
-        log('Tum bakiye denemeleri basarisiz', 'err');
-      });
+        log('Bakiye null — Worker /balance endpoint balance:null donuyor. Worker kodunu kontrol edin.', 'err');
+      }, function() { log('Tum bakiye denemeleri basarisiz', 'err'); });
     }
-  }, function() {
-    log('Bakiye sync net err', 'err');
-    notify('Bakiye cekilemedi (ag hatasi)', 'error');
-  });
+  }, function() { log('Bakiye sync net err', 'err'); });
 }
-// ===== END FIX 1 =====
 
 function fetchLive() {
   if (!WORKER) return;
