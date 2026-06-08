@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V3.8</title>
+<title>APEX Scalp | V3.9</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -34,14 +34,12 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .tick{display:-webkit-inline-flex;display:inline-flex;-webkit-align-items:center;align-items:center;gap:3px;margin-right:14px;}
 .tick-s{font-family:var(--mono);font-size:9px;color:var(--dim2);}
 .tick-p{font-family:var(--mono);font-size:9px;}
-/* NAV - sabit alt bar */
 .nav{position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--panel);border-top:1px solid var(--brd2);display:-webkit-flex;display:flex;}
 .nav{padding-bottom:constant(safe-area-inset-bottom);padding-bottom:env(safe-area-inset-bottom);}
 .nb{-webkit-flex:1;flex:1;padding:7px 4px 5px;background:none;border:none;color:var(--dim2);font-size:8px;font-family:var(--body);font-weight:600;cursor:pointer;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;min-height:44px;letter-spacing:1px;text-transform:uppercase;-webkit-transition:color 0.15s;transition:color 0.15s;-webkit-appearance:none;appearance:none;outline:none;}
 .nb.active{color:var(--acc);}
 .nb:active{opacity:0.6;}
 .ni{font-size:16px;line-height:1.3;}
-/* SAYFALAR */
 .page{display:none;-webkit-flex-direction:column;flex-direction:column;height:100%;overflow:hidden;}
 .page.active{display:-webkit-flex;display:flex;}
 .scroll{-webkit-flex:1;flex:1;overflow-y:auto;padding:8px 10px 90px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -52,7 +50,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .pairs{display:-webkit-flex;display:flex;overflow-x:auto;gap:5px;padding:2px 0 5px;scrollbar-width:none;}
 .pairs::-webkit-scrollbar{display:none;}
 .pp{-webkit-flex-shrink:0;flex-shrink:0;padding:5px 10px;border-radius:3px;border:1px solid var(--brd2);background:transparent;color:var(--dim2);font-size:10px;font-family:var(--mono);cursor:pointer;min-height:36px;min-width:44px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;gap:2px;-webkit-transition:all 0.15s;transition:all 0.15s;}
-.pp.active{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,0.06);box-shadow:0 0 8px rgba(0,212,255,0.1);}
+.pp.active{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,0.06);}
 .pp:active{-webkit-transform:scale(0.95);transform:scale(0.95);}
 .pp-price{font-size:8px;}
 .pp-sig{font-size:7px;font-weight:700;padding:1px 3px;border-radius:2px;}
@@ -161,19 +159,21 @@ select option{background:#041018;}
 .reason-tag.short{border-color:rgba(255,51,85,0.4);color:var(--short);background:rgba(255,51,85,0.04);}
 #notif{position:fixed;top:70px;left:10px;right:10px;z-index:9998;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;pointer-events:none;}
 .notif{padding:9px 14px;border-radius:3px;font-family:var(--mono);font-size:10px;font-weight:700;margin-bottom:5px;letter-spacing:1px;pointer-events:auto;-webkit-animation:notifIn 0.2s ease;animation:notifIn 0.2s ease;}
-@-webkit-keyframes notifIn{from{opacity:0;-webkit-transform:translateY(-8px);transform:translateY(-8px);}to{opacity:1;-webkit-transform:translateY(0);transform:translateY(0);}}
+@-webkit-keyframes notifIn{from{opacity:0;-webkit-transform:translateY(-8px);}to{opacity:1;-webkit-transform:translateY(0);}}
 @keyframes notifIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
 .notif.success{background:rgba(0,20,10,0.95);border:1px solid var(--long2);color:var(--long);}
 .notif.error{background:rgba(20,0,8,0.95);border:1px solid var(--short2);color:var(--short);}
 .notif.info{background:rgba(10,10,0,0.95);border:1px solid rgba(255,170,0,0.4);color:var(--warn);}
 .hist-row{display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:10px;}
 .hist-row:last-child{border:none;}
+/* Pozisyon odak banner */
+.pos-focus{background:rgba(0,212,255,0.04);border:1px solid var(--acc2);border-radius:4px;padding:6px 10px;margin-bottom:7px;font-family:var(--mono);font-size:9px;color:var(--acc);letter-spacing:1px;}
 </style>
 </head>
 <body>
 <div id="notif"></div>
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP</span></div>
+  <div class="logo">APEX<span> // SCALP V3.9</span></div>
   <div class="hdr-badges">
     <span class="hbdg" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
@@ -193,6 +193,7 @@ select option{background:#041018;}
 <!-- SAYFA: SİNYAL -->
 <div class="page active" id="pg-signal">
   <div class="scroll">
+    <div id="posFocusBanner" style="display:none" class="pos-focus">&#9888; ACIK POZISYON — Motor sinyal taramasi durakladi, odak takipte</div>
     <div class="pairs" id="pairRow"></div>
     <div class="card">
       <div class="sig-display">
@@ -222,8 +223,8 @@ select option{background:#041018;}
     <div class="card">
       <div class="sec-title">INDIKATORLER</div>
       <div class="ind-grid">
-        <div class="ind-cell"><div class="ind-label">RSI_5</div><div class="ind-val neut" id="iRsi5">--</div></div>
-        <div class="ind-cell"><div class="ind-label">RSI_15</div><div class="ind-val neut" id="iRsi15">--</div></div>
+        <div class="ind-cell"><div class="ind-label">RSI_5m</div><div class="ind-val neut" id="iRsi5">--</div></div>
+        <div class="ind-cell"><div class="ind-label">RSI_15m</div><div class="ind-val neut" id="iRsi15">--</div></div>
         <div class="ind-cell"><div class="ind-label">MACD</div><div class="ind-val neut" id="iMacd">--</div></div>
         <div class="ind-cell"><div class="ind-label">EMA_CROSS</div><div class="ind-val neut" id="iEma">--</div></div>
         <div class="ind-cell"><div class="ind-label">HACIM_x</div><div class="ind-val neut" id="iVol">--</div></div>
@@ -275,7 +276,7 @@ select option{background:#041018;}
   <div class="scroll">
     <div class="card">
       <div class="eng-row">
-        <div><div class="eng-title" id="engTxt">// MOTOR KAPALI</div><div class="eng-sub">5m+15m scalp + trailing stop her saniye</div></div>
+        <div><div class="eng-title" id="engTxt">// MOTOR KAPALI</div><div class="eng-sub" id="engSubTxt">5m+15m+1h uc TF onay | ATR dinamik SL</div></div>
         <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:75px">BASLAT</button>
       </div>
       <div class="eng-stats" id="engStats" style="display:none">
@@ -283,6 +284,8 @@ select option{background:#041018;}
         <div><span>SONRAKI: </span><strong id="eNext">--s</strong></div>
         <div><span>SINYAL: </span><strong id="eSig">--</strong></div>
         <div><span>ACILAN: </span><strong id="eOpen">0</strong></div>
+        <div><span>BNB PNL: </span><strong id="eBnbPnl" style="color:var(--gold)">--</strong></div>
+        <div><span>TRACKER: </span><strong id="eTrack">--</strong></div>
       </div>
     </div>
     <div class="card">
@@ -309,8 +312,9 @@ select option{background:#041018;}
         </select>
       </div>
       <div class="tog-row"><div class="tog off" id="togAuto"></div><div><div class="tog-title">Otomatik Islem</div><div class="tog-desc" id="togAutoD">Kapali: sadece sinyal goster</div></div></div>
-      <div class="tog-row"><div class="tog on" id="togTight"></div><div><div class="tog-title">Siki SL</div><div class="tog-desc" id="togTightD">Aktif: SL = ATR x0.4</div></div></div>
-      <div class="tog-row"><div class="tog off" id="togScalp"></div><div><div class="tog-title">Agresif Mod</div><div class="tog-desc" id="togScalpD">Kapali: skor esigi 60</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togTight"></div><div><div class="tog-title">Dinamik SL (ATR Bazli)</div><div class="tog-desc" id="togTightD">Aktif: SL volatiliteye gore ayarlanir</div></div></div>
+      <div class="tog-row"><div class="tog off" id="togScalp"></div><div><div class="tog-title">Agresif Mod</div><div class="tog-desc" id="togScalpD">Kapali: skor esigi 65 (yuksek)</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togFocusPos"></div><div><div class="tog-title">Pozisyon Odak Modu</div><div class="tog-desc" id="togFocusPosD">Aktif: acik poz varken yeni sinyal arama</div></div></div>
     </div>
     <div class="card">
       <div class="sec-title">RISK / HEDEF</div>
@@ -370,7 +374,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- NAV BAR -->
 <nav class="nav">
   <button class="nb active" id="nb-signal"><span class="ni">&#128225;</span>Sinyal</button>
   <button class="nb" id="nb-pos"><span class="ni">&#128194;</span>Pozisyon</button>
@@ -381,34 +384,33 @@ select option{background:#041018;}
 <script>
 'use strict';
 
-/* ===================== GLOBALS ===================== */
+/* ===== GLOBALS ===== */
 var START_BAL = 50, COMM = 0.0004, MAX_P = 1;
-var DEMO_BASE = {
-  BTCUSDT:74000, ETHUSDT:2050, SOLUSDT:83, BNBUSDT:588,
-  XRPUSDT:0.605, DOGEUSDT:0.12, ADAUSDT:0.45, AVAXUSDT:35, LINKUSDT:14
-};
+var DEMO_BASE = {BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,LINKUSDT:14};
 var balance = START_BAL, peakBal = START_BAL, dailyPnL = 0;
 var positions = [], trades = [], posId = 1;
 var pairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
 var currentPair = 'BTCUSDT', currentTF = '5m', scanSec = 30;
 var engineOn = false, autoTrade = false, WORKER = '', appMode = 'demo', futBal = null;
 var targetUSD = 0.10, riskUSD = 1.00, leverage = 3, tightSL = true, aggressiveMode = false;
+var focusModeOn = true; /* pozisyon varken yeni sinyal aramaz */
 var maxPositionSize = 10;
 var cooldowns = {}, slStreak = {}, pxState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null, trackerTimer = null, chartRAF = null;
 var lastCW = 0, chartCtx = null;
+/* Binance sync sayaç: 2 saniyede bir tracker, 10 saniyede bir PnL çek */
+var trackerTick = 0;
 
-/* ===================== YARDIMCI FONKSİYONLAR ===================== */
+/* ===== YARDIMCI ===== */
 function fp(p) {
   if (!p || isNaN(p)) return '--';
   if (p >= 10000) return Math.round(p).toLocaleString();
-  if (p >= 1000)  return p.toFixed(2);
-  if (p >= 10)    return p.toFixed(3);
-  if (p >= 1)     return p.toFixed(4);
-  if (p >= 0.01)  return p.toFixed(5);
+  if (p >= 1000) return p.toFixed(2);
+  if (p >= 10)   return p.toFixed(3);
+  if (p >= 1)    return p.toFixed(4);
+  if (p >= 0.01) return p.toFixed(5);
   return p.toFixed(6);
 }
-
 function notify(msg, type) {
   var box = document.getElementById('notif');
   var d = document.createElement('div');
@@ -418,45 +420,33 @@ function notify(msg, type) {
   setTimeout(function() { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; }, 2500);
   setTimeout(function() { if (d.parentNode) d.parentNode.removeChild(d); }, 2900);
 }
-
 function log(msg, t) {
-  var b = document.getElementById('logEl');
-  if (!b) return;
-  var ts = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  var b = document.getElementById('logEl'); if (!b) return;
+  var ts = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   var col = t === 'ok' ? '#00cc66' : t === 'err' ? '#ff3355' : '#0088aa';
-  var d = document.createElement('div');
-  d.style.color = col;
-  d.textContent = ts + ' ' + msg;
-  b.appendChild(d);
-  b.scrollTop = b.scrollHeight;
-  while (b.childNodes.length > 100) b.removeChild(b.firstChild);
+  var d = document.createElement('div'); d.style.color = col;
+  d.textContent = ts + ' ' + msg; b.appendChild(d); b.scrollTop = b.scrollHeight;
+  while (b.childNodes.length > 120) b.removeChild(b.firstChild);
 }
-
 function logPos(msg, t) {
-  var b = document.getElementById('posLogBox');
-  if (!b) return;
-  var ts = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  var b = document.getElementById('posLogBox'); if (!b) return;
+  var ts = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   var col = t === 'ok' ? '#00cc66' : t === 'err' ? '#ff3355' : '#00d4ff';
-  var d = document.createElement('div');
-  d.style.color = col;
-  d.textContent = ts + ' ' + msg;
-  b.appendChild(d);
-  b.scrollTop = b.scrollHeight;
-  while (b.childNodes.length > 60) b.removeChild(b.firstChild);
+  var d = document.createElement('div'); d.style.color = col;
+  d.textContent = ts + ' ' + msg; b.appendChild(d); b.scrollTop = b.scrollHeight;
+  while (b.childNodes.length > 80) b.removeChild(b.firstChild);
 }
 
-/* ===================== TEKNİK ANALİZ ===================== */
+/* ===== TEKNİK ANALİZ ===== */
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.slice() : [];
   var k = 2 / (p + 1), out = [], e = 0, i, m;
   for (i = 0; i < p - 1; i++) out.push(null);
   for (i = 0; i < p; i++) e += arr[i];
-  e /= p;
-  out.push(e);
+  e /= p; out.push(e);
   for (m = p; m < arr.length; m++) { e = arr[m] * k + e * (1 - k); out.push(e); }
   return out;
 }
-
 function calcRSI(closes, p) {
   p = p || 14;
   if (closes.length < p + 2) return 50;
@@ -470,7 +460,6 @@ function calcRSI(closes, p) {
   }
   return al === 0 ? 100 : 100 - (100 / (1 + ag / al));
 }
-
 function calcMACD(closes) {
   var e12 = calcEMA(closes, 12), e26 = calcEMA(closes, 26), ml = [], i;
   for (i = 0; i < closes.length; i++) if (e12[i] && e26[i]) ml.push(e12[i] - e26[i]);
@@ -480,7 +469,6 @@ function calcMACD(closes) {
   var cross = (ph < 0 && h > 0) ? 'UP' : (ph > 0 && h < 0) ? 'DN' : null;
   return {hist:h, prev:ph, cross:cross};
 }
-
 function calcATR(kl, p) {
   p = p || 14;
   if (!kl || kl.length < p + 1) return (kl && kl.length) ? kl[kl.length-1].h - kl[kl.length-1].l : 0.001;
@@ -492,7 +480,6 @@ function calcATR(kl, p) {
   for (j = trs.length - p; j < trs.length; j++) sum += trs[j];
   return sum / p;
 }
-
 function calcVolRatio(kl) {
   var p = 20, i;
   if (!kl || kl.length < p + 1) return 1;
@@ -501,112 +488,168 @@ function calcVolRatio(kl) {
   var avg = sum / (sl.length - 1);
   return avg > 0 ? sl[sl.length-1].v / avg : 1;
 }
+/* Bollinger Bands — squeeze tespiti için */
+function calcBB(closes, p, mult) {
+  p = p || 20; mult = mult || 2;
+  if (closes.length < p) return {upper:0, lower:0, mid:0, squeeze:false};
+  var slice = closes.slice(-p), sum = 0, i;
+  for (i = 0; i < p; i++) sum += slice[i];
+  var mid = sum / p, vsum = 0;
+  for (i = 0; i < p; i++) vsum += (slice[i] - mid) * (slice[i] - mid);
+  var std = Math.sqrt(vsum / p);
+  return {upper: mid + mult * std, lower: mid - mult * std, mid: mid,
+          squeeze: (std / mid) < 0.008};
+}
 
-/* ===================== ANALİZ ===================== */
+/* ===== GELİŞMİŞ ANALİZ (V3.9) ===== */
 function analyze(sym) {
   var pd = pData[sym]; if (!pd) return null;
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
-  if (kl5.length < 30 || kl15.length < 20) return null;
+  if (kl5.length < 40 || kl15.length < 25) return null;
+
   var price = pd.price || kl5[kl5.length-1].c;
   var atr5 = calcATR(kl5, 14), atrPct = (atr5 / price) * 100;
-  if (atrPct < 0.03 && !aggressiveMode) return null;
-  if (atrPct > 2.5) return null;
 
-  var c15 = [], c5 = [], i;
+  /* ATR filtresi — çok dar veya çok geniş piyasada girme */
+  if (atrPct < 0.04 && !aggressiveMode) return null;
+  if (atrPct > 3.0) return null;
+
+  var i;
+  var c5 = [], c15 = [], c1h = [];
+  for (i = 0; i < kl5.length;  i++) c5.push(kl5[i].c);
   for (i = 0; i < kl15.length; i++) c15.push(kl15[i].c);
-  for (i = 0; i < kl5.length; i++) c5.push(kl5[i].c);
+  for (i = 0; i < kl1h.length; i++) c1h.push(kl1h[i].c);
 
+  /* ---- 1h trend (ana filtre) ---- */
+  var trend1h = 'NEUTRAL';
+  if (kl1h.length >= 50) {
+    var e20_1h = calcEMA(c1h, 20), e50_1h = calcEMA(c1h, 50);
+    var l20_1h = e20_1h[e20_1h.length-1], l50_1h = e50_1h[e50_1h.length-1];
+    if (l20_1h && l50_1h) trend1h = l20_1h > l50_1h ? 'LONG' : 'SHORT';
+  }
+
+  /* ---- 15m trend ---- */
   var e9_15 = calcEMA(c15, 9), e21_15 = calcEMA(c15, 21);
   var l9_15 = e9_15[e9_15.length-1], l21_15 = e21_15[e21_15.length-1];
   var trend15 = (l9_15 && l21_15) ? (l9_15 > l21_15 ? 'LONG' : l9_15 < l21_15 ? 'SHORT' : 'NEUTRAL') : 'NEUTRAL';
 
-  var trend1h = 'NEUTRAL';
-  if (kl1h.length >= 20) {
-    var c1h = [];
-    for (i = 0; i < kl1h.length; i++) c1h.push(kl1h[i].c);
-    var e21_1h = calcEMA(c1h, 21), e50_1h = calcEMA(c1h, 50);
-    var l21_1h = e21_1h[e21_1h.length-1], l50_1h = e50_1h[e50_1h.length-1];
-    if (l21_1h && l50_1h) trend1h = l21_1h > l50_1h ? 'LONG' : 'SHORT';
-  }
-
-  var e9_5 = calcEMA(c5, 9), e21_5 = calcEMA(c5, 21);
-  var l9_5 = e9_5[e9_5.length-1], l21_5 = e21_5[e21_5.length-1];
-  var p9_5 = e9_5[e9_5.length-2], p21_5 = e21_5[e21_5.length-2];
+  /* ---- 5m momentum ---- */
+  var e9_5  = calcEMA(c5, 9),  e21_5  = calcEMA(c5, 21);
+  var l9_5  = e9_5[e9_5.length-1],   l21_5  = e21_5[e21_5.length-1];
+  var p9_5  = e9_5[e9_5.length-2],   p21_5  = e21_5[e21_5.length-2];
   if (!l9_5 || !l21_5 || !p9_5 || !p21_5) return null;
 
-  var macd5 = calcMACD(c5), rsi5 = calcRSI(c5, 14), vr = calcVolRatio(kl5);
+  var macd5  = calcMACD(c5);
+  var rsi5   = calcRSI(c5, 14);
+  var rsi15  = calcRSI(c15, 14);
+  var vr     = calcVolRatio(kl5);
+  var bb5    = calcBB(c5, 20, 2);
+  var atr15  = calcATR(kl15, 14);
+
   var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5);
   var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5);
   var aboveEMA = l9_5 > l21_5, belowEMA = l9_5 < l21_5;
 
+  /* ---- Ham sinyal ---- */
   var rawSig = 'WAIT';
   if (goldenX || (aboveEMA && macd5.cross === 'UP')) rawSig = 'LONG';
   else if (deathX || (belowEMA && macd5.cross === 'DN')) rawSig = 'SHORT';
-  else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 52 && rsi5 < 70) rawSig = 'LONG';
-  else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 48 && rsi5 > 30) rawSig = 'SHORT';
+  else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 50 && rsi5 < 68) rawSig = 'LONG';
+  else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 50 && rsi5 > 32) rawSig = 'SHORT';
   if (rawSig === 'WAIT') return null;
 
+  /* ---- Filtre 1: RSI aşırı bölge ---- */
+  if (rawSig === 'LONG'  && rsi5 > 72) return null;
+  if (rawSig === 'SHORT' && rsi5 < 28) return null;
+  /* 15m RSI konfirmasyonu */
+  if (rawSig === 'LONG'  && rsi15 > 75) return null;
+  if (rawSig === 'SHORT' && rsi15 < 25) return null;
+
+  /* ---- Filtre 2: Hacim ZORUNLU (V3.9'da hacim olmadan giriş yok) ---- */
+  if (vr < 0.85 && !aggressiveMode) return null;
+
+  /* ---- Filtre 3: 15m ve 1h yön uyumu (uc TF) ---- */
+  /* En az 2/3 TF aynı yönde olmalı */
+  var tfConfirm = 0;
+  if (aboveEMA && rawSig === 'LONG')  tfConfirm++;
+  if (belowEMA && rawSig === 'SHORT') tfConfirm++;
+  if (trend15 === rawSig) tfConfirm++;
+  if (trend1h === rawSig) tfConfirm++;
+  /* Agresif modda 2, normal modda 3 gerek */
+  if (tfConfirm < (aggressiveMode ? 2 : 3)) return null;
+
+  /* ---- Filtre 4: BB squeeze varsa girme (patlama yönü belirsiz) ---- */
+  if (bb5.squeeze && !aggressiveMode) return null;
+
+  /* ---- Skor ---- */
   var reasons = [];
-  if (vr >= 1.3) reasons.push({t:'HACIM_OK', cls:'long'});
-  else if (vr < 0.7) { if (!aggressiveMode) return null; }
-  else reasons.push({t:'HACIM_ORTA', cls:'active'});
+  var score = 20;
 
-  if (rawSig === 'LONG') {
-    if (rsi5 > 75) return null;
-    reasons.push({t:'RSI:' + rsi5.toFixed(0), cls: rsi5 < 65 ? 'long' : 'active'});
-  } else {
-    if (rsi5 < 25) return null;
-    reasons.push({t:'RSI:' + rsi5.toFixed(0), cls: rsi5 > 35 ? 'short' : 'active'});
-  }
+  if (vr >= 1.8) { score += 25; reasons.push({t:'HACIM_YUKSEK', cls:'long'}); }
+  else if (vr >= 1.3) { score += 15; reasons.push({t:'HACIM_OK', cls:rawSig.toLowerCase()}); }
+  else { score += 5; reasons.push({t:'HACIM_ZAYIF', cls:'active'}); }
 
-  if (trend15 === rawSig) reasons.push({t:'15m_ONAY', cls:rawSig.toLowerCase()});
-  else if (trend15 !== 'NEUTRAL' && !aggressiveMode) return null;
-  else reasons.push({t:'TREND_KARSI', cls:'active'});
+  if (trend1h === rawSig) { score += 20; reasons.push({t:'1h_ONAY', cls:rawSig.toLowerCase()}); }
+  if (trend15 === rawSig) { score += 18; reasons.push({t:'15m_ONAY', cls:rawSig.toLowerCase()}); }
 
-  if (trend1h === rawSig) reasons.push({t:'1h_ONAY', cls:rawSig.toLowerCase()});
-  if (goldenX && rawSig === 'LONG') reasons.push({t:'GOLDEN_X', cls:'long'});
-  if (deathX  && rawSig === 'SHORT') reasons.push({t:'DEATH_X',  cls:'short'});
-  if (macd5.cross === 'UP' && rawSig === 'LONG')  reasons.push({t:'MACD_UP', cls:'long'});
-  if (macd5.cross === 'DN' && rawSig === 'SHORT') reasons.push({t:'MACD_DN', cls:'short'});
+  if (goldenX && rawSig === 'LONG')  { score += 15; reasons.push({t:'GOLDEN_X', cls:'long'}); }
+  if (deathX  && rawSig === 'SHORT') { score += 15; reasons.push({t:'DEATH_X',  cls:'short'}); }
+  if (macd5.cross === 'UP' && rawSig === 'LONG')  { score += 8; reasons.push({t:'MACD_UP', cls:'long'}); }
+  if (macd5.cross === 'DN' && rawSig === 'SHORT') { score += 8; reasons.push({t:'MACD_DN', cls:'short'}); }
 
-  var score = 30;
-  if (vr >= 1.5) score += 20; else if (vr >= 1.2) score += 10;
-  if (trend15 === rawSig) score += 25;
-  if (trend1h === rawSig) score += 10;
-  if (goldenX || deathX) score += 15;
-  if (macd5.cross === (rawSig === 'LONG' ? 'UP' : 'DN')) score += 10;
+  /* RSI ideal bölge bonusu */
+  if (rawSig === 'LONG'  && rsi5 >= 45 && rsi5 <= 60) { score += 5; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'long'}); }
+  if (rawSig === 'SHORT' && rsi5 >= 40 && rsi5 <= 55) { score += 5; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'short'}); }
+  else { reasons.push({t:'RSI:'+rsi5.toFixed(0), cls:'active'}); }
+
   score = Math.min(100, score);
-  if (score < (aggressiveMode ? 40 : 60)) return null;
+  var scoreThreshold = aggressiveMode ? 50 : 65;
+  if (score < scoreThreshold) return null;
 
-  var slMult = tightSL ? 0.4 : 0.6;
-  var atrSlDist = atr5 * slMult;
-  var minSlDist = price * 0.0012, maxSlDist = price * 0.0025;
+  /* ---- Dinamik SL hesabı (V3.9) ---- */
+  /* ATR çarpanını volatiliteye göre ayarla:
+     - Düşük volatilite (atrPct < 0.1): geniş çarpan (1.2) — erken stop yeme azalır
+     - Orta volatilite  (0.1-0.3)     : normal (1.0)
+     - Yüksek volatilite(> 0.3)        : dar (0.8) — büyük kayıptan kaçın */
+  var atrMult;
+  if (atrPct < 0.08) atrMult = 1.4;
+  else if (atrPct < 0.15) atrMult = 1.1;
+  else if (atrPct < 0.30) atrMult = 0.9;
+  else atrMult = 0.75;
+
+  /* 15m ATR ile de karşılaştır, büyük olanı seç (daha güvenli) */
+  var slDistFromAtr5  = atr5  * atrMult;
+  var slDistFromAtr15 = atr15 * 0.5;
+  var atrSlDist = Math.max(slDistFromAtr5, slDistFromAtr15);
+
+  /* Mutlak min/max sınır */
+  var minSlDist = price * 0.0015; /* %0.15 minimum */
+  var maxSlDist = price * 0.004;  /* %0.4 maksimum */
   var slDist = Math.min(Math.max(atrSlDist, minSlDist), maxSlDist);
-  var tpMult = targetUSD / riskUSD;
-  var tpDist = Math.max(slDist * tpMult, price * 0.003);
-  var sl, tp;
-  if (rawSig === 'LONG') { sl = price - slDist; tp = price + tpDist; }
-  else                   { sl = price + slDist; tp = price - tpDist; }
 
-  var riskBasedPosVal = Math.min(riskUSD / (slDist / price), balance * 0.3);
+  /* TP mesafesi: risk/reward oranına göre */
+  var rrRatio = targetUSD / riskUSD;
+  var minRR   = aggressiveMode ? 1.2 : 1.5; /* minimum R:R */
+  if (rrRatio < minRR) rrRatio = minRR;
+  var tpDist = Math.max(slDist * rrRatio, price * 0.004);
+
+  var sl, tp;
+  if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
+  else                    { sl = price + slDist; tp = price - tpDist; }
+
+  /* Pozisyon büyüklüğü */
+  var riskBasedPosVal = Math.min(riskUSD / (slDist / price), balance * 0.25);
   if (isNaN(riskBasedPosVal) || riskBasedPosVal < 1) riskBasedPosVal = 1;
   var posVal = Math.min(riskBasedPosVal, maxPositionSize);
   var qty = posVal * leverage / price, comm = posVal * COMM * 2;
 
-  var rsi15val = calcRSI(c15, 14);
   return {
     signal: rawSig, score: score, price: price, sl: sl, tp: tp,
     slDist: slDist, tpDist: tpDist, posVal: posVal, qty: qty, comm: comm,
-    reasons: reasons, atrPct: atrPct, vr: vr,
-    indicators: {
-      rsi5: rsi5, rsi15: rsi15val, macd: macd5, vr: vr,
-      atrPct: atrPct, goldenX: goldenX, deathX: deathX, aboveEMA: aboveEMA
-    },
-    mtf: {
-      '5m':  aboveEMA ? 'LONG' : belowEMA ? 'SHORT' : 'WAIT',
-      '15m': trend15,
-      '1h':  trend1h
-    }
+    reasons: reasons, atrPct: atrPct, vr: vr, atrMult: atrMult,
+    indicators: {rsi5:rsi5, rsi15:rsi15, macd:macd5, vr:vr, atrPct:atrPct,
+                 goldenX:goldenX, deathX:deathX, aboveEMA:aboveEMA, bbSqueeze:bb5.squeeze},
+    mtf: {'5m': aboveEMA ? 'LONG' : belowEMA ? 'SHORT' : 'WAIT', '15m': trend15, '1h': trend1h}
   };
 }
 
@@ -615,24 +658,22 @@ function analyzeAll() {
     var s = pairs[i];
     if (inCD(s)) { if (pData[s]) pData[s].an = null; continue; }
     if (!pData[s]) continue;
-    try { pData[s].an = analyze(s); } catch(e) { log('Analiz hatasi ' + s + ': ' + e.message, 'err'); }
+    try { pData[s].an = analyze(s); } catch(e) { log('Analiz err ' + s + ': ' + e.message, 'err'); }
   }
 }
 
-/* ===================== COOLDOWN ===================== */
+/* ===== COOLDOWN ===== */
 function inCD(sym) {
   var cd = cooldowns[sym];
   if (cd && Date.now() < cd) return true;
   if (cd) delete cooldowns[sym];
   return false;
 }
-
 function setCD(sym, mins, reason) {
   cooldowns[sym] = Date.now() + mins * 60000;
   log('CD: ' + sym.replace('USDT','') + ' ' + mins + 'dk (' + reason + ')', 'info');
   updateCDUI();
 }
-
 function updateCDUI() {
   var n = 0, k;
   for (k in cooldowns) { if (Date.now() < cooldowns[k]) n++; else delete cooldowns[k]; }
@@ -640,7 +681,7 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-/* ===================== POZİSYON AÇ / KAPAT ===================== */
+/* ===== POZİSYON AÇ ===== */
 function openPos(sym, side, auto, manTP, manSL) {
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
   if (positions.length >= MAX_P) { notify('Max ' + MAX_P + ' pozisyon dolu', 'error'); return; }
@@ -654,7 +695,7 @@ function openPos(sym, side, auto, manTP, manSL) {
   if (manTP && manSL) {
     sl = side === 'LONG' ? price - manSL : price + manSL;
     tp = side === 'LONG' ? price + manTP : price - manTP;
-    var riskBased = Math.min(riskUSD / (manSL / price), balance * 0.3);
+    var riskBased = Math.min(riskUSD / (manSL / price), balance * 0.25);
     if (isNaN(riskBased) || riskBased < 1) riskBased = 1;
     posVal = Math.min(riskBased, maxPositionSize);
     qty = posVal * leverage / price; comm = posVal * COMM * 2;
@@ -662,44 +703,44 @@ function openPos(sym, side, auto, manTP, manSL) {
     sl = an.sl; tp = an.tp; posVal = an.posVal; qty = an.qty; comm = an.comm;
   } else { notify('Sinyal yok veya TP/SL gerekli', 'error'); return; }
 
-  var newPos = {id:posId++, pair:sym, side:side, entry:price, qty:qty, posVal:posVal, sl:sl, tp:tp, comm:comm, openTime:Date.now()};
+  var newPos = {id:posId++, pair:sym, side:side, entry:price, qty:qty, posVal:posVal,
+                sl:sl, tp:tp, comm:comm, openTime:Date.now(),
+                highPnl:0, /* izlenen maksimum kar */
+                breakeven:false, trailStage:0};
 
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
-    xfetch(WORKER + '/order', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+    xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({symbol:sym, side:side, usdAmount:posVal, leverage:leverage,
-        sl: parseFloat(sl.toFixed(dp)), tp: parseFloat(tp.toFixed(dp))})
-    }, function(r) {
+        sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
+    function(r) {
       if (r && (r.success || r.ok || r.status === 'ok')) {
         balance -= comm; dailyPnL -= comm;
         positions.push(newPos);
         if (balance > peakBal) peakBal = balance;
-        var logMsg = side + ' ' + sym.replace('USDT','') + ' | Pos:$' + posVal.toFixed(2) + ' | Margin:$' + (posVal/leverage).toFixed(2) + ' | Lev:' + leverage + 'x | SL:' + fp(sl) + ' TP:' + fp(tp);
-        log('Order OK: ' + logMsg, 'ok'); logPos('ACILDI: ' + logMsg, 'ok');
+        var lm = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
+        log('ORDER OK: ' + lm, 'ok'); logPos('ACILDI: ' + lm, 'ok');
         notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT','') + ' acildi', 'success');
         startTracker(); updatePosUI(); updateSignalUI();
       } else {
         var em = r && r.error ? r.error : 'basarisiz';
-        log('Order hatasi: ' + em, 'err'); notify('Order basarisiz: ' + em, 'error');
+        log('Order err: ' + em, 'err'); notify('Order basarisiz: ' + em, 'error');
       }
-    }, function(code) {
-      log('Order net hatasi: ' + code, 'err'); notify('Baglanti hatasi', 'error');
-    });
+    }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
     balance -= comm; dailyPnL -= comm;
     positions.push(newPos);
     if (balance > peakBal) peakBal = balance;
-    var logMsg2 = side + ' ' + sym.replace('USDT','') + ' | Pos:$' + posVal.toFixed(2) + ' | Margin:$' + (posVal/leverage).toFixed(2) + ' | Lev:' + leverage + 'x | SL:' + fp(sl) + ' TP:' + fp(tp);
-    log((auto ? '[AUTO] ' : '') + logMsg2, 'ok');
-    logPos('ACILDI: ' + logMsg2, 'ok');
+    var lm2 = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
+    log((auto ? '[AUTO] ' : '') + lm2, 'ok');
+    logPos('ACILDI: ' + lm2, 'ok');
     notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT','') + ' acildi', 'success');
     startTracker(); updatePosUI(); updateSignalUI();
   }
 }
 
+/* ===== POZİSYON KAPAT ===== */
 function closePos(id, reason) {
   var pos = null, idx = -1, i;
   for (i = 0; i < positions.length; i++) if (positions[i].id === id) { pos = positions[i]; idx = i; break; }
@@ -711,51 +752,65 @@ function closePos(id, reason) {
   if (balance > peakBal) peakBal = balance;
   if (net < 0 && (reason.indexOf('STOP') !== -1 || reason.indexOf('SL') !== -1)) {
     slStreak[pos.pair] = (slStreak[pos.pair] || 0) + 1;
-    if (slStreak[pos.pair] >= 2) { setCD(pos.pair, 15, '2 SL ust uste'); slStreak[pos.pair] = 0; }
+    if (slStreak[pos.pair] >= 2) { setCD(pos.pair, 20, '2 SL ust uste'); slStreak[pos.pair] = 0; }
   } else if (net > 0) { slStreak[pos.pair] = 0; }
   trades.push({pair:pos.pair, side:pos.side, pnl:net, reason:reason, entry:pos.entry, exit:pr});
   positions.splice(idx, 1);
-  var icon = net > 0 ? 'WIN' : 'SL';
-  var msg = icon + ' ' + pos.pair.replace('USDT','') + ' | PnL:' + (net >= 0 ? '+' : '') + '$' + net.toFixed(4) + ' | Reason:' + reason;
+  var icon = net > 0 ? 'WIN ✓' : 'STOP ✗';
+  var msg = icon + ' ' + pos.pair.replace('USDT','') + ' ' + pos.side + ' | PnL:' + (net >= 0 ? '+' : '') + '$' + net.toFixed(4) + ' | ' + reason;
   log(msg, net >= 0 ? 'ok' : 'err');
   logPos(msg, net >= 0 ? 'ok' : 'err');
   notify(msg, net >= 0 ? 'success' : 'error');
   if (appMode === 'live' && WORKER) {
-    xfetch(WORKER + '/close', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbol:pos.pair, side:pos.side})},
+    xfetch(WORKER + '/close', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({symbol:pos.pair, side:pos.side})},
       function(d) { if (d && d.success) log('Kapat OK', 'ok'); },
-      function() { log('Kapat net hata', 'err'); });
+      function() { log('Kapat net err', 'err'); });
   }
   if (positions.length === 0) stopTracker();
   updatePosUI(); updateSignalUI();
 }
 
-/* ===================== TRACKER ===================== */
+/* ===== GELİŞMİŞ TRACKER (V3.9) ===== */
 function startTracker() {
   if (trackerTimer) clearInterval(trackerTimer);
-  trackerTimer = setInterval(runTracker, 1000);
-  logPos('Pozisyon takip basladi (1 saniyede bir)', 'ok');
+  trackerTick = 0;
+  trackerTimer = setInterval(runTracker, 2000); /* 2 saniyede bir */
+  logPos('Tracker basladi (2s aralik, Binance sync aktif)', 'ok');
 }
-
 function stopTracker() {
   if (trackerTimer) { clearInterval(trackerTimer); trackerTimer = null; }
-  logPos('Pozisyon takip durdu', 'info');
+  var et = document.getElementById('eTrack'); if (et) et.textContent = 'DURDU';
+  logPos('Tracker durdu', 'info');
 }
 
 function runTracker() {
   if (positions.length === 0) { stopTracker(); return; }
+  trackerTick++;
+  var et = document.getElementById('eTrack'); if (et) et.textContent = 'AKTIF #' + trackerTick;
+
+  /* Binance'ten canlı PnL ve fiyat çek (her tracker döngüsünde) */
   if (appMode === 'live' && WORKER) {
     xfetch(WORKER + '/open_positions', null, function(d) {
       if (!d || !d.success || !Array.isArray(d.data)) return;
-      var i, j;
+      var i, j, p, rp, mp;
       for (i = 0; i < positions.length; i++) {
-        var p = positions[i], found = false;
+        p = positions[i];
+        var found = false;
         for (j = 0; j < d.data.length; j++) {
           if (d.data[j].symbol === p.pair) {
             found = true;
-            var rp = parseFloat(d.data[j].unrealizedProfit || d.data[j].unRealizedProfit || 0);
+            /* Gerçek PnL Binance'ten */
+            rp = parseFloat(d.data[j].unrealizedProfit || d.data[j].unRealizedProfit || 0);
             if (!isNaN(rp)) p.realPnl = rp;
-            var mp = parseFloat(d.data[j].markPrice || d.data[j].entryPrice || 0);
-            if (mp > 0 && pData[p.pair]) pData[p.pair].price = mp;
+            /* Gerçek fiyat */
+            mp = parseFloat(d.data[j].markPrice || d.data[j].entryPrice || 0);
+            if (mp > 0) { if (!pData[p.pair]) pData[p.pair] = {}; pData[p.pair].price = mp; }
+            /* Binance'ten gerçek SL/TP varsa güncelle */
+            var bSl = parseFloat(d.data[j].stopPrice || 0);
+            var bTp = parseFloat(d.data[j].takeProfitPrice || 0);
+            if (bSl > 0) p.bnbSl = bSl;
+            if (bTp > 0) p.bnbTp = bTp;
             break;
           }
         }
@@ -765,61 +820,127 @@ function runTracker() {
           return;
         }
       }
-    }, function() {});
-  }
-
-  var i;
-  for (i = positions.length - 1; i >= 0; i--) {
-    var pos = positions[i];
-    var pr = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
-    /* BUG FIX: eskiden pos.qty yerine tanımsız qty kullanılıyordu */
-    var pnl = (pos.realPnl !== undefined) ? pos.realPnl : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
-    var pnlRatio = targetUSD > 0 ? pnl / targetUSD : 0;
-    var changed = false, reason = '';
-
-    if (pnlRatio >= 0.25 && !pos.breakeven) {
-      var beSL = pos.side === 'LONG' ? pos.entry * 1.0005 : pos.entry * 0.9995;
-      var beOk = (pos.side === 'LONG' && beSL > pos.sl) || (pos.side === 'SHORT' && beSL < pos.sl);
-      if (beOk) { pos.sl = beSL; pos.breakeven = true; changed = true; reason = 'BREAKEVEN'; }
-    }
-    if (pnlRatio >= 0.50) {
-      var trSL = pos.side === 'LONG' ? pr * (1 - 0.002) : pr * (1 + 0.002);
-      var trOk = (pos.side === 'LONG' && trSL > pos.sl) || (pos.side === 'SHORT' && trSL < pos.sl);
-      if (trOk) { pos.sl = trSL; changed = true; reason = 'TRAIL_' + Math.floor(pnlRatio * 100) + 'PCT'; }
-    }
-    if (pnlRatio >= 0.80) {
-      var extTP = pos.side === 'LONG' ? pr + (pr - pos.entry) * 0.5 : pr - (pos.entry - pr) * 0.5;
-      var tpOk = (pos.side === 'LONG' && extTP > pos.tp) || (pos.side === 'SHORT' && extTP < pos.tp);
-      if (tpOk) { pos.tp = extTP; changed = true; reason += ' TP_UZAT'; }
-    }
-    if (pnlRatio >= 0.95) { closePos(pos.id, 'HEDEF ALINDI'); continue; }
-
-    if (changed) {
-      var msg2 = '[TRAIL] ' + pos.pair.replace('USDT','') + ' ' + pos.side + ' | ' + reason.trim() + ' | PnL:$' + pnl.toFixed(4) + ' | SL:' + fp(pos.sl) + ' TP:' + fp(pos.tp);
-      log(msg2, 'ok'); logPos(msg2, 'ok');
-      if (appMode === 'live' && WORKER) {
-        var dp2 = pos.entry > 1000 ? 2 : pos.entry > 10 ? 3 : 4;
-        xfetch(WORKER + '/update_tpsl', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({symbol:pos.pair, side:pos.side,
-            tp: parseFloat(pos.tp.toFixed(dp2)), sl: parseFloat(pos.sl.toFixed(dp2))})},
-          function(r) { if (r && r.success) log('Worker TP/SL guncellendi', 'ok'); },
-          function() { log('Worker TP/SL guncellenemedi (lokal devam)', 'info'); });
+      /* PnL UI güncelle */
+      var bp = document.getElementById('eBnbPnl');
+      if (bp && positions.length) {
+        var totalRealPnl = 0;
+        for (var pi = 0; pi < positions.length; pi++) {
+          if (positions[pi].realPnl !== undefined) totalRealPnl += positions[pi].realPnl;
+        }
+        bp.textContent = (totalRealPnl >= 0 ? '+' : '') + '$' + totalRealPnl.toFixed(4);
+        bp.style.color = totalRealPnl >= 0 ? 'var(--long)' : 'var(--short)';
       }
-    }
-    if (pos.side === 'LONG'  && pr >= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
-    if (pos.side === 'SHORT' && pr <= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
-    if (pos.side === 'LONG'  && pr <= pos.sl) { closePos(pos.id, 'STOP LOSS');  continue; }
-    if (pos.side === 'SHORT' && pr >= pos.sl) { closePos(pos.id, 'STOP LOSS');  continue; }
+      runTrailLogic(); /* PnL geldikten sonra trail çalıştır */
+    }, function() {
+      runTrailLogic(); /* live erişim yoksa lokalle devam */
+    });
+  } else {
+    runTrailLogic();
   }
+
   updatePosUI();
 }
 
-/* ===================== MOTOR ===================== */
+/* Trail/BE mantığı ayrı fonksiyon — temiz */
+function runTrailLogic() {
+  var i, pos, pr, pnl, pnlRatio, changed, reason;
+  for (i = positions.length - 1; i >= 0; i--) {
+    pos = positions[i];
+    pr  = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+    pnl = (pos.realPnl !== undefined) ? pos.realPnl
+          : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
+
+    /* Maksimum karı izle */
+    if (pnl > pos.highPnl) pos.highPnl = pnl;
+
+    pnlRatio = targetUSD > 0 ? pnl / targetUSD : 0;
+    changed = false; reason = '';
+
+    /* --- Aşama 1: %25 karda breakeven --- */
+    if (pnlRatio >= 0.25 && !pos.breakeven) {
+      /* BE noktası: entry + küçük buffer (komisyon karşılığı) */
+      var beBuffer = pos.entry * 0.0003;
+      var beSL = pos.side === 'LONG' ? pos.entry + beBuffer : pos.entry - beBuffer;
+      var beOk = (pos.side === 'LONG' && beSL > pos.sl) || (pos.side === 'SHORT' && beSL < pos.sl);
+      if (beOk) { pos.sl = beSL; pos.breakeven = true; changed = true; reason = 'BREAKEVEN'; pos.trailStage = 1; }
+    }
+
+    /* --- Aşama 2: %50 karda sıkı trailing (%0.25 arkada) --- */
+    if (pnlRatio >= 0.50 && pos.trailStage < 2) {
+      var tr1SL = pos.side === 'LONG' ? pr * (1 - 0.0025) : pr * (1 + 0.0025);
+      var tr1Ok = (pos.side === 'LONG' && tr1SL > pos.sl) || (pos.side === 'SHORT' && tr1SL < pos.sl);
+      if (tr1Ok) { pos.sl = tr1SL; changed = true; reason = 'TRAIL_50%'; pos.trailStage = 2; }
+    }
+
+    /* --- Aşama 3: %75 karda daha sıkı trailing (%0.15 arkada) --- */
+    if (pnlRatio >= 0.75 && pos.trailStage < 3) {
+      var tr2SL = pos.side === 'LONG' ? pr * (1 - 0.0015) : pr * (1 + 0.0015);
+      var tr2Ok = (pos.side === 'LONG' && tr2SL > pos.sl) || (pos.side === 'SHORT' && tr2SL < pos.sl);
+      if (tr2Ok) { pos.sl = tr2SL; changed = true; reason = 'TRAIL_75%'; pos.trailStage = 3; }
+    }
+
+    /* --- Aşama 4: TP uzat — %80 karda TP'yi genişlet --- */
+    if (pnlRatio >= 0.80) {
+      var extTP = pos.side === 'LONG'
+        ? pr + (pr - pos.entry) * 0.6
+        : pr - (pos.entry - pr) * 0.6;
+      var tpOk = (pos.side === 'LONG' && extTP > pos.tp) || (pos.side === 'SHORT' && extTP < pos.tp);
+      if (tpOk) { pos.tp = extTP; changed = true; reason += (reason ? ' + ' : '') + 'TP_EXT'; }
+    }
+
+    /* --- Sürekli trailing (her aşamada SL yükselt) --- */
+    if (pos.trailStage >= 2) {
+      var trailGap = pos.trailStage >= 3 ? 0.0015 : 0.0025;
+      var contSL = pos.side === 'LONG' ? pr * (1 - trailGap) : pr * (1 + trailGap);
+      var contOk = (pos.side === 'LONG' && contSL > pos.sl) || (pos.side === 'SHORT' && contSL < pos.sl);
+      if (contOk) { pos.sl = contSL; changed = true; if (!reason) reason = 'TRAIL_CONT'; }
+    }
+
+    /* Hedef yakın: %95 karda kapat */
+    if (pnlRatio >= 0.95) { closePos(pos.id, 'HEDEF ALINDI'); continue; }
+
+    /* Changed ise log + Binance güncelle */
+    if (changed) {
+      var msg2 = '[TRAIL] ' + pos.pair.replace('USDT','') + ' | ' + reason + ' | PnL:$' + pnl.toFixed(4) + ' SL:' + fp(pos.sl) + ' TP:' + fp(pos.tp);
+      log(msg2, 'ok'); logPos(msg2, 'ok');
+      if (appMode === 'live' && WORKER) pushTpSl(pos);
+    }
+
+    /* SL/TP tetikleyici */
+    if (pos.side === 'LONG'  && pr >= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
+    if (pos.side === 'SHORT' && pr <= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
+    if (pos.side === 'LONG'  && pr <= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
+    if (pos.side === 'SHORT' && pr >= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
+  }
+}
+
+/* Binance'e TP/SL gönder */
+function pushTpSl(pos) {
+  var dp = pos.entry > 1000 ? 2 : pos.entry > 10 ? 3 : 4;
+  xfetch(WORKER + '/update_tpsl', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({symbol:pos.pair, side:pos.side,
+      tp:parseFloat(pos.tp.toFixed(dp)), sl:parseFloat(pos.sl.toFixed(dp))})},
+    function(r) { if (r && r.success) logPos('BNB TP/SL guncellendi: ' + pos.pair.replace('USDT',''), 'ok'); },
+    function()  { logPos('BNB TP/SL guncelleme hata (lokal devam)', 'info'); });
+}
+
+/* ===== MOTOR ===== */
 function runEngine() {
   if (!engineOn) return;
   var elLast = document.getElementById('eLast'), elOpen = document.getElementById('eOpen'), elSig = document.getElementById('eSig');
   if (elLast) elLast.textContent = new Date().toLocaleTimeString('tr-TR');
   if (elOpen) elOpen.textContent = positions.length;
+
+  /* Odak modu: açık pozisyon varsa yeni sinyal arama */
+  if (focusModeOn && positions.length > 0) {
+    if (elSig) elSig.textContent = 'Odak: ' + positions[0].pair.replace('USDT','') + ' izleniyor';
+    var banner = document.getElementById('posFocusBanner');
+    if (banner) banner.style.display = 'block';
+    return;
+  }
+  var banner2 = document.getElementById('posFocusBanner');
+  if (banner2) banner2.style.display = 'none';
+
   var best = null, bestScore = -1, i, s, an;
   for (i = 0; i < pairs.length; i++) {
     s = pairs[i]; if (inCD(s)) continue;
@@ -828,18 +949,17 @@ function runEngine() {
     if (an.score > bestScore) { bestScore = an.score; best = {sym:s, an:an}; }
   }
   if (!best) { if (elSig) elSig.textContent = 'sinyal yok'; return; }
-  if (elSig) elSig.textContent = best.sym.replace('USDT','') + ' ' + best.an.signal + '(' + best.an.score + '%)';
+  if (elSig) elSig.textContent = best.sym.replace('USDT','') + ' ' + best.an.signal + ' (' + best.an.score + '%)';
   if (autoTrade && positions.length < MAX_P) openPos(best.sym, best.an.signal, true);
-  else if (!autoTrade) log('SINYAL: ' + best.sym.replace('USDT','') + ' ' + best.an.signal + ' SKOR:' + best.an.score + '%', 'info');
+  else if (!autoTrade) log('SIG: ' + best.sym.replace('USDT','') + ' ' + best.an.signal + ' SKOR:' + best.an.score + '%', 'info');
 }
 
-/* ===================== DEMO VERİ ===================== */
+/* ===== DEMO VERİ ===== */
 function demoTick(sym) {
   var s = pxState[sym];
   s.vel = s.vel * 0.9 + (Math.random() - 0.5) * s.price * 0.0004 + (DEMO_BASE[sym] - s.price) * 0.001;
   s.price = Math.max(s.price * 0.5, s.price + s.vel);
 }
-
 function makeKlines(sym, n, tf) {
   var msMap = {'1m':60000,'5m':300000,'15m':900000,'1h':3600000};
   var ms = msMap[tf] || 300000;
@@ -849,24 +969,19 @@ function makeKlines(sym, n, tf) {
     drift = (Math.random() - 0.49) * 0.005;
     o = p; c2 = o * (1 + drift);
     range = Math.abs(o - c2) * (1 + Math.random() * 0.8);
-    kl.unshift({
-      t: Date.now() - i * ms, o: o,
-      h: Math.max(o, c2) + range * Math.random() * 0.5,
-      l: Math.min(o, c2) - range * Math.random() * 0.5,
-      c: c2, v: 500 + Math.random() * 5000
-    });
+    kl.unshift({t:Date.now()-i*ms, o:o, h:Math.max(o,c2)+range*Math.random()*0.5,
+                l:Math.min(o,c2)-range*Math.random()*0.5, c:c2, v:500+Math.random()*5000});
     p = c2;
   }
   if (kl.length && pxState[sym]) kl[kl.length-1].c = pxState[sym].price;
   return kl;
 }
-
 function refreshDemo() {
   var now = Date.now(), i, sym, kls, ki, kl2, last2;
   for (i = 0; i < pairs.length; i++) {
     sym = pairs[i];
     prevPx[sym] = pxState[sym] ? pxState[sym].price : (DEMO_BASE[sym] || 1);
-    if (!pxState[sym]) pxState[sym] = {price: DEMO_BASE[sym] || 1, vel: 0};
+    if (!pxState[sym]) pxState[sym] = {price:DEMO_BASE[sym] || 1, vel:0};
     demoTick(sym);
     if (!pData[sym]) pData[sym] = {};
     pData[sym].price = pxState[sym].price;
@@ -874,7 +989,7 @@ function refreshDemo() {
       pData[sym].kl1m  = makeKlines(sym, 200, '1m');
       pData[sym].kl5m  = makeKlines(sym, 200, '5m');
       pData[sym].kl15m = makeKlines(sym, 120, '15m');
-      pData[sym].kl1h  = makeKlines(sym, 60,  '1h');
+      pData[sym].kl1h  = makeKlines(sym, 80,  '1h');
       pData[sym].lastKl = now;
     } else {
       kls = ['kl1m','kl5m','kl15m','kl1h'];
@@ -893,14 +1008,11 @@ function refreshDemo() {
   analyzeAll();
 }
 
-/* ===================== XHR YARDIMCISI ===================== */
+/* ===== XHR ===== */
 function xfetch(url, opts, onOk, onErr) {
   var xhr = new XMLHttpRequest();
   xhr.open(opts && opts.method ? opts.method : 'GET', url, true);
-  if (opts && opts.headers) {
-    var k;
-    for (k in opts.headers) xhr.setRequestHeader(k, opts.headers[k]);
-  }
+  if (opts && opts.headers) { var k; for (k in opts.headers) xhr.setRequestHeader(k, opts.headers[k]); }
   xhr.onreadystatechange = function() {
     if (xhr.readyState !== 4) return;
     if (xhr.status >= 200 && xhr.status < 300) {
@@ -911,7 +1023,7 @@ function xfetch(url, opts, onOk, onErr) {
   xhr.send(opts && opts.body ? opts.body : null);
 }
 
-/* ===================== CANLI BAĞLANTI ===================== */
+/* ===== CANLI BAĞLANTI ===== */
 function syncBal() {
   if (!WORKER || appMode !== 'live') return;
   xfetch(WORKER + '/balance', null, function(d) {
@@ -926,9 +1038,8 @@ function syncBal() {
         log('Bakiye sync: $' + val.toFixed(2), 'ok'); updateBalUI();
       }
     }
-  }, function() { log('Bakiye sync hata', 'err'); });
+  }, function() { log('Bakiye sync err', 'err'); });
 }
-
 function fetchLive() {
   if (!WORKER) return;
   var now = Date.now(), priceDone = 0, total = pairs.length;
@@ -949,15 +1060,11 @@ function fetchLive() {
         }
         priceDone++;
         if (priceDone >= total) doFetchKlines();
-      }, function() {
-        priceDone++;
-        if (priceDone >= total) doFetchKlines();
-      });
+      }, function() { priceDone++; if (priceDone >= total) doFetchKlines(); });
     })(pairs[i]);
   }
-
   function doFetchKlines() {
-    var tfs = ['5m','15m','1h'], limits = [200,120,60], keys = ['kl5m','kl15m','kl1h'];
+    var tfs = ['5m','15m','1h'], limits = [200,120,80], keys = ['kl5m','kl15m','kl1h'];
     var needFetch = [], pi, sym2, ki2, ks, kl3, totalReq, doneReq;
     for (pi = 0; pi < pairs.length; pi++) {
       sym2 = pairs[pi];
@@ -1000,7 +1107,6 @@ function fetchLive() {
     }
   }
 }
-
 function connectLive() {
   var url = (document.getElementById('wUrl').value || '').trim();
   if (!url) { notify('Worker URL girin', 'error'); return; }
@@ -1015,7 +1121,7 @@ function connectLive() {
       document.getElementById('bdgConn').textContent = 'LIVE';
       document.getElementById('bdgConn').className = 'hbdg live';
       notify('Worker baglandi' + ver, 'success');
-      log('Canli mod - Worker' + ver, 'ok');
+      log('Canli mod' + ver, 'ok');
       syncBal();
       if (loopTimer) clearTimeout(loopTimer);
       mainLoop();
@@ -1030,12 +1136,10 @@ function connectLive() {
     notify('Baglanti hatasi: ' + code, 'error');
   });
 }
-
 function setConnStatus(msg, color) {
   var el = document.getElementById('connStatus');
   if (el) { el.textContent = msg; el.style.color = color || 'var(--dim2)'; }
 }
-
 function startDemo() {
   WORKER = ''; appMode = 'demo'; futBal = null;
   document.getElementById('bdgConn').textContent = 'DEMO';
@@ -1047,7 +1151,7 @@ function startDemo() {
   mainLoop();
 }
 
-/* ===================== MAIN LOOP ===================== */
+/* ===== MAIN LOOP ===== */
 function mainLoop() {
   try {
     if (appMode === 'demo') refreshDemo(); else fetchLive();
@@ -1058,10 +1162,9 @@ function mainLoop() {
     updateCDUI();
     updateCoinScoreTable();
     if (engineOn) startCountdown();
-  } catch(e) { log('Loop hatasi: ' + e.message, 'err'); }
+  } catch(e) { log('Loop err: ' + e.message, 'err'); }
   loopTimer = setTimeout(mainLoop, scanSec * 1000);
 }
-
 function startCountdown() {
   if (cdTimer) clearInterval(cdTimer);
   var left = scanSec;
@@ -1073,7 +1176,7 @@ function startCountdown() {
   }, 1000);
 }
 
-/* ===================== UI GÜNCELLEMELERI ===================== */
+/* ===== UI ===== */
 function updateCoinScoreTable() {
   var el = document.getElementById('coinScoreTable'); if (!el) return;
   var sorted = pairs.slice().sort(function(a, b) {
@@ -1096,17 +1199,15 @@ function updateCoinScoreTable() {
   }
   el.innerHTML = rows || '<div style="color:var(--dim2);padding:8px 0">Veri bekleniyor...</div>';
 }
-
 function updateSignalUI() {
-  var pd3 = pData[currentPair], an3 = pd3 && pd3.an;
-  var sig3 = an3 ? an3.signal : 'WAIT';
+  var pd3 = pData[currentPair], an3 = pd3 && pd3.an, sig3 = an3 ? an3.signal : 'WAIT';
   var badge = document.getElementById('sigBadge');
   if (badge) { badge.textContent = sig3; badge.className = 'sig-badge ' + sig3; }
   var meta = document.getElementById('sigMeta');
-  if (meta) meta.textContent = an3 ? 'SKOR:' + an3.score + '%  VOL:' + an3.vr.toFixed(2) + 'x  ATR:' + an3.atrPct.toFixed(3) + '%' : 'Analiz bekleniyor...';
+  if (meta) meta.textContent = an3 ? 'SKOR:' + an3.score + '%  VOL:' + an3.vr.toFixed(2) + 'x  ATR:' + an3.atrPct.toFixed(3) + '%(x' + (an3.atrMult||0).toFixed(1) + ')' : 'Analiz bekleniyor...';
   var qv = document.getElementById('qVal'), qb = document.getElementById('qBar'), sc3 = an3 ? an3.score : 0;
   if (qv) qv.textContent = an3 ? an3.score + '%' : '--%';
-  if (qb) { qb.style.width = sc3 + '%'; qb.style.background = sc3 >= 80 ? 'var(--long)' : sc3 >= 60 ? 'var(--warn)' : 'var(--short)'; }
+  if (qb) { qb.style.width = sc3 + '%'; qb.style.background = sc3 >= 80 ? 'var(--long)' : sc3 >= 65 ? 'var(--warn)' : 'var(--short)'; }
   var rr = document.getElementById('reasonRow');
   if (rr && an3 && an3.reasons) {
     var rh = '', ri;
@@ -1120,7 +1221,7 @@ function updateSignalUI() {
     setInd('iMacd',  (ind.macd.hist >= 0 ? '+' : '') + ind.macd.hist.toFixed(5), ind.macd.hist > 0 ? 'bull' : 'bear');
     setInd('iEma',   ind.goldenX ? 'GOLDEN_X' : ind.deathX ? 'DEATH_X' : ind.aboveEMA ? 'YUKARI' : 'ASAGI',
                      ind.goldenX ? 'bull' : ind.deathX ? 'bear' : ind.aboveEMA ? 'bull' : 'bear');
-    setInd('iVol',   ind.vr.toFixed(2) + 'x', ind.vr >= 1.3 ? 'bull' : ind.vr < 0.8 ? 'bear' : 'neut');
+    setInd('iVol',   ind.vr.toFixed(2) + 'x', ind.vr >= 1.3 ? 'bull' : ind.vr < 0.85 ? 'bear' : 'neut');
     setInd('iAtr',   ind.atrPct.toFixed(3) + '%', ind.atrPct > 0.1 ? 'neut' : 'bear');
   }
   if (an3 && an3.mtf) { setMTF('m5', an3.mtf['5m']); setMTF('m15', an3.mtf['15m']); setMTF('m1h', an3.mtf['1h']); }
@@ -1131,39 +1232,29 @@ function updateSignalUI() {
   if (btnS) btnS.disabled = !canOpen;
   var mn = document.getElementById('manNote');
   if (mn) mn.textContent = canOpen
-    ? 'Risk: $' + riskUSD.toFixed(2) + '  Hedef: $' + targetUSD.toFixed(2) + '  MaxPos:$' + maxPositionSize + '  Lev:' + leverage + 'x'
+    ? 'Risk:$' + riskUSD.toFixed(2) + ' Hedef:$' + targetUSD.toFixed(2) + ' MaxPos:$' + maxPositionSize + ' x' + leverage
     : 'Max ' + MAX_P + ' pozisyon dolu';
-  updateBalUI();
-  drawChart();
+  updateBalUI(); drawChart();
 }
-
-function setInd(id, val, cls) {
-  var el = document.getElementById(id);
-  if (el) { el.textContent = val; el.className = 'ind-val ' + (cls || 'neut'); }
-}
-
-function setMTF(id, val) {
-  var el = document.getElementById(id);
-  if (el) { el.textContent = val || '--'; el.className = 'mtf-val ' + (val || 'WAIT'); }
-}
-
+function setInd(id, val, cls) { var el = document.getElementById(id); if (el) { el.textContent = val; el.className = 'ind-val ' + (cls || 'neut'); } }
+function setMTF(id, val) { var el = document.getElementById(id); if (el) { el.textContent = val || '--'; el.className = 'mtf-val ' + (val || 'WAIT'); } }
 function renderPlan(an4, price) {
   var el = document.getElementById('planWrap'); if (!an4 || !an4.sl) { el.innerHTML = ''; return; }
   var s4 = an4.signal, cls4 = s4.toLowerCase();
   var slPct = Math.abs(price - an4.sl) / price * 100;
   var tpPct = Math.abs(an4.tp - price) / price * 100;
+  var rrActual = tpPct / slPct;
   el.innerHTML = '<div class="plan-box">' +
     '<div class="plan-hd ' + cls4 + '">' + s4 + ' // ' + currentPair.replace('USDT','') + '  SKOR:' + an4.score + '%</div>' +
     '<div class="plan-body">' +
     '<div class="plan-row"><span class="pk">GIRIS</span><span>$' + fp(price) + '</span></div>' +
-    '<div class="plan-row"><span class="pk">TP (+' + tpPct.toFixed(2) + '%)</span><span class="pv tp">$' + fp(an4.tp) + '  +$' + targetUSD.toFixed(3) + '</span></div>' +
-    '<div class="plan-row"><span class="pk">SL (-' + slPct.toFixed(2) + '%)</span><span class="pv sl">$' + fp(an4.sl) + '  -$' + riskUSD.toFixed(2) + '</span></div>' +
+    '<div class="plan-row"><span class="pk">TP (+' + tpPct.toFixed(2) + '%)</span><span class="pv tp">$' + fp(an4.tp) + '</span></div>' +
+    '<div class="plan-row"><span class="pk">SL (-' + slPct.toFixed(2) + '%)  ATRx' + (an4.atrMult||0).toFixed(1) + '</span><span class="pv sl">$' + fp(an4.sl) + '</span></div>' +
+    '<div class="plan-row"><span class="pk">R:R ORANI</span><span class="pv rr">1:' + rrActual.toFixed(2) + '</span></div>' +
     '<div class="plan-row"><span class="pk">LOT / POS</span><span class="pv rr">' + an4.qty.toFixed(4) + ' / $' + an4.posVal.toFixed(2) + '</span></div>' +
-    '<div class="plan-row"><span class="pk">FEE (est)</span><span style="color:var(--warn)">$' + an4.comm.toFixed(4) + '</span></div>' +
-    '<div class="plan-row"><span class="pk">NET HEDEF</span><span class="pv tp">$' + Math.max(0, targetUSD - an4.comm).toFixed(4) + '</span></div>' +
+    '<div class="plan-row"><span class="pk">FEE + NET</span><span style="color:var(--warn)">-$' + an4.comm.toFixed(4) + ' / NET:$' + Math.max(0, targetUSD - an4.comm).toFixed(4) + '</span></div>' +
     '</div></div>';
 }
-
 function updatePairRow() {
   var html = '', i, sym5, pd5, p5, prev5, sig5, sc5, cd5;
   for (i = 0; i < pairs.length; i++) {
@@ -1176,12 +1267,10 @@ function updatePairRow() {
     html += '<button class="pp ' + (sym5 === currentPair ? 'active' : '') + '" onclick="selPair(\'' + sym5 + '\')">' +
       '<span>' + sym5.replace('USDT','') + cd5 + '</span>' +
       '<span class="pp-price" style="color:' + (p5 >= prev5 ? 'var(--long)' : 'var(--short)') + '">$' + fp(p5) + '</span>' +
-      '<span class="pp-sig ' + sig5 + '">' + sig5 + sc5 + '</span>' +
-      '</button>';
+      '<span class="pp-sig ' + sig5 + '">' + sig5 + sc5 + '</span></button>';
   }
   document.getElementById('pairRow').innerHTML = html;
 }
-
 function updateTicker() {
   var t = document.getElementById('tickerEl'); if (!t) return;
   var html = '', i, s5, p5, prev5;
@@ -1191,7 +1280,6 @@ function updateTicker() {
   }
   t.innerHTML = html;
 }
-
 function updateBalUI() {
   var bal = (appMode === 'live' && futBal !== null) ? futBal : balance;
   var pct = (bal - START_BAL) / START_BAL * 100;
@@ -1206,33 +1294,34 @@ function updateBalUI() {
   var stBal2 = document.getElementById('stBal'); if (stBal2) stBal2.textContent = '$' + bal.toFixed(2);
   var stDay2 = document.getElementById('stDay');
   if (stDay2) { stDay2.textContent = (dailyPnL >= 0 ? '+' : '') + '$' + dailyPnL.toFixed(2); stDay2.style.color = dailyPnL >= 0 ? 'var(--long)' : 'var(--short)'; }
-  var wins = 0, wi;
-  for (wi = 0; wi < trades.length; wi++) if (trades[wi].pnl > 0) wins++;
+  var wins = 0, wi; for (wi = 0; wi < trades.length; wi++) if (trades[wi].pnl > 0) wins++;
   var swr = document.getElementById('stWR'); if (swr) swr.textContent = trades.length ? (wins / trades.length * 100).toFixed(0) + '%' : '--%';
   var str2 = document.getElementById('stTrades'); if (str2) str2.textContent = trades.length;
   var sr = document.getElementById('showRisk'); if (sr) sr.textContent = '$' + riskUSD.toFixed(2);
   var stp = document.getElementById('showTP'); if (stp) stp.textContent = '$' + targetUSD.toFixed(2);
 }
-
 function updatePosUI() {
   updateBalUI();
-  var html = '', i, pos6, pr6, pnl6, prog6, pc6, beTag6;
+  var html = '', i, pos6, pr6, pnl6, prog6, pc6, beTag6, trailTag;
   if (!positions.length) {
     html = '<div style="text-align:center;padding:24px;color:var(--dim2);font-family:var(--mono);font-size:11px">// ACIK POZISYON YOK</div>';
   } else {
     for (i = 0; i < positions.length; i++) {
       pos6 = positions[i];
-      pr6 = (pData[pos6.pair] && pData[pos6.pair].price) || pos6.entry;
-      /* BUG FIX: pos6.qty kullanılıyor (eskiden pos.qty yazıyordu) */
+      pr6  = (pData[pos6.pair] && pData[pos6.pair].price) || pos6.entry;
       pnl6 = (pos6.realPnl !== undefined) ? pos6.realPnl : (pr6 - pos6.entry) * (pos6.side === 'LONG' ? 1 : -1) * pos6.qty;
       prog6 = targetUSD > 0 ? Math.max(0, Math.min(100, pnl6 / targetUSD * 100)) : 0;
-      pc6 = pnl6 >= 0 ? 'var(--long)' : 'var(--short)';
-      beTag6 = pos6.breakeven ? '<span style="font-size:8px;color:var(--long);margin-left:4px">BE</span>' : '';
+      pc6  = pnl6 >= 0 ? 'var(--long)' : 'var(--short)';
+      beTag6   = pos6.breakeven   ? '<span style="font-size:8px;color:var(--long);margin-left:4px;border:1px solid var(--long2);padding:1px 3px;border-radius:2px">BE</span>' : '';
+      trailTag = pos6.trailStage >= 2 ? '<span style="font-size:8px;color:var(--acc);margin-left:4px;border:1px solid var(--acc2);padding:1px 3px;border-radius:2px">TRAIL</span>' : '';
+      var holdMin = Math.floor((Date.now() - (pos6.openTime || Date.now())) / 60000);
       html += '<div class="pos-card ' + pos6.side.toLowerCase() + '">' +
         '<div class="pos-hd">' +
-          '<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px">' +
+          '<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:4px;-webkit-flex-wrap:wrap;flex-wrap:wrap">' +
             '<span class="pos-sym">' + pos6.pair.replace('USDT','') + '</span>' +
-            '<span class="pos-side-badge ' + pos6.side + '">' + pos6.side + '</span>' + beTag6 +
+            '<span class="pos-side-badge ' + pos6.side + '">' + pos6.side + '</span>' +
+            beTag6 + trailTag +
+            '<span style="font-size:7px;color:var(--dim2);font-family:var(--mono)">' + holdMin + 'dk</span>' +
           '</div>' +
           '<div class="pos-pnl ' + (pnl6 >= 0 ? 'up' : 'dn') + '">' + (pnl6 >= 0 ? '+' : '') + '$' + pnl6.toFixed(4) + '</div>' +
         '</div>' +
@@ -1245,26 +1334,23 @@ function updatePosUI() {
         '<div class="pbar-track"><div class="pbar-fill" style="width:' + prog6 + '%;background:' + pc6 + '"></div></div>' +
         '<div style="display:-webkit-flex;display:flex;gap:5px">' +
           '<button class="btn btn-out btn-sm" onclick="closePos(' + pos6.id + ',\'Manuel\')">KAPAT</button>' +
-          '<button class="btn btn-sm" style="background:rgba(255,170,0,0.1);color:var(--warn);border:1px solid rgba(255,170,0,0.3)" onclick="closePos(' + pos6.id + ',\'ERKEN CIK\')">+$0.05 AL</button>' +
+          '<button class="btn btn-sm" style="background:rgba(255,170,0,0.1);color:var(--warn);border:1px solid rgba(255,170,0,0.3)" onclick="closePos(' + pos6.id + ',\'ERKEN CIK\')">ERKEN CIK</button>' +
         '</div></div>';
     }
   }
   document.getElementById('posList').innerHTML = html;
   var hh = '', hi;
-  for (hi = Math.min(trades.length, 8) - 1; hi >= 0; hi--) {
+  for (hi = Math.min(trades.length, 10) - 1; hi >= 0; hi--) {
     var t6 = trades[hi];
-    hh += '<div class="hist-row"><span>' + t6.pair.replace('USDT','') + ' ' + t6.side + ' <span style="color:var(--dim2);font-size:8px">' + t6.reason + '</span></span>' +
+    hh += '<div class="hist-row"><span>' + t6.pair.replace('USDT','') + ' ' + t6.side +
+      ' <span style="color:var(--dim2);font-size:8px">' + t6.reason + '</span></span>' +
       '<span style="color:' + (t6.pnl >= 0 ? 'var(--long)' : 'var(--short)') + '">' + (t6.pnl >= 0 ? '+' : '') + '$' + t6.pnl.toFixed(4) + '</span></div>';
   }
   document.getElementById('histBox').innerHTML = hh || '<div style="color:var(--dim2);font-family:var(--mono);font-size:10px">--</div>';
 }
 
-/* ===================== CHART ===================== */
-function initChart() {
-  var c = document.getElementById('chart');
-  if (c) chartCtx = c.getContext('2d');
-}
-
+/* ===== CHART ===== */
+function initChart() { var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d'); }
 function drawChart() {
   if (!chartCtx) return;
   var pg = document.getElementById('pg-signal');
@@ -1275,21 +1361,19 @@ function drawChart() {
     var tfMap2 = {'1m':'kl1m','5m':'kl5m','15m':'kl15m','1h':'kl1h'};
     var kl7 = pd7[tfMap2[currentTF] || 'kl5m'] || []; if (!kl7 || kl7.length < 5) return;
     var cv = chartCtx.canvas;
-    /* BUG FIX: offsetWidth 0 dönebilir (iOS), clientWidth fallback */
-    var W = cv.offsetWidth || cv.clientWidth || cv.parentNode.offsetWidth || 300;
+    var W = cv.offsetWidth || cv.clientWidth || (cv.parentNode ? cv.parentNode.offsetWidth : 300) || 300;
     var H = 150;
     if (W !== lastCW || cv.width !== W) { cv.width = W; cv.height = H; lastCW = W; }
     var ctx7 = chartCtx;
     ctx7.clearRect(0, 0, W, H);
-    var n7 = Math.min(80, kl7.length), k7 = kl7.slice(-n7);
-    var cl7 = [], i7;
+    var n7 = Math.min(80, kl7.length), k7 = kl7.slice(-n7), cl7 = [], i7;
     for (i7 = 0; i7 < k7.length; i7++) cl7.push(k7[i7].c);
     var mn7 = Infinity, mx7 = -Infinity;
     for (i7 = 0; i7 < k7.length; i7++) { if (k7[i7].l < mn7) mn7 = k7[i7].l; if (k7[i7].h > mx7) mx7 = k7[i7].h; }
     var an7 = pd7.an;
     if (an7) {
-      if (an7.sl) { mn7 = Math.min(mn7, an7.sl * 0.9995); mx7 = Math.max(mx7, an7.sl * 1.0005); }
-      if (an7.tp) { mn7 = Math.min(mn7, an7.tp * 0.9995); mx7 = Math.max(mx7, an7.tp * 1.0005); }
+      if (an7.sl) { mn7 = Math.min(mn7, an7.sl * 0.999); mx7 = Math.max(mx7, an7.sl * 1.001); }
+      if (an7.tp) { mn7 = Math.min(mn7, an7.tp * 0.999); mx7 = Math.max(mx7, an7.tp * 1.001); }
     }
     var rng7 = mx7 - mn7; if (rng7 <= 0) return;
     var cw7 = W / n7;
@@ -1316,21 +1400,46 @@ function drawChart() {
     dEMA7(9, '#00d4ff'); dEMA7(21, '#ffaa00');
     for (i7 = 0; i7 < k7.length; i7++) {
       var bar7 = k7[i7], x7 = (i7 + 0.5) * cw7, bw7 = Math.max(cw7 * 0.7, 1);
-      var isGreen7 = bar7.c >= bar7.o;
-      var col7b = isGreen7 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,85,0.75)';
-      ctx7.beginPath(); ctx7.strokeStyle = col7b; ctx7.lineWidth = 1;
+      var isG = bar7.c >= bar7.o, colB = isG ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,85,0.75)';
+      ctx7.beginPath(); ctx7.strokeStyle = colB; ctx7.lineWidth = 1;
       ctx7.moveTo(x7, toY(bar7.h)); ctx7.lineTo(x7, toY(bar7.l)); ctx7.stroke();
       var yo7 = toY(bar7.o), yc7 = toY(bar7.c), y17 = Math.min(yo7, yc7), h27 = Math.max(1, Math.abs(yo7 - yc7));
-      ctx7.fillStyle = col7b; ctx7.fillRect(x7 - bw7 / 2, y17, bw7, h27);
+      ctx7.fillStyle = colB; ctx7.fillRect(x7 - bw7 / 2, y17, bw7, h27);
     }
-    function dHL7(v, col8, lbl8) {
-      if (!v || v < mn7 || v > mx7) return;
-      ctx7.setLineDash([5, 4]); ctx7.strokeStyle = col8; ctx7.lineWidth = 1;
-      ctx7.beginPath(); ctx7.moveTo(0, toY(v)); ctx7.lineTo(W, toY(v)); ctx7.stroke();
-      ctx7.setLineDash([]); ctx7.fillStyle = col8; ctx7.font = '8px monospace';
-      ctx7.fillText(lbl8 + ' ' + fp(v), W - 70, toY(v) - 2);
+    /* Acik pozisyon SL/TP çizgisi */
+    var pi2;
+    for (pi2 = 0; pi2 < positions.length; pi2++) {
+      var pp = positions[pi2];
+      if (pp.pair !== currentPair) continue;
+      function dHL7(v, col8, lbl8) {
+        if (!v || v < mn7 || v > mx7) return;
+        ctx7.setLineDash([4, 3]); ctx7.strokeStyle = col8; ctx7.lineWidth = 1.5;
+        ctx7.beginPath(); ctx7.moveTo(0, toY(v)); ctx7.lineTo(W, toY(v)); ctx7.stroke();
+        ctx7.setLineDash([]); ctx7.fillStyle = col8; ctx7.font = 'bold 8px monospace';
+        ctx7.fillText(lbl8 + ' ' + fp(v), W - 72, toY(v) - 2);
+      }
+      dHL7(pp.tp, 'rgba(0,255,136,0.9)', 'TP');
+      dHL7(pp.sl, 'rgba(255,51,85,0.9)',  'SL');
+      /* Entry line */
+      if (pp.entry >= mn7 && pp.entry <= mx7) {
+        ctx7.setLineDash([2, 4]); ctx7.strokeStyle = 'rgba(255,204,68,0.5)'; ctx7.lineWidth = 1;
+        ctx7.beginPath(); ctx7.moveTo(0, toY(pp.entry)); ctx7.lineTo(W, toY(pp.entry)); ctx7.stroke();
+        ctx7.setLineDash([]); ctx7.fillStyle = 'rgba(255,204,68,0.8)'; ctx7.font = '8px monospace';
+        ctx7.fillText('ENT ' + fp(pp.entry), 2, toY(pp.entry) - 2);
+      }
     }
-    if (an7) { if (an7.tp) dHL7(an7.tp, 'rgba(0,255,136,0.8)', 'TP'); if (an7.sl) dHL7(an7.sl, 'rgba(255,51,85,0.8)', 'SL'); }
+    /* Sinyal SL/TP (pozisyon yoksa) */
+    if (!positions.length && an7) {
+      function dHL7s(v, col8, lbl8) {
+        if (!v || v < mn7 || v > mx7) return;
+        ctx7.setLineDash([5, 4]); ctx7.strokeStyle = col8; ctx7.lineWidth = 1;
+        ctx7.beginPath(); ctx7.moveTo(0, toY(v)); ctx7.lineTo(W, toY(v)); ctx7.stroke();
+        ctx7.setLineDash([]); ctx7.fillStyle = col8; ctx7.font = '8px monospace';
+        ctx7.fillText(lbl8 + ' ' + fp(v), W - 70, toY(v) - 2);
+      }
+      if (an7.tp) dHL7s(an7.tp, 'rgba(0,255,136,0.7)', 'TP');
+      if (an7.sl) dHL7s(an7.sl, 'rgba(255,51,85,0.7)',  'SL');
+    }
     var lp7 = cl7[cl7.length - 1];
     ctx7.setLineDash([2, 4]); ctx7.strokeStyle = 'rgba(255,204,68,0.3)'; ctx7.lineWidth = 1;
     ctx7.beginPath(); ctx7.moveTo(0, toY(lp7)); ctx7.lineTo(W, toY(lp7)); ctx7.stroke();
@@ -1339,7 +1448,7 @@ function drawChart() {
   });
 }
 
-/* ===================== COIN LİSTESİ ===================== */
+/* ===== COIN / AYARLAR ===== */
 function addCoin() {
   var inp = document.getElementById('newCoin'); if (!inp) return;
   var raw = inp.value.trim().toUpperCase(); if (!raw) return;
@@ -1351,27 +1460,23 @@ function addCoin() {
     for (pj2 = 0; pj2 < pairs.length; pj2++) if (pairs[pj2] === v2) { exists2 = true; break; }
     if (exists2) continue;
     pairs.push(v2);
-    if (!pxState[v2]) pxState[v2] = {price: DEMO_BASE[v2] || 1, vel: 0};
-    if (!prevPx[v2]) prevPx[v2] = DEMO_BASE[v2] || 1;
-    if (!pData[v2]) pData[v2] = {};
+    if (!pxState[v2]) pxState[v2] = {price:DEMO_BASE[v2]||1, vel:0};
+    if (!prevPx[v2])  prevPx[v2]  = DEMO_BASE[v2] || 1;
+    if (!pData[v2])   pData[v2]   = {};
     added.push(v2.replace('USDT',''));
   }
   if (added.length > 0) notify(added.join(', ') + ' eklendi', 'success');
   else notify('Zaten listede veya gecersiz', 'info');
-  inp.value = '';
-  renderCoinList();
+  inp.value = ''; renderCoinList();
 }
-
 function removeCoin(s) {
   if (pairs.length <= 1) { notify('En az 1 coin olmali', 'error'); return; }
   var np = [], ri2;
   for (ri2 = 0; ri2 < pairs.length; ri2++) if (pairs[ri2] !== s) np.push(pairs[ri2]);
   pairs = np;
   if (currentPair === s) currentPair = pairs[0];
-  renderCoinList();
-  notify(s.replace('USDT','') + ' kaldirildi', 'info');
+  renderCoinList(); notify(s.replace('USDT','') + ' kaldirildi', 'info');
 }
-
 function renderCoinList() {
   var c = document.getElementById('coinList'); if (!c) return;
   var html2 = '', ci;
@@ -1381,19 +1486,14 @@ function renderCoinList() {
   }
   c.innerHTML = html2;
 }
-
 function doReset() {
   if (!confirm('Bakiyeyi $50 sifirla?')) return;
   balance = START_BAL; peakBal = START_BAL; dailyPnL = 0;
   positions = []; trades = []; posId = 1; futBal = null;
-  stopTracker();
-  notify('Sifirlandi', 'info');
-  log('Sifirlandi', 'info');
+  stopTracker(); notify('Sifirlandi', 'info'); log('Sifirlandi', 'info');
   updatePosUI(); updateBalUI();
 }
-
 function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); }
-
 function setTF(tf) {
   currentTF = tf;
   var ids = ['tf1m','tf5m','tf15m','tf1h'], tfs2 = ['1m','5m','15m','1h'], ti;
@@ -1403,7 +1503,6 @@ function setTF(tf) {
   }
   drawChart();
 }
-
 function manualOpen(side) {
   var tp2 = parseFloat(document.getElementById('manTP').value);
   var sl2 = parseFloat(document.getElementById('manSL').value);
@@ -1414,21 +1513,17 @@ function manualOpen(side) {
   }
   openPos(currentPair, side, false, tp2, sl2);
 }
-
 function readSettings() {
-  var t2 = document.getElementById('selTarget'); if (t2) targetUSD = parseFloat(t2.value);
-  var r2 = document.getElementById('selRisk');   if (r2) riskUSD   = parseFloat(r2.value);
-  var l2 = document.getElementById('selLev');    if (l2) leverage  = parseInt(l2.value);
-  var s3 = document.getElementById('selInt');    if (s3) scanSec   = parseInt(s3.value);
-  var ps2 = document.getElementById('selMaxPosSize');  if (ps2) maxPositionSize = parseInt(ps2.value);
-  var pc2 = document.getElementById('selMaxPosCount'); if (pc2) MAX_P = parseInt(pc2.value);
+  var t2 = document.getElementById('selTarget');      if (t2) targetUSD       = parseFloat(t2.value);
+  var r2 = document.getElementById('selRisk');        if (r2) riskUSD         = parseFloat(r2.value);
+  var l2 = document.getElementById('selLev');         if (l2) leverage        = parseInt(l2.value);
+  var s3 = document.getElementById('selInt');         if (s3) scanSec         = parseInt(s3.value);
+  var ps2 = document.getElementById('selMaxPosSize'); if (ps2) maxPositionSize = parseInt(ps2.value);
+  var pc2 = document.getElementById('selMaxPosCount');if (pc2) MAX_P          = parseInt(pc2.value);
   updateBalUI();
 }
-
-/* ===================== SAYFA GEÇİŞİ — ANA DÜZELTME ===================== */
 function swPage(name) {
-  var allPages = ['signal','pos','engine','settings'];
-  var i2;
+  var allPages = ['signal','pos','engine','settings'], i2;
   for (i2 = 0; i2 < allPages.length; i2++) {
     var pg2 = document.getElementById('pg-' + allPages[i2]);
     var nb2 = document.getElementById('nb-' + allPages[i2]);
@@ -1438,71 +1533,66 @@ function swPage(name) {
   if (name === 'signal') setTimeout(drawChart, 80);
   if (name === 'pos') updatePosUI();
 }
-
 function toggleEng() {
   engineOn = !engineOn;
-  document.getElementById('btnEng').textContent  = engineOn ? 'DURDUR' : 'BASLAT';
-  document.getElementById('bdgEng').textContent  = engineOn ? 'ON' : 'OFF';
-  document.getElementById('bdgEng').className    = engineOn ? 'hbdg on' : 'hbdg';
-  document.getElementById('engTxt').textContent  = engineOn ? '// MOTOR CALISIYOR' : '// MOTOR KAPALI';
+  document.getElementById('btnEng').textContent = engineOn ? 'DURDUR' : 'BASLAT';
+  document.getElementById('bdgEng').textContent = engineOn ? 'ON' : 'OFF';
+  document.getElementById('bdgEng').className   = engineOn ? 'hbdg on' : 'hbdg';
+  document.getElementById('engTxt').textContent = engineOn ? '// MOTOR CALISIYOR' : '// MOTOR KAPALI';
   document.getElementById('engStats').style.display = engineOn ? 'flex' : 'none';
   notify(engineOn ? 'Motor basladi' : 'Motor durdu', engineOn ? 'success' : 'info');
   if (engineOn) startCountdown(); else if (cdTimer) clearInterval(cdTimer);
 }
-
 function toggleAutoTrade() {
   autoTrade = !autoTrade;
-  var tog = document.getElementById('togAuto');
-  if (tog) tog.className = 'tog ' + (autoTrade ? 'on' : 'off');
-  var desc = document.getElementById('togAutoD');
-  if (desc) desc.textContent = autoTrade ? 'Acik: sinyal gelince otomatik girer' : 'Kapali: sadece sinyal goster';
+  var tog = document.getElementById('togAuto'); if (tog) tog.className = 'tog ' + (autoTrade ? 'on' : 'off');
+  var desc = document.getElementById('togAutoD'); if (desc) desc.textContent = autoTrade ? 'Acik: sinyal gelince otomatik girer' : 'Kapali: sadece sinyal goster';
   notify(autoTrade ? 'Otomasyon AKTIF' : 'Otomasyon PASIF', autoTrade ? 'success' : 'info');
 }
-
 function toggleTight() {
   tightSL = !tightSL;
-  var tog2 = document.getElementById('togTight');
-  if (tog2) tog2.className = 'tog ' + (tightSL ? 'on' : 'off');
-  var desc2 = document.getElementById('togTightD');
-  if (desc2) desc2.textContent = tightSL ? 'Aktif: SL = ATR x0.4' : 'Gevşek: SL = ATR x0.6';
+  var tog2 = document.getElementById('togTight'); if (tog2) tog2.className = 'tog ' + (tightSL ? 'on' : 'off');
+  var desc2 = document.getElementById('togTightD'); if (desc2) desc2.textContent = tightSL ? 'Aktif: SL volatiliteye gore ayarlanir' : 'Manuel: SL genis sabit';
 }
-
 function toggleScalp() {
   aggressiveMode = !aggressiveMode;
-  var tog3 = document.getElementById('togScalp');
-  if (tog3) tog3.className = 'tog ' + (aggressiveMode ? 'on' : 'off');
-  var desc3 = document.getElementById('togScalpD');
-  if (desc3) desc3.textContent = aggressiveMode ? 'Aktif: skor esigi 40' : 'Kapali: skor esigi 60';
-  notify(aggressiveMode ? 'Agresif mod AKTIF' : 'Guvenli mod', 'info');
+  var tog3 = document.getElementById('togScalp'); if (tog3) tog3.className = 'tog ' + (aggressiveMode ? 'on' : 'off');
+  var desc3 = document.getElementById('togScalpD'); if (desc3) desc3.textContent = aggressiveMode ? 'Aktif: skor esigi 50' : 'Kapali: skor esigi 65';
+  notify(aggressiveMode ? 'Agresif mod AKTIF' : 'Guvenli mod (65)', 'info');
+}
+function toggleFocusMode() {
+  focusModeOn = !focusModeOn;
+  var tog4 = document.getElementById('togFocusPos'); if (tog4) tog4.className = 'tog ' + (focusModeOn ? 'on' : 'off');
+  var desc4 = document.getElementById('togFocusPosD'); if (desc4) desc4.textContent = focusModeOn ? 'Aktif: acik poz varken yeni sinyal arama' : 'Pasif: coklu pozisyon taramasi';
+  notify(focusModeOn ? 'Odak modu AKTIF' : 'Odak modu PASIF', 'info');
 }
 
-/* ===================== GLOBAL EXPOSE ===================== */
-window.selPair       = selPair;
-window.setTF         = setTF;
-window.manualOpen    = manualOpen;
-window.closePos      = closePos;
-window.toggleEng     = toggleEng;
-window.toggleAutoTrade = toggleAutoTrade;
-window.toggleTight   = toggleTight;
-window.toggleScalp   = toggleScalp;
-window.readSettings  = readSettings;
-window.addCoin       = addCoin;
-window.removeCoin    = removeCoin;
-window.connectLive   = connectLive;
-window.startDemo     = startDemo;
-window.doReset       = doReset;
-window.swPage        = swPage;
+/* ===== GLOBAL EXPOSE ===== */
+window.selPair        = selPair;
+window.setTF          = setTF;
+window.manualOpen     = manualOpen;
+window.closePos       = closePos;
+window.toggleEng      = toggleEng;
+window.toggleAutoTrade= toggleAutoTrade;
+window.toggleTight    = toggleTight;
+window.toggleScalp    = toggleScalp;
+window.toggleFocusMode= toggleFocusMode;
+window.readSettings   = readSettings;
+window.addCoin        = addCoin;
+window.removeCoin     = removeCoin;
+window.connectLive    = connectLive;
+window.startDemo      = startDemo;
+window.doReset        = doReset;
+window.swPage         = swPage;
 
-/* ===================== BAŞLATMA ===================== */
+/* ===== BAŞLATMA ===== */
 window.addEventListener('DOMContentLoaded', function() {
   initChart();
   renderCoinList();
   readSettings();
 
-  /* TF Butonları */
-  var tfIds   = ['tf1m','tf5m','tf15m','tf1h'];
-  var tfVals  = ['1m','5m','15m','1h'];
-  var tfi;
+  /* TF butonları */
+  var tfIds = ['tf1m','tf5m','tf15m','tf1h'], tfVals = ['1m','5m','15m','1h'], tfi;
   for (tfi = 0; tfi < tfIds.length; tfi++) {
     (function(id, val) {
       var btn3 = document.getElementById(id);
@@ -1510,42 +1600,38 @@ window.addEventListener('DOMContentLoaded', function() {
     })(tfIds[tfi], tfVals[tfi]);
   }
 
-  /* NAV Butonları — closure sorunsuz, ID üzerinden */
-  var navIds   = ['nb-signal','nb-pos','nb-engine','nb-settings'];
-  var navPages = ['signal','pos','engine','settings'];
-  var navi;
-  for (navi = 0; navi < navIds.length; navi++) {
+  /* NAV butonları */
+  var navPages = ['signal','pos','engine','settings'], navi;
+  for (navi = 0; navi < navPages.length; navi++) {
     (function(pageVal) {
       var nbtn = document.getElementById('nb-' + pageVal);
       if (nbtn) nbtn.onclick = function() { swPage(pageVal); };
     })(navPages[navi]);
   }
 
-  /* Toggle / buton listesi */
-  document.getElementById('togAuto').onclick  = toggleAutoTrade;
-  document.getElementById('togTight').onclick = toggleTight;
-  document.getElementById('togScalp').onclick = toggleScalp;
-  document.getElementById('btnEng').onclick   = toggleEng;
-  document.getElementById('btnL').onclick     = function() { manualOpen('LONG'); };
-  document.getElementById('btnS').onclick     = function() { manualOpen('SHORT'); };
+  document.getElementById('togAuto').onclick     = toggleAutoTrade;
+  document.getElementById('togTight').onclick    = toggleTight;
+  document.getElementById('togScalp').onclick    = toggleScalp;
+  document.getElementById('togFocusPos').onclick = toggleFocusMode;
+  document.getElementById('btnEng').onclick      = toggleEng;
+  document.getElementById('btnL').onclick        = function() { manualOpen('LONG'); };
+  document.getElementById('btnS').onclick        = function() { manualOpen('SHORT'); };
   document.getElementById('btnConnLive').onclick = connectLive;
-  document.getElementById('btnDemo').onclick  = startDemo;
-  document.getElementById('btnReset').onclick = doReset;
-  document.getElementById('btnAddCoin').onclick = addCoin;
-  document.getElementById('btnClearLog').onclick = function() { document.getElementById('logEl').innerHTML = ''; };
-  document.getElementById('btnClearPosLog').onclick = function() { document.getElementById('posLogBox').innerHTML = ''; };
+  document.getElementById('btnDemo').onclick     = startDemo;
+  document.getElementById('btnReset').onclick    = doReset;
+  document.getElementById('btnAddCoin').onclick  = addCoin;
+  document.getElementById('btnClearLog').onclick     = function() { document.getElementById('logEl').innerHTML = ''; };
+  document.getElementById('btnClearPosLog').onclick  = function() { document.getElementById('posLogBox').innerHTML = ''; };
 
-  /* Select onChange */
-  var sids = ['selTarget','selRisk','selLev','selInt','selMaxPosSize','selMaxPosCount'];
-  var si;
+  var sids = ['selTarget','selRisk','selLev','selInt','selMaxPosSize','selMaxPosCount'], si;
   for (si = 0; si < sids.length; si++) {
     var sel = document.getElementById(sids[si]);
     if (sel) sel.onchange = readSettings;
   }
 
   startDemo();
-  log('APEX Scalp V3.8 - iOS uyumlu, tablar duzeltildi', 'ok');
-  log('MaxPos: $' + maxPositionSize + ' | Max es zamanli: ' + MAX_P, 'info');
+  log('APEX V3.9 — 3TF filtre | Dinamik ATR-SL | Binance PnL sync | Odak modu', 'ok');
+  log('Skor esigi: 65 (normal) / 50 (agresif) | Min hacim: 0.85x | Min R:R: 1.5', 'info');
 });
 </script>
 </body>
