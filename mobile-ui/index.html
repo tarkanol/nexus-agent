@@ -637,21 +637,25 @@ function openPos(sym, side, auto, manTP, manSL) {
     var riskBased = Math.min(riskUSD / (manSL / price), balance * 0.25);
     if (isNaN(riskBased) || riskBased < 1) riskBased = 1;
     posVal = Math.min(riskBased, maxPositionSize);
-    qty = posVal / price;
+    qty = posVal / price;           // nominal / fiyat → kontrat miktarı
     comm = posVal * COMM * 2;
   } else if (an) {
     sl = an.sl; tp = an.tp; posVal = an.posVal; qty = an.qty; comm = an.comm;
   } else { notify('Sinyal yok veya TP/SL gerekli', 'error'); return; }
+  
   var newPos = {id:posId++, pair:sym, side:side, entry:price, qty:qty, posVal:posVal,
                 sl:sl, tp:tp, comm:comm, openTime:Date.now(),
                 highPnl:0, breakeven:false, trailStage:0};
   lastSentSL[newPos.id] = null;
   lastSentTP[newPos.id] = null;
+
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
+    // ----- DÜZELTİLDİ: Worker'a nominal * kaldıraç gönder (margin gibi davranan worker için) -----
+    var usdAmountForWorker = posVal * leverage;   // <-- artık nominal * leverage gönderiyoruz
     xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({symbol:sym, side:side, usdAmount:posVal, leverage:leverage,
+      body: JSON.stringify({symbol:sym, side:side, usdAmount: usdAmountForWorker, leverage:leverage,
         sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
     function(r) {
       if (r && (r.success || r.ok || r.status === 'ok')) {
@@ -678,6 +682,7 @@ function openPos(sym, side, auto, manTP, manSL) {
       }
     }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
+    // Demo modda aynı kalır
     balance = Number(balance) - comm;
     if (isNaN(balance)) balance = START_BAL;
     dailyPnL -= comm;
