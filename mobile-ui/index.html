@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V4.0</title>
+<title>APEX Scalp | V4.1</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -172,7 +172,7 @@ select option{background:#041018;}
 <body>
 <div id="notif"></div>
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V4.0</span></div>
+  <div class="logo">APEX<span> // SCALP V4.1</span></div>
   <div class="hdr-badges">
     <span class="hbdg" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
@@ -189,7 +189,6 @@ select option{background:#041018;}
 </div>
 <div class="ticker" id="tickerEl"></div>
 
-<!-- SAYFA: SİNYAL -->
 <div class="page active" id="pg-signal">
   <div class="scroll">
     <div id="posFocusBanner" style="display:none" class="pos-focus">&#9888; ACIK POZISYON — Motor sinyal taramasi durakladi, odak takipte</div>
@@ -246,7 +245,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- SAYFA: POZİSYON -->
 <div class="page" id="pg-pos">
   <div class="scroll">
     <div class="stats-grid">
@@ -270,7 +268,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- SAYFA: MOTOR -->
 <div class="page" id="pg-engine">
   <div class="scroll">
     <div class="card">
@@ -337,7 +334,6 @@ select option{background:#041018;}
   </div>
 </div>
 
-<!-- SAYFA: AYARLAR -->
 <div class="page" id="pg-settings">
   <div class="scroll">
     <div class="card">
@@ -384,7 +380,6 @@ select option{background:#041018;}
 <script>
 'use strict';
 
-/* ===== GLOBALS ===== */
 var START_BAL = 50, COMM = 0.0004, MAX_P = 1;
 var DEMO_BASE = {BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605,DOGEUSDT:0.12,ADAUSDT:0.45,AVAXUSDT:35,LINKUSDT:14};
 var balance = START_BAL, peakBal = START_BAL, dailyPnL = 0;
@@ -402,7 +397,6 @@ var trackerTick = 0;
 var lastSentSL = {}, lastSentTP = {};
 var closingPositions = {};
 
-/* ===== YARDIMCI ===== */
 function fp(p) {
   if (!p || isNaN(p)) return '--';
   if (p >= 10000) return Math.round(p).toLocaleString();
@@ -438,7 +432,6 @@ function logPos(msg, t) {
   while (b.childNodes.length > 80) b.removeChild(b.firstChild);
 }
 
-/* ===== TEKNİK ANALİZ ===== */
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.slice() : [];
   var k = 2 / (p + 1), out = [], e = 0, i, m;
@@ -501,130 +494,102 @@ function calcBB(closes, p, mult) {
           squeeze: (std / mid) < 0.008};
 }
 
-/* ===== GELİŞMİŞ ANALİZ (V4.0) ===== */
 function analyze(sym) {
   var pd = pData[sym]; if (!pd) return null;
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
   if (kl5.length < 40 || kl15.length < 25) return null;
-
   var price = pd.price || kl5[kl5.length-1].c;
   var atr5 = calcATR(kl5, 14), atrPct = (atr5 / price) * 100;
-
   if (atrPct < 0.04 && !aggressiveMode) return null;
   if (atrPct > 3.0) return null;
-
   var i;
   var c5 = [], c15 = [], c1h = [];
   for (i = 0; i < kl5.length;  i++) c5.push(kl5[i].c);
   for (i = 0; i < kl15.length; i++) c15.push(kl15[i].c);
   for (i = 0; i < kl1h.length; i++) c1h.push(kl1h[i].c);
-
   var trend1h = 'NEUTRAL';
   if (kl1h.length >= 50) {
     var e20_1h = calcEMA(c1h, 20), e50_1h = calcEMA(c1h, 50);
     var l20_1h = e20_1h[e20_1h.length-1], l50_1h = e50_1h[e50_1h.length-1];
     if (l20_1h && l50_1h) trend1h = l20_1h > l50_1h ? 'LONG' : 'SHORT';
   }
-
   var e9_15 = calcEMA(c15, 9), e21_15 = calcEMA(c15, 21);
   var l9_15 = e9_15[e9_15.length-1], l21_15 = e21_15[e21_15.length-1];
   var trend15 = (l9_15 && l21_15) ? (l9_15 > l21_15 ? 'LONG' : l9_15 < l21_15 ? 'SHORT' : 'NEUTRAL') : 'NEUTRAL';
-
   var e9_5  = calcEMA(c5, 9),  e21_5  = calcEMA(c5, 21);
   var l9_5  = e9_5[e9_5.length-1],   l21_5  = e21_5[e21_5.length-1];
   var p9_5  = e9_5[e9_5.length-2],   p21_5  = e21_5[e21_5.length-2];
   if (!l9_5 || !l21_5 || !p9_5 || !p21_5) return null;
-
   var macd5  = calcMACD(c5);
   var rsi5   = calcRSI(c5, 14);
   var rsi15  = calcRSI(c15, 14);
   var vr     = calcVolRatio(kl5);
   var bb5    = calcBB(c5, 20, 2);
   var atr15  = calcATR(kl15, 14);
-
   var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5);
   var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5);
   var aboveEMA = l9_5 > l21_5, belowEMA = l9_5 < l21_5;
-
   var rawSig = 'WAIT';
   if (goldenX || (aboveEMA && macd5.cross === 'UP')) rawSig = 'LONG';
   else if (deathX || (belowEMA && macd5.cross === 'DN')) rawSig = 'SHORT';
   else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 50 && rsi5 < 68) rawSig = 'LONG';
   else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 50 && rsi5 > 32) rawSig = 'SHORT';
   if (rawSig === 'WAIT') return null;
-
   if (rawSig === 'LONG'  && rsi5 > 72) return null;
   if (rawSig === 'SHORT' && rsi5 < 28) return null;
   if (rawSig === 'LONG'  && rsi15 > 75) return null;
   if (rawSig === 'SHORT' && rsi15 < 25) return null;
-
   if (vr < 0.85 && !aggressiveMode) return null;
-
   var tfConfirm = 0;
   if (aboveEMA && rawSig === 'LONG')  tfConfirm++;
   if (belowEMA && rawSig === 'SHORT') tfConfirm++;
   if (trend15 === rawSig) tfConfirm++;
   if (trend1h === rawSig) tfConfirm++;
   if (tfConfirm < (aggressiveMode ? 2 : 3)) return null;
-
   if (bb5.squeeze && !aggressiveMode) return null;
-
-  /* Spread filtresi */
   if (spreadFilterOn && pd.spread !== undefined && pd.spread > 0.0005) {
     log('Spread yuksek: ' + sym.replace('USDT','') + ' %' + (pd.spread*100).toFixed(3), 'info');
     return null;
   }
-
   var reasons = [];
   var score = 20;
-
   if (vr >= 1.8) { score += 25; reasons.push({t:'HACIM_YUKSEK', cls:'long'}); }
   else if (vr >= 1.3) { score += 15; reasons.push({t:'HACIM_OK', cls:rawSig.toLowerCase()}); }
   else { score += 5; reasons.push({t:'HACIM_ZAYIF', cls:'active'}); }
-
   if (trend1h === rawSig) { score += 20; reasons.push({t:'1h_ONAY', cls:rawSig.toLowerCase()}); }
   if (trend15 === rawSig) { score += 18; reasons.push({t:'15m_ONAY', cls:rawSig.toLowerCase()}); }
-
   if (goldenX && rawSig === 'LONG')  { score += 15; reasons.push({t:'GOLDEN_X', cls:'long'}); }
   if (deathX  && rawSig === 'SHORT') { score += 15; reasons.push({t:'DEATH_X',  cls:'short'}); }
   if (macd5.cross === 'UP' && rawSig === 'LONG')  { score += 8; reasons.push({t:'MACD_UP', cls:'long'}); }
   if (macd5.cross === 'DN' && rawSig === 'SHORT') { score += 8; reasons.push({t:'MACD_DN', cls:'short'}); }
-
   if (rawSig === 'LONG'  && rsi5 >= 45 && rsi5 <= 60) { score += 5; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'long'}); }
   if (rawSig === 'SHORT' && rsi5 >= 40 && rsi5 <= 55) { score += 5; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'short'}); }
   else { reasons.push({t:'RSI:'+rsi5.toFixed(0), cls:'active'}); }
-
   score = Math.min(100, score);
   var scoreThreshold = aggressiveMode ? 50 : 65;
   if (score < scoreThreshold) return null;
-
   var atrMult;
   if (atrPct < 0.08) atrMult = 1.4;
   else if (atrPct < 0.15) atrMult = 1.1;
   else if (atrPct < 0.30) atrMult = 0.9;
   else atrMult = 0.75;
-
   var slDistFromAtr5  = atr5  * atrMult;
   var slDistFromAtr15 = atr15 * 0.5;
   var atrSlDist = Math.max(slDistFromAtr5, slDistFromAtr15);
   var minSlDist = price * 0.0015;
   var maxSlDist = price * 0.004;
   var slDist = Math.min(Math.max(atrSlDist, minSlDist), maxSlDist);
-
   var rrRatio = targetUSD / riskUSD;
   var minRR   = aggressiveMode ? 1.2 : 1.5;
   if (rrRatio < minRR) rrRatio = minRR;
   var tpDist = Math.max(slDist * rrRatio, price * 0.004);
-
   var sl, tp;
   if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
   else                    { sl = price + slDist; tp = price - tpDist; }
-
   var riskBasedPosVal = Math.min(riskUSD / (slDist / price), balance * 0.25);
   if (isNaN(riskBasedPosVal) || riskBasedPosVal < 1) riskBasedPosVal = 1;
   var posVal = Math.min(riskBasedPosVal, maxPositionSize);
   var qty = posVal * leverage / price, comm = posVal * COMM * 2;
-
   return {
     signal: rawSig, score: score, price: price, sl: sl, tp: tp,
     slDist: slDist, tpDist: tpDist, posVal: posVal, qty: qty, comm: comm,
@@ -644,7 +609,6 @@ function analyzeAll() {
   }
 }
 
-/* ===== COOLDOWN ===== */
 function inCD(sym) {
   var cd = cooldowns[sym];
   if (cd && Date.now() < cd) return true;
@@ -663,17 +627,14 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-/* ===== POZİSYON AÇ ===== */
 function openPos(sym, side, auto, manTP, manSL) {
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
   if (positions.length >= MAX_P) { notify('Max ' + MAX_P + ' pozisyon dolu', 'error'); return; }
   var k;
   for (k = 0; k < positions.length; k++) if (positions[k].pair === sym) { notify(sym + ' zaten acik', 'error'); return; }
-
   var pd = pData[sym], an = pd && pd.an;
   var price = an ? an.price : (pData[sym] ? pData[sym].price : (DEMO_BASE[sym] || 1));
   var posVal, qty, sl, tp, comm;
-
   if (manTP && manSL) {
     sl = side === 'LONG' ? price - manSL : price + manSL;
     tp = side === 'LONG' ? price + manTP : price - manTP;
@@ -684,13 +645,11 @@ function openPos(sym, side, auto, manTP, manSL) {
   } else if (an) {
     sl = an.sl; tp = an.tp; posVal = an.posVal; qty = an.qty; comm = an.comm;
   } else { notify('Sinyal yok veya TP/SL gerekli', 'error'); return; }
-
   var newPos = {id:posId++, pair:sym, side:side, entry:price, qty:qty, posVal:posVal,
                 sl:sl, tp:tp, comm:comm, openTime:Date.now(),
                 highPnl:0, breakeven:false, trailStage:0};
   lastSentSL[newPos.id] = null;
   lastSentTP[newPos.id] = null;
-
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
@@ -708,7 +667,8 @@ function openPos(sym, side, auto, manTP, manSL) {
         startTracker(); updatePosUI(); updateSignalUI();
       } else {
         var em = r && r.error ? r.error : 'basarisiz';
-        log('Order err: ' + em, 'err'); notify('Order basarisiz: ' + em, 'error');
+        log('Order err: ' + em + ' (' + sym + ')', 'err');
+        notify('Order basarisiz: ' + em + ' (sembol dogru mu?)', 'error');
       }
     }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
@@ -723,7 +683,6 @@ function openPos(sym, side, auto, manTP, manSL) {
   }
 }
 
-/* ===== POZİSYON KAPAT (GÜVENLİ) ===== */
 function closePos(id, reason) {
   var pos = null, idx = -1, i;
   for (i = 0; i < positions.length; i++) if (positions[i].id === id) { pos = positions[i]; idx = i; break; }
@@ -732,7 +691,6 @@ function closePos(id, reason) {
   var pr = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
   var gross = (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
   var net = gross - pos.comm;
-
   if (appMode === 'live' && WORKER) {
     closingPositions[id] = true;
     notify('Pozisyon kapatiliyor...', 'info');
@@ -781,7 +739,6 @@ function finalizeClose(pos, idx, net, reason, pr) {
   delete lastSentTP[pos.id];
 }
 
-/* ===== TRACKER (V4.0) ===== */
 function startTracker() {
   if (trackerTimer) clearInterval(trackerTimer);
   trackerTick = 0;
@@ -798,7 +755,6 @@ function runTracker() {
   if (positions.length === 0) { stopTracker(); return; }
   trackerTick++;
   var et = document.getElementById('eTrack'); if (et) et.textContent = 'AKTIF #' + trackerTick;
-
   if (appMode === 'live' && WORKER) {
     xfetch(WORKER + '/open_positions', null, function(d) {
       if (!d || !d.success || !Array.isArray(d.data)) { runTrailLogic(); return; }
@@ -848,7 +804,6 @@ function runTracker() {
   updatePosUI();
 }
 
-/* ===== TRAILING LOGIC (highPnl kullanımı) ===== */
 function runTrailLogic() {
   var i, pos, pr, pnl, high, pullbackRatio, buffer, adjustedSL, betterSL, reason;
   for (i = positions.length - 1; i >= 0; i--) {
@@ -857,31 +812,25 @@ function runTrailLogic() {
     pr  = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
     pnl = (pos.realPnl !== undefined) ? pos.realPnl
           : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
-
     if (pnl > pos.highPnl) pos.highPnl = pnl;
     high = pos.highPnl;
     if (high <= 0) continue;
-
     if (high >= targetUSD * 0.9) pullbackRatio = 0.08;
     else if (high >= targetUSD * 0.6) pullbackRatio = 0.12;
     else if (high >= targetUSD * 0.3) pullbackRatio = 0.18;
     else pullbackRatio = 0.25;
-
     buffer = high * pullbackRatio;
     if (pos.side === 'LONG') {
       adjustedSL = pos.entry + (high - buffer) / pos.qty;
     } else {
       adjustedSL = pos.entry - (high - buffer) / pos.qty;
     }
-
     betterSL = false;
     if (pos.side === 'LONG' && adjustedSL > pos.sl) betterSL = true;
     if (pos.side === 'SHORT' && adjustedSL < pos.sl) betterSL = true;
     if (!betterSL) continue;
-
     reason = 'TRAIL_HIGH';
     pos.sl = adjustedSL;
-
     if (high >= targetUSD * 0.85) {
       var extTP;
       if (pos.side === 'LONG') {
@@ -892,16 +841,13 @@ function runTrailLogic() {
         if (extTP < pos.tp) { pos.tp = extTP; reason += ' TP_EXT'; }
       }
     }
-
     var msg2 = '[TRAIL] ' + pos.pair.replace('USDT','') + ' | ' + reason + ' | HighPnl:$' + high.toFixed(4) + ' SL:' + fp(pos.sl) + ' TP:' + fp(pos.tp);
     log(msg2, 'ok'); logPos(msg2, 'ok');
     if (appMode === 'live' && WORKER) maybePushTpSl(pos);
-
     if (high >= targetUSD * 0.98) {
       closePos(pos.id, 'HEDEF ALINDI (98%)');
       continue;
     }
-
     if (pos.side === 'LONG'  && pr >= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
     if (pos.side === 'SHORT' && pr <= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
     if (pos.side === 'LONG'  && pr <= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
@@ -930,13 +876,11 @@ function pushTpSl(pos) {
     function()  { logPos('BNB TP/SL guncelleme hata (lokal devam)', 'info'); });
 }
 
-/* ===== MOTOR ===== */
 function runEngine() {
   if (!engineOn) return;
   var elLast = document.getElementById('eLast'), elOpen = document.getElementById('eOpen'), elSig = document.getElementById('eSig');
   if (elLast) elLast.textContent = new Date().toLocaleTimeString('tr-TR');
   if (elOpen) elOpen.textContent = positions.length;
-
   if (focusModeOn && positions.length > 0) {
     if (elSig) elSig.textContent = 'Odak: ' + positions[0].pair.replace('USDT','') + ' izleniyor';
     var banner = document.getElementById('posFocusBanner');
@@ -945,7 +889,6 @@ function runEngine() {
   }
   var banner2 = document.getElementById('posFocusBanner');
   if (banner2) banner2.style.display = 'none';
-
   var best = null, bestScore = -1, i, s, an;
   for (i = 0; i < pairs.length; i++) {
     s = pairs[i]; if (inCD(s)) continue;
@@ -959,7 +902,6 @@ function runEngine() {
   else if (!autoTrade) log('SIG: ' + best.sym.replace('USDT','') + ' ' + best.an.signal + ' SKOR:' + best.an.score + '%', 'info');
 }
 
-/* ===== DEMO / LIVE ===== */
 function demoTick(sym) {
   var s = pxState[sym];
   s.vel = s.vel * 0.9 + (Math.random() - 0.5) * s.price * 0.0004 + (DEMO_BASE[sym] - s.price) * 0.001;
@@ -1030,19 +972,33 @@ function xfetch(url, opts, onOk, onErr) {
 function syncBal() {
   if (!WORKER || appMode !== 'live') return;
   xfetch(WORKER + '/balance', null, function(d) {
-    if (d && d.success) {
-      var b = d.balance, val = null;
-      if (typeof b === 'number') val = b;
-      else if (b && b.balance) val = parseFloat(b.balance);
-      else if (b && b.availableBalance) val = parseFloat(b.availableBalance);
-      else if (b && b.totalWalletBalance) val = parseFloat(b.totalWalletBalance);
-      if (val !== null && !isNaN(val) && val > 0) {
-        futBal = val; balance = val;
-        log('Bakiye sync: $' + val.toFixed(2), 'ok'); updateBalUI();
-      }
+    if (!d || !d.success) {
+      log('Bakiye alınamadı: yanıt başarısız', 'err');
+      notify('Bakiye alınamadı', 'error');
+      return;
     }
-  }, function() { log('Bakiye sync err', 'err'); });
+    var val = null;
+    if (typeof d.balance === 'number') val = d.balance;
+    else if (d.data && typeof d.data.balance === 'number') val = d.data.balance;
+    else if (d.data && typeof d.data.availableBalance === 'number') val = d.data.availableBalance;
+    else if (d.data && typeof d.data.totalWalletBalance === 'number') val = d.data.totalWalletBalance;
+    else if (d.balance && typeof d.balance === 'object') {
+      val = d.balance.availableBalance || d.balance.totalWalletBalance || d.balance.balance;
+    }
+    if (val !== null && !isNaN(val) && val > 0) {
+      futBal = val; balance = val;
+      log('Bakiye sync: $' + val.toFixed(2), 'ok');
+      updateBalUI();
+    } else {
+      log('Bakiye parse edilemedi, gelen: ' + JSON.stringify(d).slice(0,100), 'err');
+      notify('Bakiye formatı tanınmadı', 'error');
+    }
+  }, function() {
+    log('Bakiye sync net err', 'err');
+    notify('Bakiye çekilemedi (ağ hatası)', 'error');
+  });
 }
+
 function fetchLive() {
   if (!WORKER) return;
   var now = Date.now(), priceDone = 0, total = pairs.length;
@@ -1154,7 +1110,6 @@ function startDemo() {
   mainLoop();
 }
 
-/* ===== MAIN LOOP ===== */
 function mainLoop() {
   try {
     if (appMode === 'demo') refreshDemo(); else fetchLive();
@@ -1179,7 +1134,6 @@ function startCountdown() {
   }, 1000);
 }
 
-/* ===== UI ===== */
 function updateCoinScoreTable() {
   var el = document.getElementById('coinScoreTable'); if (!el) return;
   var sorted = pairs.slice().sort(function(a, b) {
@@ -1352,7 +1306,6 @@ function updatePosUI() {
   document.getElementById('histBox').innerHTML = hh || '<div style="color:var(--dim2);font-family:var(--mono);font-size:10px">--</div>';
 }
 
-/* ===== CHART ===== */
 function initChart() { var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d'); }
 function drawChart() {
   if (!chartCtx) return;
@@ -1448,7 +1401,6 @@ function drawChart() {
   });
 }
 
-/* ===== COIN / AYARLAR ===== */
 function addCoin() {
   var inp = document.getElementById('newCoin'); if (!inp) return;
   var raw = inp.value.trim().toUpperCase(); if (!raw) return;
@@ -1573,7 +1525,6 @@ function toggleSpreadFilter() {
   notify(spreadFilterOn ? 'Spread filtresi AKTIF' : 'Spread filtresi PASIF', 'info');
 }
 
-/* ===== GLOBAL EXPOSE ===== */
 window.selPair        = selPair;
 window.setTF          = setTF;
 window.manualOpen     = manualOpen;
@@ -1592,12 +1543,10 @@ window.startDemo      = startDemo;
 window.doReset        = doReset;
 window.swPage         = swPage;
 
-/* ===== BAŞLATMA ===== */
 window.addEventListener('DOMContentLoaded', function() {
   initChart();
   renderCoinList();
   readSettings();
-
   var tfIds = ['tf1m','tf5m','tf15m','tf1h'], tfVals = ['1m','5m','15m','1h'], tfi;
   for (tfi = 0; tfi < tfIds.length; tfi++) {
     (function(id, val) {
@@ -1605,7 +1554,6 @@ window.addEventListener('DOMContentLoaded', function() {
       if (btn3) btn3.onclick = function() { setTF(val); };
     })(tfIds[tfi], tfVals[tfi]);
   }
-
   var navPages = ['signal','pos','engine','settings'], navi;
   for (navi = 0; navi < navPages.length; navi++) {
     (function(pageVal) {
@@ -1613,7 +1561,6 @@ window.addEventListener('DOMContentLoaded', function() {
       if (nbtn) nbtn.onclick = function() { swPage(pageVal); };
     })(navPages[navi]);
   }
-
   document.getElementById('togAuto').onclick     = toggleAutoTrade;
   document.getElementById('togTight').onclick    = toggleTight;
   document.getElementById('togScalp').onclick    = toggleScalp;
@@ -1628,15 +1575,13 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btnAddCoin').onclick  = addCoin;
   document.getElementById('btnClearLog').onclick     = function() { document.getElementById('logEl').innerHTML = ''; };
   document.getElementById('btnClearPosLog').onclick  = function() { document.getElementById('posLogBox').innerHTML = ''; };
-
   var sids = ['selTarget','selRisk','selLev','selInt','selMaxPosSize','selMaxPosCount'], si;
   for (si = 0; si < sids.length; si++) {
     var sel = document.getElementById(sids[si]);
     if (sel) sel.onchange = readSettings;
   }
-
   startDemo();
-  log('APEX V4.0 — HighPnl Trailing | Bufferli TP/SL | Spread filtresi | %98 Hedef Kapat', 'ok');
+  log('APEX V4.1 — Gelişmiş Bakiye Sync & Sembol Uyarısı', 'ok');
 });
 </script>
 </body>
