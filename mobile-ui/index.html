@@ -818,10 +818,12 @@ function openPos(sym, side, auto, manTP, manSL) {
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
-    var usdAmountForWorker = posVal * leverage;
-    xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({symbol:sym, side:side, usdAmount: usdAmountForWorker, leverage:leverage,
-        sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
+   // Gate.io: worker içinde kaldıraç uygulanıyor
+// sadece nominal (kaldıraçsız) değeri gönder
+var usdAmountForWorker = posVal;
+xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
+  body: JSON.stringify({symbol:sym, side:side, usdAmount: usdAmountForWorker, leverage:leverage,
+    sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
     function(r) {
       if (r && (r.success || r.ok || r.status === 'ok')) {
         balance = Number(balance) - comm;
