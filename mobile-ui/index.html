@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V4.3</title>
+<title>APEX Scalp | V4.3.1</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -170,12 +170,12 @@ select option{background:#041018;}
 <body>
 <div id="notif"></div>
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V4.3</span></div>
+  <div class="logo">APEX<span> // SCALP V4.3.1</span></div>
   <div class="hdr-badges">
     <span class="hbdg" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
     <span class="hbdg" id="bdgPos">0/1</span>
-    <span class="hbdg streak" id="bdgStreak" style="display:none">🔥0</span>
+    <span class="hbdg streak" id="bdgStreak" style="display:none">&#128293;0</span>
     <span class="hbdg warn" id="bdgCD" style="display:none">CD</span>
   </div>
 </header>
@@ -296,15 +296,15 @@ select option{background:#041018;}
       <div class="sec-title">POZISYON AYARLARI</div>
       <div class="fr">
         <span class="inp-label">Maks. Nominal Pozisyon ($)</span>
-     <select id="selMaxPosSize">
-  <option value="5">5 USD</option>
-  <option value="10">10 USD</option>
-  <option value="20">20 USD</option>
-  <option value="30">30 USD</option>
-  <option value="50" selected>50 USD</option>
-  <option value="100">100 USD</option>
-  <option value="200">200 USD</option>
-</select>
+        <select id="selMaxPosSize">
+          <option value="5">5 USD</option>
+          <option value="10">10 USD</option>
+          <option value="20">20 USD</option>
+          <option value="30">30 USD</option>
+          <option value="50" selected>50 USD</option>
+          <option value="100">100 USD</option>
+          <option value="200">200 USD</option>
+        </select>
       </div>
       <div class="fr">
         <span class="inp-label">Max Es Zamanli Pozisyon</span>
@@ -406,13 +406,8 @@ var lastCW = 0, chartCtx = null;
 var trackerTick = 0;
 var lastSentSL = {}, lastSentTP = {};
 var closingPositions = {};
-
-// Kazanç serisi takibi
 var winStreak = 0, loseStreak = 0;
 
-// ─────────────────────────────────────────────
-// YARDIMCI FONKSİYONLAR
-// ─────────────────────────────────────────────
 function fp(p) {
   if (!p || isNaN(p)) return '--';
   if (p >= 10000) return Math.round(p).toLocaleString();
@@ -447,29 +442,17 @@ function logPos(msg, t) {
   d.textContent = ts + ' ' + msg; b.appendChild(d); b.scrollTop = b.scrollHeight;
   while (b.childNodes.length > 80) b.removeChild(b.firstChild);
 }
-
-// ─────────────────────────────────────────────
-// ZAMAN FİLTRESİ — UTC 02:00–06:00 dusuk vol
-// ─────────────────────────────────────────────
 function isDeadHour() {
   if (!timeFilterOn) return false;
   var h = new Date().getUTCHours();
   return (h >= 2 && h < 6);
 }
-
-// ─────────────────────────────────────────────
-// ETKİLİ POZİSYON BOYUTU (streak multiplier)
-// ─────────────────────────────────────────────
 function effectiveMaxPos() {
   if (!streakSizeOn) return maxPositionSize;
-  if (winStreak >= 3) return maxPositionSize * 1.2;
   if (winStreak >= 5) return maxPositionSize * 1.4;
+  if (winStreak >= 3) return maxPositionSize * 1.2;
   return maxPositionSize;
 }
-
-// ─────────────────────────────────────────────
-// TEKNİK ANALİZ
-// ─────────────────────────────────────────────
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.slice() : [];
   var k = 2 / (p + 1), out = [], e = 0, i, m;
@@ -528,12 +511,8 @@ function calcBB(closes, p, mult) {
   var mid = sum / p, vsum = 0;
   for (i = 0; i < p; i++) vsum += (slice[i] - mid) * (slice[i] - mid);
   var std = Math.sqrt(vsum / p);
-  return {upper: mid + mult * std, lower: mid - mult * std, mid: mid,
-          squeeze: (std / mid) < 0.008};
+  return {upper: mid + mult * std, lower: mid - mult * std, mid: mid, squeeze: (std / mid) < 0.008};
 }
-
-// EMA eğim açısı: son N mumda EMA'nın yönü
-// Pozitif = yukarı, Negatif = aşağı
 function emaSlope(emaArr, lookback) {
   lookback = lookback || 3;
   if (!emaArr || emaArr.length < lookback + 1) return 0;
@@ -543,18 +522,12 @@ function emaSlope(emaArr, lookback) {
   if (last === null || prev === null || prev === 0) return 0;
   return (last - prev) / prev;
 }
-
-// Momentum: son 3 mumda kaç tanesi kapanış > açılış
 function momentumScore(kl) {
   if (!kl || kl.length < 3) return 0;
   var sl = kl.slice(-3), bullCount = 0, i;
   for (i = 0; i < sl.length; i++) if (sl[i].c > sl[i].o) bullCount++;
-  return bullCount; // 0-3 arası
+  return bullCount;
 }
-
-// ─────────────────────────────────────────────
-// ANA ANALİZ FONKSİYONU (geliştirilmiş)
-// ─────────────────────────────────────────────
 function analyze(sym) {
   var pd = pData[sym]; if (!pd) return null;
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
@@ -568,125 +541,80 @@ function analyze(sym) {
   for (i = 0; i < kl5.length;  i++) c5.push(kl5[i].c);
   for (i = 0; i < kl15.length; i++) c15.push(kl15[i].c);
   for (i = 0; i < kl1h.length; i++) c1h.push(kl1h[i].c);
-
-  // 1h Trend
   var trend1h = 'NEUTRAL';
   if (kl1h.length >= 50) {
     var e20_1h = calcEMA(c1h, 20), e50_1h = calcEMA(c1h, 50);
     var l20_1h = e20_1h[e20_1h.length-1], l50_1h = e50_1h[e50_1h.length-1];
     if (l20_1h && l50_1h) trend1h = l20_1h > l50_1h ? 'LONG' : 'SHORT';
   }
-
-  // 15m Trend
   var e9_15 = calcEMA(c15, 9), e21_15 = calcEMA(c15, 21);
   var l9_15 = e9_15[e9_15.length-1], l21_15 = e21_15[e21_15.length-1];
   var trend15 = (l9_15 && l21_15) ? (l9_15 > l21_15 ? 'LONG' : l9_15 < l21_15 ? 'SHORT' : 'NEUTRAL') : 'NEUTRAL';
-
-  // 5m EMA + eğim
   var e9_5  = calcEMA(c5, 9),  e21_5  = calcEMA(c5, 21);
   var l9_5  = e9_5[e9_5.length-1],   l21_5  = e21_5[e21_5.length-1];
   var p9_5  = e9_5[e9_5.length-2],   p21_5  = e21_5[e21_5.length-2];
   if (!l9_5 || !l21_5 || !p9_5 || !p21_5) return null;
-
-  // EMA eğim filtresi: EMA yönü sinyalle uyumlu olmalı
   var slope9  = emaSlope(e9_5, 3);
   var slope21 = emaSlope(e21_5, 3);
-
-  // Momentum (son 3 mum)
-  var momScore = momentumScore(kl5);     // 0-3
-  var momScore15 = momentumScore(kl15);  // 0-3
-
+  var momScore = momentumScore(kl5);
+  var momScore15 = momentumScore(kl15);
   var macd5  = calcMACD(c5);
   var rsi5   = calcRSI(c5, 14);
   var rsi15  = calcRSI(c15, 14);
   var vr     = calcVolRatio(kl5);
   var bb5    = calcBB(c5, 20, 2);
   var atr15  = calcATR(kl15, 14);
-
   var goldenX = (p9_5 <= p21_5) && (l9_5 > l21_5);
   var deathX  = (p9_5 >= p21_5) && (l9_5 < l21_5);
   var aboveEMA = l9_5 > l21_5, belowEMA = l9_5 < l21_5;
-
-  // Sinyal belirleme
   var rawSig = 'WAIT';
   if (goldenX || (aboveEMA && macd5.cross === 'UP')) rawSig = 'LONG';
   else if (deathX || (belowEMA && macd5.cross === 'DN')) rawSig = 'SHORT';
   else if (aboveEMA && macd5.hist > 0 && macd5.hist > macd5.prev && rsi5 > 50 && rsi5 < 68) rawSig = 'LONG';
   else if (belowEMA && macd5.hist < 0 && macd5.hist < macd5.prev && rsi5 < 50 && rsi5 > 32) rawSig = 'SHORT';
   if (rawSig === 'WAIT') return null;
-
-  // RSI aşırı alım/satım filtresi
   if (rawSig === 'LONG'  && rsi5 > 72) return null;
   if (rawSig === 'SHORT' && rsi5 < 28) return null;
   if (rawSig === 'LONG'  && rsi15 > 75) return null;
   if (rawSig === 'SHORT' && rsi15 < 25) return null;
-
-  // Hacim filtresi
   if (vr < 0.85 && !aggressiveMode) return null;
-
-  // EMA eğim filtresi — sinyalle zıt yönde eğim varsa reddet
   if (rawSig === 'LONG'  && slope9 < -0.0002 && !aggressiveMode) return null;
   if (rawSig === 'SHORT' && slope9 >  0.0002 && !aggressiveMode) return null;
-
-  // TF onay sayısı
   var tfConfirm = 0;
   if (aboveEMA && rawSig === 'LONG')  tfConfirm++;
   if (belowEMA && rawSig === 'SHORT') tfConfirm++;
   if (trend15 === rawSig) tfConfirm++;
   if (trend1h === rawSig) tfConfirm++;
   if (tfConfirm < (aggressiveMode ? 2 : 3)) return null;
-
-  // BB squeeze filtresi
   if (bb5.squeeze && !aggressiveMode) return null;
-
-  // Spread filtresi
   if (spreadFilterOn && pd.spread !== undefined && pd.spread > 0.0005) {
     log('Spread yuksek: ' + sym.replace('USDT','') + ' %' + (pd.spread*100).toFixed(3), 'info');
     return null;
   }
-
-  // ─── SKOR HESAPLA ───
   var reasons = [];
   var score = 20;
-
-  // Hacim skoru (agresif bonus: 2.5x üstü çok güçlü)
   if (vr >= 2.5) { score += 30; reasons.push({t:'HACIM_GUCLU', cls:'long'}); }
   else if (vr >= 1.8) { score += 22; reasons.push({t:'HACIM_YUKSEK', cls:'long'}); }
   else if (vr >= 1.3) { score += 14; reasons.push({t:'HACIM_OK', cls:rawSig.toLowerCase()}); }
   else { score += 4; reasons.push({t:'HACIM_ZAYIF', cls:'active'}); }
-
-  // TF onaylar
   if (trend1h === rawSig) { score += 20; reasons.push({t:'1h_ONAY', cls:rawSig.toLowerCase()}); }
   if (trend15 === rawSig) { score += 18; reasons.push({t:'15m_ONAY', cls:rawSig.toLowerCase()}); }
-
-  // Cross
   if (goldenX && rawSig === 'LONG')  { score += 15; reasons.push({t:'GOLDEN_X', cls:'long'}); }
   if (deathX  && rawSig === 'SHORT') { score += 15; reasons.push({t:'DEATH_X',  cls:'short'}); }
-
-  // MACD
   if (macd5.cross === 'UP' && rawSig === 'LONG')  { score += 8; reasons.push({t:'MACD_UP', cls:'long'}); }
   if (macd5.cross === 'DN' && rawSig === 'SHORT') { score += 8; reasons.push({t:'MACD_DN', cls:'short'}); }
-
-  // RSI ideal bölge
   if (rawSig === 'LONG'  && rsi5 >= 45 && rsi5 <= 60) { score += 6; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'long'}); }
   else if (rawSig === 'SHORT' && rsi5 >= 40 && rsi5 <= 55) { score += 6; reasons.push({t:'RSI_IDEAL:'+rsi5.toFixed(0), cls:'short'}); }
   else { reasons.push({t:'RSI:'+rsi5.toFixed(0), cls:'active'}); }
-
-  // EMA eğim bonusu
   if (rawSig === 'LONG'  && slope9 > 0.0003)  { score += 6; reasons.push({t:'EMA_YUKARI', cls:'long'}); }
   if (rawSig === 'SHORT' && slope9 < -0.0003) { score += 6; reasons.push({t:'EMA_ASAGI',  cls:'short'}); }
-
-  // Momentum bonusu (order flow proxy)
   if (rawSig === 'LONG'  && momScore >= 2)  { score += 5; reasons.push({t:'MOM:'+momScore+'/3', cls:'long'}); }
   if (rawSig === 'SHORT' && momScore <= 1)  { score += 5; reasons.push({t:'MOM:'+momScore+'/3', cls:'short'}); }
   if (rawSig === 'LONG'  && momScore15 >= 2) { score += 3; reasons.push({t:'MOM15:'+momScore15+'/3', cls:'long'}); }
   if (rawSig === 'SHORT' && momScore15 <= 1) { score += 3; reasons.push({t:'MOM15:'+momScore15+'/3', cls:'short'}); }
-
   score = Math.min(100, score);
   var scoreThreshold = aggressiveMode ? 50 : 65;
   if (score < scoreThreshold) return null;
-
-  // ─── ATR bazlı SL/TP ───
   var atrMult;
   if (atrPct < 0.08) atrMult = 1.4;
   else if (atrPct < 0.15) atrMult = 1.1;
@@ -705,7 +633,6 @@ function analyze(sym) {
   var sl, tp;
   if (rawSig === 'LONG')  { sl = price - slDist; tp = price + tpDist; }
   else                    { sl = price + slDist; tp = price - tpDist; }
-
   var effMax = effectiveMaxPos();
   var riskBasedPosVal = Math.min(riskUSD / (slDist / price), balance * 0.25);
   if (isNaN(riskBasedPosVal) || riskBasedPosVal < 1) riskBasedPosVal = 1;
@@ -722,7 +649,6 @@ function analyze(sym) {
     mtf: {'5m': aboveEMA ? 'LONG' : belowEMA ? 'SHORT' : 'WAIT', '15m': trend15, '1h': trend1h}
   };
 }
-
 function analyzeAll() {
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i];
@@ -731,11 +657,6 @@ function analyzeAll() {
     try { pData[s].an = analyze(s); } catch(e) { log('Analiz err ' + s + ': ' + e.message, 'err'); }
   }
 }
-
-// ─────────────────────────────────────────────
-// ÇIKIŞ SİNYALİ — EMA death/golden cross kontrolü
-// Açık pozisyona ters sinyal gelirse erken çıkış
-// ─────────────────────────────────────────────
 function checkExitSignals() {
   if (!exitSignalOn || positions.length === 0) return;
   var i, pos, pd2, c5, e9, e21, l9, l21, p9, p21, goldenX, deathX;
@@ -746,29 +667,21 @@ function checkExitSignals() {
     if (!pd2 || !pd2.kl5m || pd2.kl5m.length < 25) continue;
     c5 = [];
     for (var j = 0; j < pd2.kl5m.length; j++) c5.push(pd2.kl5m[j].c);
-    e9  = calcEMA(c5, 9);
-    e21 = calcEMA(c5, 21);
-    l9  = e9[e9.length-1];   l21 = e21[e21.length-1];
-    p9  = e9[e9.length-2];   p21 = e21[e21.length-2];
+    e9  = calcEMA(c5, 9); e21 = calcEMA(c5, 21);
+    l9  = e9[e9.length-1];  l21 = e21[e21.length-1];
+    p9  = e9[e9.length-2];  p21 = e21[e21.length-2];
     if (!l9 || !l21 || !p9 || !p21) continue;
     goldenX = (p9 <= p21) && (l9 > l21);
     deathX  = (p9 >= p21) && (l9 < l21);
-    // LONG pozisyon varken death cross → çık
     if (pos.side === 'LONG' && deathX) {
       logPos('EXIT SIG: ' + pos.pair.replace('USDT','') + ' DEATH X — LONG kapatiliyor', 'err');
       closePos(pos.id, 'EMA_DEATH_X_EXIT');
-    }
-    // SHORT pozisyon varken golden cross → çık
-    else if (pos.side === 'SHORT' && goldenX) {
+    } else if (pos.side === 'SHORT' && goldenX) {
       logPos('EXIT SIG: ' + pos.pair.replace('USDT','') + ' GOLDEN X — SHORT kapatiliyor', 'err');
       closePos(pos.id, 'EMA_GOLDEN_X_EXIT');
     }
   }
 }
-
-// ─────────────────────────────────────────────
-// COOLDOWN
-// ─────────────────────────────────────────────
 function inCD(sym) {
   var cd = cooldowns[sym];
   if (cd && Date.now() < cd) return true;
@@ -787,9 +700,12 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-// ─────────────────────────────────────────────
-// POZİSYON AÇ
-// ─────────────────────────────────────────────
+// ─── POZİSYON AÇ ───
+// FIX v4.3.1: posVal dogrudan gonderilir (nominal).
+// Worker bu degeri contractValue'ya bolerek lot hesaplar;
+// leverage sadece callGate icindeki /leverage SET icin kullanilir.
+// ESKİ: usdAmountForWorker = posVal / leverage  → worker tekrar *leverage yaparsa cift kaldiraci olusur
+// YENİ: usdAmount = posVal (nominal)            → worker posVal/contractValue = lot adedi
 function openPos(sym, side, auto, manTP, manSL) {
   if (isDeadHour()) { notify('Dusuk vol saati — islem yok (UTC 02-06)', 'error'); log('Dead hour: islem engellendi', 'info'); return; }
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
@@ -820,36 +736,33 @@ function openPos(sym, side, auto, manTP, manSL) {
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
-   // Gate.io: worker içinde kaldıraç uygulanıyor
-// sadece nominal (kaldıraçsız) değeri gönder
-var usdAmountForWorker = (posVal / leverage).toFixed(4);
-xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
-  body: JSON.stringify({symbol:sym, side:side, usdAmount: usdAmountForWorker, leverage:leverage,
-    sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
-    function(r) {
-      if (r && (r.success || r.ok || r.status === 'ok')) {
-        balance = Number(balance) - comm;
-        if (isNaN(balance)) balance = START_BAL;
-        dailyPnL -= comm;
-        positions.push(newPos);
-        if (balance > peakBal) peakBal = balance;
-        var lm = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
-        log('ORDER OK: ' + lm, 'ok'); logPos('ACILDI: ' + lm, 'ok');
-        notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT','') + ' acildi', 'success');
-        startTracker(); updatePosUI(); updateSignalUI();
-      } else {
-        var em = r && r.error ? r.error : 'basarisiz';
-        log('Order err: ' + em + ' (' + sym + ')', 'err');
-        notify('Order basarisiz: ' + em, 'error');
-        if (em && (em.indexOf('bulunamad') !== -1 || em.indexOf('Invalid symbol') !== -1 ||
-            em.indexOf('does not exist') !== -1 || em.indexOf('sembol') !== -1 ||
-            em.indexOf('invalid') !== -1 || em.indexOf('-1121') !== -1)) {
-          setCD(sym, 120, 'Gecersiz sembol — Futures listesinde yok');
-          log('UYARI: ' + sym + ' Futures listesinde yok!', 'err');
-          notify(sym.replace('USDT','') + ' Futures\'ta yok! Listeden kaldirin.', 'error');
+    // v4.3.1 FIX: posVal nominal olarak gonderilir, worker /leverage bolmez
+    xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({symbol:sym, side:side, usdAmount: posVal.toFixed(4), leverage:leverage,
+        sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
+      function(r) {
+        if (r && (r.success || r.ok || r.status === 'ok')) {
+          balance = Number(balance) - comm;
+          if (isNaN(balance)) balance = START_BAL;
+          dailyPnL -= comm;
+          positions.push(newPos);
+          if (balance > peakBal) peakBal = balance;
+          var lm = side + ' ' + sym.replace('USDT','') + ' @' + fp(price) + ' | SL:' + fp(sl) + ' TP:' + fp(tp) + ' | $' + posVal.toFixed(2) + ' x' + leverage;
+          log('ORDER OK: ' + lm, 'ok'); logPos('ACILDI: ' + lm, 'ok');
+          notify((auto ? 'AUTO ' : '') + side + ' ' + sym.replace('USDT','') + ' acildi', 'success');
+          startTracker(); updatePosUI(); updateSignalUI();
+        } else {
+          var em = r && r.error ? r.error : 'basarisiz';
+          log('Order err: ' + em + ' (' + sym + ')', 'err');
+          notify('Order basarisiz: ' + em, 'error');
+          if (em && (em.indexOf('bulunamad') !== -1 || em.indexOf('Invalid symbol') !== -1 ||
+              em.indexOf('does not exist') !== -1 || em.indexOf('sembol') !== -1 ||
+              em.indexOf('invalid') !== -1 || em.indexOf('-1121') !== -1)) {
+            setCD(sym, 120, 'Gecersiz sembol');
+            notify(sym.replace('USDT','') + ' Futures\'ta yok! Listeden kaldirin.', 'error');
+          }
         }
-      }
-    }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
+      }, function(code) { log('Order net err: ' + code, 'err'); notify('Baglanti hatasi', 'error'); });
   } else {
     balance = Number(balance) - comm;
     if (isNaN(balance)) balance = START_BAL;
@@ -864,9 +777,6 @@ xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/j
   }
 }
 
-// ─────────────────────────────────────────────
-// POZİSYON KAPAT
-// ─────────────────────────────────────────────
 function closePos(id, reason) {
   var pos = null, idx = -1, i;
   for (i = 0; i < positions.length; i++) if (positions[i].id === id) { pos = positions[i]; idx = i; break; }
@@ -880,51 +790,31 @@ function closePos(id, reason) {
     notify('Pozisyon kapatiliyor...', 'info');
     xfetch(WORKER + '/close', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({symbol:pos.pair, side:pos.side})},
-      function(d) {
-        delete closingPositions[id];
-        finalizeClose(pos, idx, net, reason, pr);
-        if (d && d.success) log('Kapat OK', 'ok');
-      },
-      function(err) {
-        delete closingPositions[id];
-        finalizeClose(pos, idx, net, reason, pr);
-        log('Kapat hatasi (lokal kapatildi): ' + err, 'err');
-      }
+      function(d) { delete closingPositions[id]; finalizeClose(pos, idx, net, reason, pr); if (d && d.success) log('Kapat OK', 'ok'); },
+      function(err) { delete closingPositions[id]; finalizeClose(pos, idx, net, reason, pr); log('Kapat hatasi (lokal): ' + err, 'err'); }
     );
     return;
   }
   finalizeClose(pos, idx, net, reason, pr);
 }
-
 function finalizeClose(pos, idx, net, reason, pr) {
   if (positions[idx] && positions[idx].id === pos.id) {
     positions.splice(idx, 1);
   } else {
     var fidx = -1;
     for (var i = 0; i < positions.length; i++) if (positions[i].id === pos.id) { fidx = i; break; }
-    if (fidx >= 0) positions.splice(fidx, 1);
-    else return;
+    if (fidx >= 0) positions.splice(fidx, 1); else return;
   }
   balance = Number(balance) + net + (pos.posVal || 0);
   if (isNaN(balance)) balance = START_BAL;
   dailyPnL += net;
   if (balance > peakBal) peakBal = balance;
-
-  // Streak güncelle
-  if (net > 0) {
-    winStreak++;
-    loseStreak = 0;
-  } else {
-    loseStreak++;
-    winStreak = 0;
-  }
+  if (net > 0) { winStreak++; loseStreak = 0; } else { loseStreak++; winStreak = 0; }
   updateStreakUI();
-
   if (net < 0 && (reason.indexOf('STOP') !== -1 || reason.indexOf('SL') !== -1)) {
     slStreak[pos.pair] = (slStreak[pos.pair] || 0) + 1;
     if (slStreak[pos.pair] >= 2) { setCD(pos.pair, 20, '2 SL ust uste'); slStreak[pos.pair] = 0; }
   } else if (net > 0) { slStreak[pos.pair] = 0; }
-
   trades.push({pair:pos.pair, side:pos.side, pnl:net, reason:reason, entry:pos.entry, exit:pr});
   var icon = net > 0 ? 'WIN' : 'STOP';
   var msg = icon + ' ' + pos.pair.replace('USDT','') + ' ' + pos.side + ' | PnL:' + (net >= 0 ? '+' : '') + '$' + net.toFixed(4) + ' | ' + reason;
@@ -933,50 +823,32 @@ function finalizeClose(pos, idx, net, reason, pr) {
   notify(msg, net >= 0 ? 'success' : 'error');
   if (positions.length === 0) stopTracker();
   updatePosUI(); updateSignalUI();
-  delete lastSentSL[pos.id];
-  delete lastSentTP[pos.id];
+  delete lastSentSL[pos.id]; delete lastSentTP[pos.id];
 }
-
 function updateStreakUI() {
   var bdg = document.getElementById('bdgStreak');
   var banner = document.getElementById('streakBanner');
   var stSt = document.getElementById('stStreak');
   if (stSt) stSt.textContent = winStreak > 0 ? winStreak + 'W' : (loseStreak > 0 ? loseStreak + 'L' : '0');
-  if (bdg) {
-    if (winStreak >= 3) {
-      bdg.style.display = 'inline-block';
-      bdg.textContent = '\uD83D\uDD25' + winStreak;
-    } else {
-      bdg.style.display = 'none';
-    }
-  }
+  if (bdg) { if (winStreak >= 3) { bdg.style.display = 'inline-block'; bdg.textContent = '\uD83D\uDD25' + winStreak; } else { bdg.style.display = 'none'; } }
   if (banner) {
     banner.style.display = (streakSizeOn && winStreak >= 3) ? 'block' : 'none';
-    if (winStreak >= 3) {
-      var mult = winStreak >= 5 ? 1.4 : 1.2;
-      banner.textContent = '\uD83D\uDD25 KAZANC SERISI: ' + winStreak + ' — Pozisyon boyutu x' + mult.toFixed(1) + ' ($' + effectiveMaxPos().toFixed(1) + ')';
-    }
+    if (winStreak >= 3) { var mult = winStreak >= 5 ? 1.4 : 1.2; banner.textContent = '\uD83D\uDD25 KAZANC SERISI: ' + winStreak + ' — Pozisyon x' + mult.toFixed(1) + ' ($' + effectiveMaxPos().toFixed(1) + ')'; }
   }
-  var showEff = document.getElementById('showEffective');
-  if (showEff) showEff.textContent = '$' + effectiveMaxPos().toFixed(1);
+  var showEff = document.getElementById('showEffective'); if (showEff) showEff.textContent = '$' + effectiveMaxPos().toFixed(1);
 }
-
-// ─────────────────────────────────────────────
-// TRACKER
-// ─────────────────────────────────────────────
 function startTracker() {
   if (trackerTimer) clearInterval(trackerTimer);
   trackerTick = 0;
   setTimeout(runTracker, 400);
   trackerTimer = setInterval(runTracker, 2000);
-  logPos('Tracker basladi — ilk sync 400ms, sonrasi 2s aralik', 'ok');
+  logPos('Tracker basladi', 'ok');
 }
 function stopTracker() {
   if (trackerTimer) { clearInterval(trackerTimer); trackerTimer = null; }
   var et = document.getElementById('eTrack'); if (et) et.textContent = 'DURDU';
   logPos('Tracker durdu', 'info');
 }
-
 function runTracker() {
   if (positions.length === 0) { stopTracker(); return; }
   trackerTick++;
@@ -995,187 +867,95 @@ function runTracker() {
             rp = parseFloat(d.data[j].unrealizedProfit || d.data[j].unRealizedProfit || 0);
             if (!isNaN(rp)) p.realPnl = rp;
             mp = parseFloat(d.data[j].markPrice || 0);
-            if (mp > 0) {
-              if (!pData[p.pair]) pData[p.pair] = {};
-              pData[p.pair].price = mp;
-            }
+            if (mp > 0) { if (!pData[p.pair]) pData[p.pair] = {}; pData[p.pair].price = mp; }
             ep = parseFloat(d.data[j].entryPrice || 0);
-            if (ep > 0 && Math.abs(ep - p.entry) / p.entry > 0.0001) {
-              logPos('SYNC entry: ' + p.pair.replace('USDT','') + ' ' + fp(p.entry) + ' -> ' + fp(ep), 'ok');
-              p.entry = ep;
-            }
+            if (ep > 0 && Math.abs(ep - p.entry) / p.entry > 0.0001) { logPos('SYNC entry: ' + fp(p.entry) + '->' + fp(ep), 'ok'); p.entry = ep; }
             var rawSl = parseFloat(d.data[j].stopPrice || d.data[j].stopLossPrice || 0);
-            var rawTp = parseFloat(d.data[j].takeProfitPrice || d.data[j].takeProfitOrderPrice || 0);
-            var slOk = rawSl > 0 && rawSl !== mp;
-            var tpOk = rawTp > 0 && rawTp !== mp;
-            if (slOk) {
-              if (!p.bnbSl || Math.abs(rawSl - p.bnbSl) > 0.000001) {
-                logPos('SYNC SL: ' + p.pair.replace('USDT','') + ' ' + fp(p.sl) + ' -> ' + fp(rawSl), 'ok');
-              }
-              p.bnbSl = rawSl;
-              if (p.side === 'LONG'  && rawSl > p.sl) p.sl = rawSl;
-              if (p.side === 'SHORT' && rawSl < p.sl) p.sl = rawSl;
-            }
-            if (tpOk) {
-              if (!p.bnbTp || Math.abs(rawTp - p.bnbTp) > 0.000001) {
-                logPos('SYNC TP: ' + p.pair.replace('USDT','') + ' ' + fp(p.tp) + ' -> ' + fp(rawTp), 'ok');
-              }
-              p.bnbTp = rawTp;
-              if (p.side === 'LONG'  && rawTp > p.tp) p.tp = rawTp;
-              if (p.side === 'SHORT' && rawTp < p.tp) p.tp = rawTp;
-            }
-            if (d.data[j].bid && d.data[j].ask) {
-              var spread = (d.data[j].ask - d.data[j].bid) / d.data[j].bid;
-              if (pData[p.pair]) pData[p.pair].spread = spread;
-            }
+            var rawTp = parseFloat(d.data[j].takeProfitPrice || 0);
+            if (rawSl > 0 && rawSl !== mp) { p.bnbSl = rawSl; if (p.side === 'LONG' && rawSl > p.sl) p.sl = rawSl; if (p.side === 'SHORT' && rawSl < p.sl) p.sl = rawSl; }
+            if (rawTp > 0 && rawTp !== mp) { p.bnbTp = rawTp; if (p.side === 'LONG' && rawTp > p.tp) p.tp = rawTp; if (p.side === 'SHORT' && rawTp < p.tp) p.tp = rawTp; }
             break;
           }
         }
-        if (!found) {
-          logPos('SYNC: ' + p.pair.replace('USDT','') + ' Binance kapali — kapatiliyor', 'err');
-          closePos(p.id, 'BINANCE SYNC');
-          return;
-        }
+        if (!found) { logPos('SYNC: ' + p.pair.replace('USDT','') + ' kapali — kapatiliyor', 'err'); closePos(p.id, 'BINANCE SYNC'); return; }
       }
       var bp = document.getElementById('eBnbPnl');
       if (bp && positions.length) {
         var totalRealPnl = 0;
-        for (var pi = 0; pi < positions.length; pi++) {
-          if (positions[pi].realPnl !== undefined) totalRealPnl += positions[pi].realPnl;
-        }
+        for (var pi = 0; pi < positions.length; pi++) if (positions[pi].realPnl !== undefined) totalRealPnl += positions[pi].realPnl;
         bp.textContent = (totalRealPnl >= 0 ? '+' : '') + '$' + totalRealPnl.toFixed(4);
         bp.style.color = totalRealPnl >= 0 ? 'var(--long)' : 'var(--short)';
       }
-      runTrailLogic();
-      checkExitSignals();
-      updatePosUI();
+      runTrailLogic(); checkExitSignals(); updatePosUI();
     }, function() { runTrailLogic(); checkExitSignals(); updatePosUI(); });
-  } else {
-    runTrailLogic();
-    checkExitSignals();
-    updatePosUI();
-  }
+  } else { runTrailLogic(); checkExitSignals(); updatePosUI(); }
 }
-
-// ─────────────────────────────────────────────
-// TRAILING STOP — DÜZELTİLMİŞ HESAPLAMA
-// ─────────────────────────────────────────────
 function runTrailLogic() {
   var i, pos, pr, pnl, high, pullbackRatio, buffer, adjustedSL, betterSL, reason;
   for (i = positions.length - 1; i >= 0; i--) {
     pos = positions[i];
     if (closingPositions[pos.id]) continue;
     pr  = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
-    pnl = (pos.realPnl !== undefined) ? pos.realPnl
-          : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
-
-    // TP/SL tetikleme (önce kontrol et)
+    pnl = (pos.realPnl !== undefined) ? pos.realPnl : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
     if (pos.side === 'LONG'  && pr >= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
     if (pos.side === 'SHORT' && pr <= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
     if (pos.side === 'LONG'  && pr <= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
     if (pos.side === 'SHORT' && pr >= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
-
     if (pnl > pos.highPnl) pos.highPnl = pnl;
     high = pos.highPnl;
     if (high <= 0) continue;
-
-    // Pullback oranı: kâr ne kadar yüksekse o kadar sıkı koruma
     if (high >= targetUSD * 0.9) pullbackRatio = 0.08;
     else if (high >= targetUSD * 0.6) pullbackRatio = 0.12;
     else if (high >= targetUSD * 0.3) pullbackRatio = 0.18;
     else pullbackRatio = 0.25;
-
-    // ─── DÜZELTİLMİŞ: SL fiyat olarak hesapla ───
-    // high = USD kâr, bunu fiyat cinsine çevir: high / qty = fiyat değişimi
-    // Sonra entry'den ileri götür, buffer kadar geri çek
-    var pnlPerUnit = high / pos.qty;           // kârdaki birim başına fiyat değişimi
-    buffer = (high * pullbackRatio) / pos.qty; // buffer fiyat cinsinden
-
-    if (pos.side === 'LONG') {
-      // SL = entry + (kazanç - buffer) fiyat cinsinden
-      adjustedSL = pos.entry + pnlPerUnit - buffer;
-      // Alternatif: mark price bazlı (daha güvenli)
-      // adjustedSL = pr - buffer;
-    } else {
-      adjustedSL = pos.entry - pnlPerUnit + buffer;
-    }
-
+    var pnlPerUnit = high / pos.qty;
+    buffer = (high * pullbackRatio) / pos.qty;
+    if (pos.side === 'LONG')  { adjustedSL = pos.entry + pnlPerUnit - buffer; }
+    else                      { adjustedSL = pos.entry - pnlPerUnit + buffer; }
     betterSL = false;
-    if (pos.side === 'LONG' && adjustedSL > pos.sl) betterSL = true;
+    if (pos.side === 'LONG'  && adjustedSL > pos.sl) betterSL = true;
     if (pos.side === 'SHORT' && adjustedSL < pos.sl) betterSL = true;
     if (!betterSL) continue;
-
     reason = 'TRAIL';
     pos.sl = adjustedSL;
-
-    // TP uzatma — kâr hedefe yaklaştıysa
     if (high >= targetUSD * 0.85) {
       var extTP;
-      if (pos.side === 'LONG') {
-        extTP = pr + (pr - pos.entry) * 0.5;
-        if (extTP > pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; }
-      } else {
-        extTP = pr - (pos.entry - pr) * 0.5;
-        if (extTP < pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; }
-      }
+      if (pos.side === 'LONG')  { extTP = pr + (pr - pos.entry) * 0.5; if (extTP > pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; } }
+      else                      { extTP = pr - (pos.entry - pr) * 0.5; if (extTP < pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; } }
     }
-
-    var msg2 = '[TRAIL] ' + pos.pair.replace('USDT','') + ' | ' + reason + ' | PnL:$' + high.toFixed(4) + ' SL:' + fp(pos.sl) + ' TP:' + fp(pos.tp);
+    var msg2 = '[TRAIL] ' + pos.pair.replace('USDT','') + ' | ' + reason + ' | PnL:$' + high.toFixed(4) + ' SL:' + fp(pos.sl);
     log(msg2, 'ok'); logPos(msg2, 'ok');
     if (appMode === 'live' && WORKER) maybePushTpSl(pos);
-
-    // %98 hedef
-    if (high >= targetUSD * 0.98) {
-      closePos(pos.id, 'HEDEF ALINDI (98%)');
-    }
+    if (high >= targetUSD * 0.98) closePos(pos.id, 'HEDEF ALINDI (98%)');
   }
 }
-
 function maybePushTpSl(pos) {
-  var lastSL = lastSentSL[pos.id];
-  var lastTP = lastSentTP[pos.id];
+  var lastSL = lastSentSL[pos.id], lastTP = lastSentTP[pos.id];
   var slChanged = !lastSL || Math.abs(pos.sl - lastSL) / pos.entry > 0.0005;
   var tpChanged = !lastTP || Math.abs(pos.tp - lastTP) / pos.entry > 0.0005;
-  if (slChanged || tpChanged) {
-    pushTpSl(pos);
-    lastSentSL[pos.id] = pos.sl;
-    lastSentTP[pos.id] = pos.tp;
-  }
+  if (slChanged || tpChanged) { pushTpSl(pos); lastSentSL[pos.id] = pos.sl; lastSentTP[pos.id] = pos.tp; }
 }
 function pushTpSl(pos) {
   var dp = pos.entry > 1000 ? 2 : pos.entry > 10 ? 3 : 4;
   xfetch(WORKER + '/update_tpsl', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({symbol:pos.pair, side:pos.side,
-      tp:parseFloat(pos.tp.toFixed(dp)), sl:parseFloat(pos.sl.toFixed(dp))})},
-    function(r) { if (r && r.success) logPos('BNB TP/SL guncellendi: ' + pos.pair.replace('USDT',''), 'ok'); },
-    function()  { logPos('BNB TP/SL guncelleme hata (lokal devam)', 'info'); });
+    body: JSON.stringify({symbol:pos.pair, side:pos.side, tp:parseFloat(pos.tp.toFixed(dp)), sl:parseFloat(pos.sl.toFixed(dp))})},
+    function(r) { if (r && r.success) logPos('TP/SL guncellendi', 'ok'); },
+    function()  { logPos('TP/SL guncelleme hatasi (lokal devam)', 'info'); });
 }
-
-// ─────────────────────────────────────────────
-// ENGINE (motor döngüsü)
-// ─────────────────────────────────────────────
 function runEngine() {
   if (!engineOn) return;
   var elLast = document.getElementById('eLast'), elOpen = document.getElementById('eOpen'), elSig = document.getElementById('eSig');
   if (elLast) elLast.textContent = new Date().toLocaleTimeString('tr-TR');
   if (elOpen) elOpen.textContent = positions.length;
-
-  // Dead hour banner
   var dhBanner = document.getElementById('deadHourBanner');
   if (dhBanner) dhBanner.style.display = isDeadHour() ? 'block' : 'none';
-
-  if (isDeadHour()) {
-    if (elSig) elSig.textContent = 'Dusuk vol saati — bekleniyor';
-    return;
-  }
+  if (isDeadHour()) { if (elSig) elSig.textContent = 'Dusuk vol saati — bekleniyor'; return; }
   if (focusModeOn && positions.length > 0) {
     if (elSig) elSig.textContent = 'Odak: ' + positions[0].pair.replace('USDT','') + ' izleniyor';
-    var banner = document.getElementById('posFocusBanner');
-    if (banner) banner.style.display = 'block';
+    var banner = document.getElementById('posFocusBanner'); if (banner) banner.style.display = 'block';
     return;
   }
-  var banner2 = document.getElementById('posFocusBanner');
-  if (banner2) banner2.style.display = 'none';
+  var banner2 = document.getElementById('posFocusBanner'); if (banner2) banner2.style.display = 'none';
   var best = null, bestScore = -1, i, s, an;
   for (i = 0; i < pairs.length; i++) {
     s = pairs[i]; if (inCD(s)) continue;
@@ -1188,10 +968,6 @@ function runEngine() {
   if (autoTrade && positions.length < MAX_P) openPos(best.sym, best.an.signal, true);
   else if (!autoTrade) log('SIG: ' + best.sym.replace('USDT','') + ' ' + best.an.signal + ' SKOR:' + best.an.score + '%', 'info');
 }
-
-// ─────────────────────────────────────────────
-// DEMO VERİ
-// ─────────────────────────────────────────────
 function demoTick(sym) {
   var s = pxState[sym];
   s.vel = s.vel * 0.9 + (Math.random() - 0.5) * s.price * 0.0004 + (DEMO_BASE[sym] - s.price) * 0.001;
@@ -1206,8 +982,7 @@ function makeKlines(sym, n, tf) {
     drift = (Math.random() - 0.49) * 0.005;
     o = p; c2 = o * (1 + drift);
     range = Math.abs(o - c2) * (1 + Math.random() * 0.8);
-    kl.unshift({t:Date.now()-i*ms, o:o, h:Math.max(o,c2)+range*Math.random()*0.5,
-                l:Math.min(o,c2)-range*Math.random()*0.5, c:c2, v:500+Math.random()*5000});
+    kl.unshift({t:Date.now()-i*ms, o:o, h:Math.max(o,c2)+range*Math.random()*0.5, l:Math.min(o,c2)-range*Math.random()*0.5, c:c2, v:500+Math.random()*5000});
     p = c2;
   }
   if (kl.length && pxState[sym]) kl[kl.length-1].c = pxState[sym].price;
@@ -1232,31 +1007,20 @@ function refreshDemo() {
       kls = ['kl1m','kl5m','kl15m','kl1h'];
       for (ki = 0; ki < kls.length; ki++) {
         kl2 = pData[sym][kls[ki]];
-        if (kl2 && kl2.length) {
-          last2 = kl2[kl2.length-1];
-          last2.c = pxState[sym].price;
-          last2.h = Math.max(last2.h, last2.c);
-          last2.l = Math.min(last2.l, last2.c);
-          last2.v += Math.random() * 50;
-        }
+        if (kl2 && kl2.length) { last2 = kl2[kl2.length-1]; last2.c = pxState[sym].price; last2.h = Math.max(last2.h, last2.c); last2.l = Math.min(last2.l, last2.c); last2.v += Math.random() * 50; }
       }
     }
   }
   analyzeAll();
 }
-
-// ─────────────────────────────────────────────
-// NETWORK
-// ─────────────────────────────────────────────
 function xfetch(url, opts, onOk, onErr) {
   var xhr = new XMLHttpRequest();
   xhr.open(opts && opts.method ? opts.method : 'GET', url, true);
   if (opts && opts.headers) { var k; for (k in opts.headers) xhr.setRequestHeader(k, opts.headers[k]); }
   xhr.onreadystatechange = function() {
     if (xhr.readyState !== 4) return;
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try { onOk(JSON.parse(xhr.responseText)); } catch(e) { onOk(null); }
-    } else { if (onErr) onErr(xhr.status); }
+    if (xhr.status >= 200 && xhr.status < 300) { try { onOk(JSON.parse(xhr.responseText)); } catch(e) { onOk(null); } }
+    else { if (onErr) onErr(xhr.status); }
   };
   xhr.onerror = function() { if (onErr) onErr('net'); };
   xhr.send(opts && opts.body ? opts.body : null);
@@ -1269,7 +1033,6 @@ function extractBalance(d) {
     if (typeof data.availableBalance === 'number' && data.availableBalance > 0) return data.availableBalance;
     if (typeof data.totalWalletBalance === 'number' && data.totalWalletBalance > 0) return data.totalWalletBalance;
     if (typeof data.balance === 'number' && data.balance > 0) return data.balance;
-    if (typeof data.crossWalletBalance === 'number' && data.crossWalletBalance > 0) return data.crossWalletBalance;
     if (Array.isArray(data)) {
       for (var i = 0; i < data.length; i++) {
         if (data[i].asset === 'USDT' || data[i].asset === 'BUSD') {
@@ -1279,43 +1042,16 @@ function extractBalance(d) {
       }
     }
   }
-  if (d.balance && typeof d.balance === 'object') {
-    var b = d.balance;
-    return parseFloat(b.availableBalance || b.totalWalletBalance || b.walletBalance || b.balance || 0) || null;
-  }
-  if (typeof d.balance === 'string') {
-    var sv = parseFloat(d.balance);
-    if (!isNaN(sv) && sv > 0) return sv;
-  }
   return null;
 }
 function syncBal() {
   if (!WORKER || appMode !== 'live') return;
   xfetch(WORKER + '/balance', null, function(d) {
-    if (!d || !d.success) {
-      var errMsg = d && d.error ? d.error : 'yanit basarisiz';
-      log('Bakiye alinamadi: ' + errMsg, 'err');
-      return;
-    }
+    if (!d || !d.success) { log('Bakiye alinamadi: ' + (d && d.error ? d.error : 'hata'), 'err'); return; }
     var val = extractBalance(d);
-    if (val && val > 0) {
-      futBal = Number(val); balance = Number(futBal);
-      log('Bakiye sync: $' + balance.toFixed(2), 'ok');
-      updateBalUI();
-    } else {
-      xfetch(WORKER + '/open_positions', null, function(dp) {
-        if (dp && dp.success && dp.walletBalance) {
-          var wv = parseFloat(dp.walletBalance);
-          if (!isNaN(wv) && wv > 0) { futBal = wv; balance = wv; log('Bakiye (pos) sync: $' + balance.toFixed(2), 'ok'); updateBalUI(); }
-        }
-      }, function() {});
-    }
+    if (val && val > 0) { futBal = Number(val); balance = Number(futBal); log('Bakiye sync: $' + balance.toFixed(2), 'ok'); updateBalUI(); }
   }, function() { log('Bakiye sync net err', 'err'); });
 }
-
-// ─────────────────────────────────────────────
-// LIVE VERİ ÇEKİMİ
-// ─────────────────────────────────────────────
 function fetchLive() {
   if (!WORKER) return;
   var now = Date.now(), priceDone = 0, total = pairs.length;
@@ -1326,13 +1062,7 @@ function fetchLive() {
       xfetch(WORKER + '/price?symbol=' + sym, null, function(d) {
         if (d && d.success) {
           var p2 = parseFloat(d.data.lastPrice || d.data.price || 0);
-          if (p2 > 0) {
-            prevPx[sym] = pxState[sym] ? pxState[sym].price : p2;
-            if (!pxState[sym]) pxState[sym] = {price:p2, vel:0};
-            pxState[sym].price = p2;
-            if (!pData[sym]) pData[sym] = {};
-            pData[sym].price = p2;
-          }
+          if (p2 > 0) { prevPx[sym] = pxState[sym] ? pxState[sym].price : p2; if (!pxState[sym]) pxState[sym] = {price:p2, vel:0}; pxState[sym].price = p2; if (!pData[sym]) pData[sym] = {}; pData[sym].price = p2; }
         }
         priceDone++;
         if (priceDone >= total) doFetchKlines();
@@ -1349,12 +1079,7 @@ function fetchLive() {
         ks = ['kl5m','kl15m','kl1h'];
         for (ki2 = 0; ki2 < ks.length; ki2++) {
           kl3 = pData[sym2][ks[ki2]];
-          if (kl3 && kl3.length && pxState[sym2]) {
-            var last3 = kl3[kl3.length-1];
-            last3.c = pxState[sym2].price;
-            last3.h = Math.max(last3.h, last3.c);
-            last3.l = Math.min(last3.l, last3.c);
-          }
+          if (kl3 && kl3.length && pxState[sym2]) { var last3 = kl3[kl3.length-1]; last3.c = pxState[sym2].price; last3.h = Math.max(last3.h, last3.c); last3.l = Math.min(last3.l, last3.c); }
         }
       } else { needFetch.push(sym2); }
     }
@@ -1369,10 +1094,7 @@ function fetchLive() {
               function(d) {
                 if (d && d.success && Array.isArray(d.data)) {
                   var kl4 = [], m;
-                  for (m = 0; m < d.data.length; m++) {
-                    var kk = d.data[m];
-                    kl4.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]});
-                  }
+                  for (m = 0; m < d.data.length; m++) { var kk = d.data[m]; kl4.push({t:+kk[0],o:+kk[1],h:+kk[2],l:+kk[3],c:+kk[4],v:+kk[5]}); }
                   pData[sym3][key] = kl4; pData[sym3].lastKl = Date.now();
                 }
                 oneDone();
@@ -1383,7 +1105,6 @@ function fetchLive() {
     }
   }
 }
-
 function connectLive() {
   var url = (document.getElementById('wUrl').value || '').trim();
   if (!url) { notify('Worker URL girin', 'error'); return; }
@@ -1402,21 +1123,10 @@ function connectLive() {
       syncBal();
       if (loopTimer) clearTimeout(loopTimer);
       mainLoop();
-    } else {
-      WORKER = ''; appMode = 'demo';
-      setConnStatus('Worker yanit vermedi', 'var(--short)');
-      notify('Worker yanit vermedi', 'error');
-    }
-  }, function(code) {
-    WORKER = ''; appMode = 'demo';
-    setConnStatus('Baglanti hatasi (' + code + ')', 'var(--short)');
-    notify('Baglanti hatasi: ' + code, 'error');
-  });
+    } else { WORKER = ''; appMode = 'demo'; setConnStatus('Worker yanit vermedi', 'var(--short)'); notify('Worker yanit vermedi', 'error'); }
+  }, function(code) { WORKER = ''; appMode = 'demo'; setConnStatus('Baglanti hatasi (' + code + ')', 'var(--short)'); notify('Baglanti hatasi: ' + code, 'error'); });
 }
-function setConnStatus(msg, color) {
-  var el = document.getElementById('connStatus');
-  if (el) { el.textContent = msg; el.style.color = color || 'var(--dim2)'; }
-}
+function setConnStatus(msg, color) { var el = document.getElementById('connStatus'); if (el) { el.textContent = msg; el.style.color = color || 'var(--dim2)'; } }
 function startDemo() {
   WORKER = ''; appMode = 'demo'; futBal = null;
   document.getElementById('bdgConn').textContent = 'DEMO';
@@ -1427,20 +1137,10 @@ function startDemo() {
   if (loopTimer) clearTimeout(loopTimer);
   mainLoop();
 }
-
-// ─────────────────────────────────────────────
-// ANA DÖNGÜ
-// ─────────────────────────────────────────────
 function mainLoop() {
   try {
     if (appMode === 'demo') refreshDemo(); else fetchLive();
-    runEngine();
-    updateSignalUI();
-    updatePairRow();
-    updateTicker();
-    updateCDUI();
-    updateCoinScoreTable();
-    updateStreakUI();
+    runEngine(); updateSignalUI(); updatePairRow(); updateTicker(); updateCDUI(); updateCoinScoreTable(); updateStreakUI();
     if (engineOn) startCountdown();
   } catch(e) { log('Loop err: ' + e.message, 'err'); }
   loopTimer = setTimeout(mainLoop, scanSec * 1000);
@@ -1450,15 +1150,10 @@ function startCountdown() {
   var left = scanSec;
   cdTimer = setInterval(function() {
     left--;
-    var e = document.getElementById('eNext');
-    if (e) e.textContent = left > 0 ? left + 's' : '...';
+    var e = document.getElementById('eNext'); if (e) e.textContent = left > 0 ? left + 's' : '...';
     if (left <= 0) clearInterval(cdTimer);
   }, 1000);
 }
-
-// ─────────────────────────────────────────────
-// UI GÜNCELLEME FONKSİYONLARI
-// ─────────────────────────────────────────────
 function updateCoinScoreTable() {
   var el = document.getElementById('coinScoreTable'); if (!el) return;
   var sorted = pairs.slice().sort(function(a, b) {
@@ -1466,13 +1161,13 @@ function updateCoinScoreTable() {
     var sb = (pData[b] && pData[b].an) ? pData[b].an.score : 0;
     return sb - sa;
   });
-  var rows = '', i, sym, pd2, an2, sig2, sc2, pr2, cd2, col2, bar2;
+  var rows = '', i, sym, pd2, an2, sig2, sc2, pr2, cd2, col2;
   for (i = 0; i < sorted.length; i++) {
     sym = sorted[i]; pd2 = pData[sym] || {}; an2 = pd2.an;
     sig2 = an2 ? an2.signal : 'WAIT'; sc2 = an2 ? an2.score : 0;
     pr2 = pd2.price || DEMO_BASE[sym] || 0; cd2 = inCD(sym);
     col2 = sig2 === 'LONG' ? 'var(--long)' : sig2 === 'SHORT' ? 'var(--short)' : 'var(--dim2)';
-    bar2 = sc2 > 0 ? '<span style="display:inline-block;width:' + Math.round(sc2 * 0.4) + 'px;height:5px;background:' + col2 + ';border-radius:2px;vertical-align:middle;margin-left:3px;opacity:0.7"></span>' : '';
+    var bar2 = sc2 > 0 ? '<span style="display:inline-block;width:' + Math.round(sc2 * 0.4) + 'px;height:5px;background:' + col2 + ';border-radius:2px;vertical-align:middle;margin-left:3px;opacity:0.7"></span>' : '';
     rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--brd)">' +
       '<span style="color:var(--text2);min-width:52px">' + sym.replace('USDT','') + (cd2 ? '<span style="color:var(--short);font-size:8px"> CD</span>' : '') + '</span>' +
       '<span style="color:var(--dim2);font-size:9px">$' + fp(pr2) + '</span>' +
@@ -1481,7 +1176,6 @@ function updateCoinScoreTable() {
   }
   el.innerHTML = rows || '<div style="color:var(--dim2);padding:8px 0">Veri bekleniyor...</div>';
 }
-
 function updateSignalUI() {
   var pd3 = pData[currentPair], an3 = pd3 && pd3.an, sig3 = an3 ? an3.signal : 'WAIT';
   var badge = document.getElementById('sigBadge');
@@ -1502,11 +1196,9 @@ function updateSignalUI() {
     setInd('iRsi5',  ind.rsi5.toFixed(1),  ind.rsi5  < 35 ? 'bull' : ind.rsi5  > 65 ? 'bear' : 'neut');
     setInd('iRsi15', ind.rsi15.toFixed(1), ind.rsi15 < 35 ? 'bull' : ind.rsi15 > 65 ? 'bear' : 'neut');
     setInd('iMacd',  (ind.macd.hist >= 0 ? '+' : '') + ind.macd.hist.toFixed(5), ind.macd.hist > 0 ? 'bull' : 'bear');
-    setInd('iEma',   ind.goldenX ? 'GOLDEN_X' : ind.deathX ? 'DEATH_X' : ind.aboveEMA ? 'YUKARI' : 'ASAGI',
-                     ind.goldenX ? 'bull' : ind.deathX ? 'bear' : ind.aboveEMA ? 'bull' : 'bear');
+    setInd('iEma',   ind.goldenX ? 'GOLDEN_X' : ind.deathX ? 'DEATH_X' : ind.aboveEMA ? 'YUKARI' : 'ASAGI', ind.goldenX ? 'bull' : ind.deathX ? 'bear' : ind.aboveEMA ? 'bull' : 'bear');
     setInd('iVol',   ind.vr.toFixed(2) + 'x', ind.vr >= 1.3 ? 'bull' : ind.vr < 0.85 ? 'bear' : 'neut');
-    // Momentum göstergesi (ATR yerine)
-    var momTxt = ind.momScore + '/3 ' + (ind.slope9 > 0 ? '↑' : ind.slope9 < 0 ? '↓' : '→');
+    var momTxt = ind.momScore + '/3 ' + (ind.slope9 > 0 ? '\u2191' : ind.slope9 < 0 ? '\u2193' : '\u2192');
     setInd('iMom', momTxt, ind.momScore >= 2 ? 'bull' : ind.momScore <= 1 ? 'bear' : 'neut');
   }
   if (an3 && an3.mtf) { setMTF('m5', an3.mtf['5m']); setMTF('m15', an3.mtf['15m']); setMTF('m1h', an3.mtf['1h']); }
@@ -1516,9 +1208,7 @@ function updateSignalUI() {
   if (btnL) btnL.disabled = !canOpen;
   if (btnS) btnS.disabled = !canOpen;
   var mn = document.getElementById('manNote');
-  if (mn) mn.textContent = canOpen
-    ? 'Risk:$' + riskUSD.toFixed(2) + ' Hedef:$' + targetUSD.toFixed(2) + ' Nominal:$' + effectiveMaxPos().toFixed(1) + ' x' + leverage
-    : 'Max ' + MAX_P + ' pozisyon dolu';
+  if (mn) mn.textContent = canOpen ? 'Risk:$' + riskUSD.toFixed(2) + ' Hedef:$' + targetUSD.toFixed(2) + ' Nominal:$' + effectiveMaxPos().toFixed(1) + ' x' + leverage : 'Max ' + MAX_P + ' pozisyon dolu';
   updateBalUI(); drawChart();
 }
 function setInd(id, val, cls) { var el = document.getElementById(id); if (el) { el.textContent = val; el.className = 'ind-val ' + (cls || 'neut'); } }
@@ -1544,11 +1234,8 @@ function updatePairRow() {
   var html = '', i, sym5, pd5, p5, prev5, sig5, sc5, cd5;
   for (i = 0; i < pairs.length; i++) {
     sym5 = pairs[i]; pd5 = pData[sym5] || {};
-    p5 = pd5.price || DEMO_BASE[sym5] || 1;
-    prev5 = prevPx[sym5] || p5;
-    sig5 = pd5.an ? pd5.an.signal : 'WAIT';
-    sc5 = pd5.an ? (' ' + pd5.an.score + '%') : '';
-    cd5 = inCD(sym5) ? ' CD' : '';
+    p5 = pd5.price || DEMO_BASE[sym5] || 1; prev5 = prevPx[sym5] || p5;
+    sig5 = pd5.an ? pd5.an.signal : 'WAIT'; sc5 = pd5.an ? (' ' + pd5.an.score + '%') : ''; cd5 = inCD(sym5) ? ' CD' : '';
     html += '<button class="pp ' + (sym5 === currentPair ? 'active' : '') + '" data-sym="' + sym5 + '">' +
       '<span>' + sym5.replace('USDT','') + cd5 + '</span>' +
       '<span class="pp-price" style="color:' + (p5 >= prev5 ? 'var(--long)' : 'var(--short)') + '">$' + fp(p5) + '</span>' +
@@ -1575,15 +1262,12 @@ function updateBalUI() {
   var pct = (bal - START_BAL) / START_BAL * 100;
   var prog = Math.max(0, Math.min(100, (bal - START_BAL) / (100 - START_BAL) * 100));
   document.getElementById('balNum').textContent = '$' + bal.toFixed(2);
-  var bd = document.getElementById('balDay');
-  if (bd) { bd.textContent = 'GUN: ' + (dailyPnL >= 0 ? '+' : '') + '$' + dailyPnL.toFixed(2); bd.style.color = dailyPnL >= 0 ? 'var(--long)' : 'var(--short)'; }
-  var bp = document.getElementById('balPct');
-  if (bp) { bp.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%'; bp.style.color = pct >= 0 ? 'var(--long)' : 'var(--short)'; }
+  var bd = document.getElementById('balDay'); if (bd) { bd.textContent = 'GUN: ' + (dailyPnL >= 0 ? '+' : '') + '$' + dailyPnL.toFixed(2); bd.style.color = dailyPnL >= 0 ? 'var(--long)' : 'var(--short)'; }
+  var bp = document.getElementById('balPct'); if (bp) { bp.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%'; bp.style.color = pct >= 0 ? 'var(--long)' : 'var(--short)'; }
   var pf = document.getElementById('progFill'); if (pf) pf.style.width = prog + '%';
   document.getElementById('bdgPos').textContent = positions.length + '/' + MAX_P;
   var stBal2 = document.getElementById('stBal'); if (stBal2) stBal2.textContent = '$' + bal.toFixed(2);
-  var stDay2 = document.getElementById('stDay');
-  if (stDay2) { stDay2.textContent = (dailyPnL >= 0 ? '+' : '') + '$' + dailyPnL.toFixed(2); stDay2.style.color = dailyPnL >= 0 ? 'var(--long)' : 'var(--short)'; }
+  var stDay2 = document.getElementById('stDay'); if (stDay2) { stDay2.textContent = (dailyPnL >= 0 ? '+' : '') + '$' + dailyPnL.toFixed(2); stDay2.style.color = dailyPnL >= 0 ? 'var(--long)' : 'var(--short)'; }
   var wins = 0, wi; for (wi = 0; wi < trades.length; wi++) if (trades[wi].pnl > 0) wins++;
   var swr = document.getElementById('stWR'); if (swr) swr.textContent = trades.length ? (wins / trades.length * 100).toFixed(0) + '%' : '--%';
   var sr = document.getElementById('showRisk'); if (sr) sr.textContent = '$' + riskUSD.toFixed(2);
@@ -1592,7 +1276,7 @@ function updateBalUI() {
 }
 function updatePosUI() {
   updateBalUI();
-  var html = '', i, pos6, pr6, pnl6, prog6, pc6, beTag6, trailTag;
+  var html = '', i, pos6, pr6, pnl6, prog6, pc6;
   if (!positions.length) {
     html = '<div style="text-align:center;padding:24px;color:var(--dim2);font-family:var(--mono);font-size:11px">// ACIK POZISYON YOK</div>';
   } else {
@@ -1602,15 +1286,12 @@ function updatePosUI() {
       pnl6 = (pos6.realPnl !== undefined) ? pos6.realPnl : (pr6 - pos6.entry) * (pos6.side === 'LONG' ? 1 : -1) * pos6.qty;
       prog6 = targetUSD > 0 ? Math.max(0, Math.min(100, pnl6 / targetUSD * 100)) : 0;
       pc6  = pnl6 >= 0 ? 'var(--long)' : 'var(--short)';
-      beTag6   = pos6.breakeven ? '<span style="font-size:8px;color:var(--long);margin-left:4px;border:1px solid var(--long2);padding:1px 3px;border-radius:2px">BE</span>' : '';
-      trailTag = pos6.trailStage >= 2 ? '<span style="font-size:8px;color:var(--acc);margin-left:4px;border:1px solid var(--acc2);padding:1px 3px;border-radius:2px">TRAIL</span>' : '';
       var holdMin = Math.floor((Date.now() - (pos6.openTime || Date.now())) / 60000);
       html += '<div class="pos-card ' + pos6.side.toLowerCase() + '">' +
         '<div class="pos-hd">' +
           '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">' +
             '<span class="pos-sym">' + pos6.pair.replace('USDT','') + '</span>' +
             '<span class="pos-side-badge ' + pos6.side + '">' + pos6.side + '</span>' +
-            beTag6 + trailTag +
             '<span style="font-size:7px;color:var(--dim2);font-family:var(--mono)">' + holdMin + 'dk</span>' +
           '</div>' +
           '<div class="pos-pnl ' + (pnl6 >= 0 ? 'up' : 'dn') + '">' + (pnl6 >= 0 ? '+' : '') + '$' + pnl6.toFixed(4) + '</div>' +
@@ -1632,16 +1313,10 @@ function updatePosUI() {
   var hh = '', hi;
   for (hi = Math.min(trades.length, 10) - 1; hi >= 0; hi--) {
     var t6 = trades[hi];
-    hh += '<div class="hist-row"><span>' + t6.pair.replace('USDT','') + ' ' + t6.side +
-      ' <span style="color:var(--dim2);font-size:8px">' + t6.reason + '</span></span>' +
-      '<span style="color:' + (t6.pnl >= 0 ? 'var(--long)' : 'var(--short)') + '">' + (t6.pnl >= 0 ? '+' : '') + '$' + t6.pnl.toFixed(4) + '</span></div>';
+    hh += '<div class="hist-row"><span>' + t6.pair.replace('USDT','') + ' ' + t6.side + ' <span style="color:var(--dim2);font-size:8px">' + t6.reason + '</span></span><span style="color:' + (t6.pnl >= 0 ? 'var(--long)' : 'var(--short)') + '">' + (t6.pnl >= 0 ? '+' : '') + '$' + t6.pnl.toFixed(4) + '</span></div>';
   }
   document.getElementById('histBox').innerHTML = hh || '<div style="color:var(--dim2);font-family:var(--mono);font-size:10px">--</div>';
 }
-
-// ─────────────────────────────────────────────
-// CHART
-// ─────────────────────────────────────────────
 function initChart() { var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d'); }
 function drawChart() {
   if (!chartCtx) return;
@@ -1663,10 +1338,7 @@ function drawChart() {
     var mn7 = Infinity, mx7 = -Infinity;
     for (i7 = 0; i7 < k7.length; i7++) { if (k7[i7].l < mn7) mn7 = k7[i7].l; if (k7[i7].h > mx7) mx7 = k7[i7].h; }
     var an7 = pd7.an;
-    if (an7) {
-      if (an7.sl) { mn7 = Math.min(mn7, an7.sl * 0.999); mx7 = Math.max(mx7, an7.sl * 1.001); }
-      if (an7.tp) { mn7 = Math.min(mn7, an7.tp * 0.999); mx7 = Math.max(mx7, an7.tp * 1.001); }
-    }
+    if (an7) { if (an7.sl) { mn7 = Math.min(mn7, an7.sl * 0.999); mx7 = Math.max(mx7, an7.sl * 1.001); } if (an7.tp) { mn7 = Math.min(mn7, an7.tp * 0.999); mx7 = Math.max(mx7, an7.tp * 1.001); } }
     var rng7 = mx7 - mn7; if (rng7 <= 0) return;
     var cw7 = W / n7;
     function toY(v) { return H - 8 - ((v - mn7) / rng7) * (H - 16); }
@@ -1736,10 +1408,6 @@ function drawChart() {
     ctx7.fillText('$' + fp(lp7), W - 62, toY(lp7) - 2);
   });
 }
-
-// ─────────────────────────────────────────────
-// COIN YÖNETİMİ
-// ─────────────────────────────────────────────
 function addCoin() {
   var inp = document.getElementById('newCoin'); if (!inp) return;
   var raw = inp.value.trim().toUpperCase(); if (!raw) return;
@@ -1800,9 +1468,7 @@ function manualOpen(side) {
   var sl2 = parseFloat(document.getElementById('manSL').value);
   if (isNaN(tp2) || isNaN(sl2) || tp2 <= 0 || sl2 <= 0) { notify('Gecerli TP/SL girin', 'error'); return; }
   var an8 = pData[currentPair] && pData[currentPair].an;
-  if (an8 && an8.signal !== 'WAIT' && an8.signal !== side) {
-    if (!confirm('Sinyal ' + an8.signal + ' ama ' + side + ' acilacak?')) return;
-  }
+  if (an8 && an8.signal !== 'WAIT' && an8.signal !== side) { if (!confirm('Sinyal ' + an8.signal + ' ama ' + side + ' acilacak?')) return; }
   openPos(currentPair, side, false, tp2, sl2);
 }
 function readSettings() {
@@ -1820,6 +1486,8 @@ function swPage(name) {
     var pg2 = document.getElementById('pg-' + allPages[i2]);
     if (pg2) pg2.classList.toggle('active', allPages[i2] === name);
   }
+  var navBtns = document.querySelectorAll('.nb');
+  for (i2 = 0; i2 < navBtns.length; i2++) navBtns[i2].classList.toggle('active', navBtns[i2].getAttribute('data-page') === name);
   if (name === 'signal') setTimeout(drawChart, 80);
   if (name === 'pos') updatePosUI();
 }
@@ -1881,10 +1549,6 @@ function toggleStreakSize() {
   notify(streakSizeOn ? 'Streak buyutme AKTIF' : 'Streak buyutme PASIF', 'info');
   updateStreakUI();
 }
-
-// ─────────────────────────────────────────────
-// BAŞLATMA
-// ─────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function() {
   initChart();
   renderCoinList();
@@ -1893,17 +1557,17 @@ window.addEventListener('DOMContentLoaded', function() {
   for (var i = 0; i < tfBtns.length; i++) {
     tfBtns[i].onclick = (function(btn) { return function() { setTF(btn.getAttribute('data-tf')); }; })(tfBtns[i]);
   }
-  document.getElementById('togAuto').onclick        = toggleAutoTrade;
-  document.getElementById('togTight').onclick       = toggleTight;
-  document.getElementById('togScalp').onclick       = toggleScalp;
-  document.getElementById('togFocusPos').onclick    = toggleFocusMode;
-  document.getElementById('togSpreadFilter').onclick= toggleSpreadFilter;
-  document.getElementById('togTimeFilter').onclick  = toggleTimeFilter;
-  document.getElementById('togExitSignal').onclick  = toggleExitSignal;
-  document.getElementById('togStreakSize').onclick   = toggleStreakSize;
-  document.getElementById('btnEng').onclick   = toggleEng;
-  document.getElementById('btnL').onclick     = function() { manualOpen('LONG'); };
-  document.getElementById('btnS').onclick     = function() { manualOpen('SHORT'); };
+  document.getElementById('togAuto').onclick         = toggleAutoTrade;
+  document.getElementById('togTight').onclick        = toggleTight;
+  document.getElementById('togScalp').onclick        = toggleScalp;
+  document.getElementById('togFocusPos').onclick     = toggleFocusMode;
+  document.getElementById('togSpreadFilter').onclick = toggleSpreadFilter;
+  document.getElementById('togTimeFilter').onclick   = toggleTimeFilter;
+  document.getElementById('togExitSignal').onclick   = toggleExitSignal;
+  document.getElementById('togStreakSize').onclick    = toggleStreakSize;
+  document.getElementById('btnEng').onclick    = toggleEng;
+  document.getElementById('btnL').onclick      = function() { manualOpen('LONG'); };
+  document.getElementById('btnS').onclick      = function() { manualOpen('SHORT'); };
   document.getElementById('btnConnLive').onclick = connectLive;
   document.getElementById('btnDemo').onclick     = startDemo;
   document.getElementById('btnReset').onclick    = doReset;
@@ -1911,16 +1575,13 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btnClearLog').onclick    = function() { document.getElementById('logEl').innerHTML = ''; };
   document.getElementById('btnClearPosLog').onclick = function() { document.getElementById('posLogBox').innerHTML = ''; };
   var selects = ['selTarget','selRisk','selLev','selInt','selMaxPosSize','selMaxPosCount'];
-  for (var s = 0; s < selects.length; s++) {
-    var sel = document.getElementById(selects[s]);
-    if (sel) sel.onchange = readSettings;
-  }
+  for (var s = 0; s < selects.length; s++) { var sel = document.getElementById(selects[s]); if (sel) sel.onchange = readSettings; }
   var navBtns = document.querySelectorAll('.nb');
   for (var n = 0; n < navBtns.length; n++) {
     navBtns[n].onclick = (function(btn) { return function() { swPage(btn.getAttribute('data-page')); }; })(navBtns[n]);
   }
   startDemo();
-  log('APEX V4.3 — Trailing fix + Zaman filtresi + EMA egim + Momentum + Cikis sinyali + Streak buyutme', 'ok');
+  log('APEX V4.3.1 — Leverage fix: posVal nominal olarak gonderilir, worker /leverage bolmez', 'ok');
 });
 </script>
 </body>
