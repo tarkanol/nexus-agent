@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V4.3.1</title>
+<title>APEX Scalp | V4.3.2</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -170,7 +170,7 @@ select option{background:#041018;}
 <body>
 <div id="notif"></div>
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V4.3.1</span></div>
+  <div class="logo">APEX<span> // SCALP V4.3.2</span></div>
   <div class="hdr-badges">
     <span class="hbdg" id="bdgConn">DEMO</span>
     <span class="hbdg" id="bdgEng">OFF</span>
@@ -301,7 +301,7 @@ select option{background:#041018;}
           <option value="10" selected>10 USD</option>
           <option value="20">20 USD</option>
           <option value="30">30 USD</option>
-          <option value="50">50 USD</option>          
+          <option value="50">50 USD</option>
           <option value="100">100 USD</option>
           <option value="200">200 USD</option>
         </select>
@@ -328,16 +328,16 @@ select option{background:#041018;}
         <select id="selTarget"><option value="0.05">$0.05</option><option value="0.08">$0.08</option><option value="0.10" selected>$0.10</option><option value="0.15">$0.15</option><option value="0.20">$0.20</option></select>
       </div>
       <div class="fr"><span class="inp-label">Islem Basi Maks Risk ($)</span>
-        <select id="selRisk"><option value="0.50">$0.50</option><option value="0.75">$0.75</option><option value="1.00" selected>$1.00</option><option value="1.50">$1.50</option></select>
+        <select id="selRisk"><option value="0.50" selected>$0.50</option><option value="0.75">$0.75</option><option value="1.00">$1.00</option><option value="1.50">$1.50</option></select>
       </div>
       <div class="fr"><span class="inp-label">Kaldirac</span>
-        <select id="selLev"><option value="2">2x</option><option value="3" selected>3x</option><option value="5">5x</option></select>
+        <select id="selLev"><option value="2" selected>2x</option><option value="3">3x</option><option value="5">5x</option></select>
       </div>
       <div class="fr"><span class="inp-label">Tarama Sikligi</span>
-        <select id="selInt"><option value="20">20 saniye</option><option value="30" selected>30 saniye</option><option value="60">1 dakika</option></select>
+        <select id="selInt"><option value="20">20 saniye</option><option value="30">30 saniye</option><option value="60" selected>1 dakika</option></select>
       </div>
       <div style="background:rgba(2,10,16,0.9);border:1px solid var(--brd);border-radius:3px;padding:8px;margin-top:4px;font-family:var(--mono);font-size:9px;color:var(--dim2);line-height:1.8">
-        Risk: <strong id="showRisk" style="color:var(--gold)">$1.00</strong> &nbsp;|&nbsp; Hedef: <strong id="showTP" style="color:var(--long)">$0.10</strong> &nbsp;|&nbsp; PosBoyut: <strong id="showEffective" style="color:var(--acc)">$10</strong>
+        Risk: <strong id="showRisk" style="color:var(--gold)">$0.50</strong> &nbsp;|&nbsp; Hedef: <strong id="showTP" style="color:var(--long)">$0.10</strong> &nbsp;|&nbsp; PosBoyut: <strong id="showEffective" style="color:var(--acc)">$10</strong>
       </div>
     </div>
   </div>
@@ -395,9 +395,9 @@ var DEMO_BASE = {BTCUSDT:74000,ETHUSDT:2050,SOLUSDT:83,BNBUSDT:588,XRPUSDT:0.605
 var balance = START_BAL, peakBal = START_BAL, dailyPnL = 0;
 var positions = [], trades = [], posId = 1;
 var pairs = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT'];
-var currentPair = 'BTCUSDT', currentTF = '5m', scanSec = 30;
+var currentPair = 'BTCUSDT', currentTF = '5m', scanSec = 60;
 var engineOn = false, autoTrade = false, WORKER = '', appMode = 'demo', futBal = null;
-var targetUSD = 0.10, riskUSD = 1.00, leverage = 3, tightSL = true, aggressiveMode = false;
+var targetUSD = 0.10, riskUSD = 0.50, leverage = 2, tightSL = true, aggressiveMode = false;
 var focusModeOn = true, spreadFilterOn = false, timeFilterOn = true, exitSignalOn = true, streakSizeOn = true;
 var maxPositionSize = 10;
 var cooldowns = {}, slStreak = {}, pxState = {}, prevPx = {}, pData = {};
@@ -587,7 +587,8 @@ function analyze(sym) {
   if (trend1h === rawSig) tfConfirm++;
   if (tfConfirm < (aggressiveMode ? 2 : 3)) return null;
   if (bb5.squeeze && !aggressiveMode) return null;
-  if (spreadFilterOn && pd.spread !== undefined && pd.spread > 0.0005) {
+  // FIX v4.3.2: spread filtresi esigi 0.0005 -> 0.0003 (daha hassas)
+  if (spreadFilterOn && pd.spread !== undefined && pd.spread > 0.0003) {
     log('Spread yuksek: ' + sym.replace('USDT','') + ' %' + (pd.spread*100).toFixed(3), 'info');
     return null;
   }
@@ -623,8 +624,9 @@ function analyze(sym) {
   var slDistFromAtr5  = atr5  * atrMult;
   var slDistFromAtr15 = atr15 * 0.5;
   var atrSlDist = Math.max(slDistFromAtr5, slDistFromAtr15);
-  var minSlDist = price * 0.0015;
-  var maxSlDist = price * 0.004;
+  // FIX v4.3.2: minSlDist 0.0015->0.003, maxSlDist 0.004->0.008 (slippage ve spread icin pay)
+  var minSlDist = price * 0.003;
+  var maxSlDist = price * 0.008;
   var slDist = Math.min(Math.max(atrSlDist, minSlDist), maxSlDist);
   var rrRatio = targetUSD / riskUSD;
   var minRR   = aggressiveMode ? 1.2 : 1.5;
@@ -700,12 +702,6 @@ function updateCDUI() {
   if (b) { b.style.display = n > 0 ? 'inline-block' : 'none'; b.textContent = n + ' CD'; }
 }
 
-// ─── POZİSYON AÇ ───
-// FIX v4.3.1: posVal dogrudan gonderilir (nominal).
-// Worker bu degeri contractValue'ya bolerek lot hesaplar;
-// leverage sadece callGate icindeki /leverage SET icin kullanilir.
-// ESKİ: usdAmountForWorker = posVal / leverage  → worker tekrar *leverage yaparsa cift kaldiraci olusur
-// YENİ: usdAmount = posVal (nominal)            → worker posVal/contractValue = lot adedi
 function openPos(sym, side, auto, manTP, manSL) {
   if (isDeadHour()) { notify('Dusuk vol saati — islem yok (UTC 02-06)', 'error'); log('Dead hour: islem engellendi', 'info'); return; }
   if (inCD(sym)) { notify(sym + ' cooldown', 'error'); return; }
@@ -736,7 +732,6 @@ function openPos(sym, side, auto, manTP, manSL) {
   if (appMode === 'live' && WORKER) {
     notify('Order gonderiliyor...', 'info');
     var dp = price > 1000 ? 2 : price > 10 ? 3 : 4;
-    // v4.3.1 FIX: posVal nominal olarak gonderilir, worker /leverage bolmez
     xfetch(WORKER + '/order', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({symbol:sym, side:side, usdAmount: posVal.toFixed(4), leverage:leverage,
         sl:parseFloat(sl.toFixed(dp)), tp:parseFloat(tp.toFixed(dp))})},
@@ -868,8 +863,17 @@ function runTracker() {
             if (!isNaN(rp)) p.realPnl = rp;
             mp = parseFloat(d.data[j].markPrice || 0);
             if (mp > 0) { if (!pData[p.pair]) pData[p.pair] = {}; pData[p.pair].price = mp; }
+            // FIX v4.3.2: SYNC entry farki SL/TP'yi de kaydiriyor (slippage telafisi)
             ep = parseFloat(d.data[j].entryPrice || 0);
-            if (ep > 0 && Math.abs(ep - p.entry) / p.entry > 0.0001) { logPos('SYNC entry: ' + fp(p.entry) + '->' + fp(ep), 'ok'); p.entry = ep; }
+            if (ep > 0 && Math.abs(ep - p.entry) / p.entry > 0.0001) {
+              var slippage = ep - p.entry;
+              logPos('SYNC entry: ' + fp(p.entry) + '->' + fp(ep) + ' (slip:' + fp(slippage) + ')', 'ok');
+              p.sl = p.sl + slippage;
+              p.tp = p.tp + slippage;
+              p.entry = ep;
+              logPos('SL/TP kaydirma: SL->' + fp(p.sl) + ' TP->' + fp(p.tp), 'ok');
+              if (appMode === 'live' && WORKER) maybePushTpSl(p);
+            }
             var rawSl = parseFloat(d.data[j].stopPrice || d.data[j].stopLossPrice || 0);
             var rawTp = parseFloat(d.data[j].takeProfitPrice || 0);
             if (rawSl > 0 && rawSl !== mp) { p.bnbSl = rawSl; if (p.side === 'LONG' && rawSl > p.sl) p.sl = rawSl; if (p.side === 'SHORT' && rawSl < p.sl) p.sl = rawSl; }
@@ -904,10 +908,13 @@ function runTrailLogic() {
     if (pnl > pos.highPnl) pos.highPnl = pnl;
     high = pos.highPnl;
     if (high <= 0) continue;
-    if (high >= targetUSD * 0.9) pullbackRatio = 0.08;
-    else if (high >= targetUSD * 0.6) pullbackRatio = 0.12;
-    else if (high >= targetUSD * 0.3) pullbackRatio = 0.18;
-    else pullbackRatio = 0.25;
+    // FIX v4.3.2: pullbackRatio gevsetildi — kucuk geri cekilmelerde SL tetiklenmesin
+    // Eski: 0.08 / 0.12 / 0.18 / 0.25 (cok agresif, 2 saniyede SL geciyordu)
+    // Yeni: 0.35 / 0.45 / 0.55 / 0.70 (pozisyona nefes hakki tanir)
+    if (high >= targetUSD * 0.9) pullbackRatio = 0.35;
+    else if (high >= targetUSD * 0.6) pullbackRatio = 0.45;
+    else if (high >= targetUSD * 0.3) pullbackRatio = 0.55;
+    else pullbackRatio = 0.70;
     var pnlPerUnit = high / pos.qty;
     buffer = (high * pullbackRatio) / pos.qty;
     if (pos.side === 'LONG')  { adjustedSL = pos.entry + pnlPerUnit - buffer; }
@@ -1527,7 +1534,7 @@ function toggleFocusMode() {
 function toggleSpreadFilter() {
   spreadFilterOn = !spreadFilterOn;
   var tog = document.getElementById('togSpreadFilter'); if (tog) tog.className = 'tog ' + (spreadFilterOn ? 'on' : 'off');
-  var desc = document.getElementById('togSpreadFilterD'); if (desc) desc.textContent = spreadFilterOn ? 'Aktif: spread > %0.05 ise girme' : 'Kapali';
+  var desc = document.getElementById('togSpreadFilterD'); if (desc) desc.textContent = spreadFilterOn ? 'Aktif: spread > %0.03 ise girme' : 'Kapali';
   notify(spreadFilterOn ? 'Spread filtresi AKTIF' : 'Spread filtresi PASIF', 'info');
 }
 function toggleTimeFilter() {
@@ -1581,7 +1588,7 @@ window.addEventListener('DOMContentLoaded', function() {
     navBtns[n].onclick = (function(btn) { return function() { swPage(btn.getAttribute('data-page')); }; })(navBtns[n]);
   }
   startDemo();
-  log('APEX V4.3.1 — Leverage fix: posVal nominal olarak gonderilir, worker /leverage bolmez', 'ok');
+  log('APEX V4.3.2 — Trail gevsetildi, SL/TP slippage kaydirma, minSL genisletildi, spread filtresi %0.03', 'ok');
 });
 </script>
 </body>
