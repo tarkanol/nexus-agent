@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX Scalp | V4.3.3-1</title>
+<title>APEX Scalp | V4.3.3-phi</title>
 <style>
 :root{--bg:#020a0f;--panel:#041018;--card:#061520;--brd:#0d2030;--brd2:#0a2840;--acc:#00d4ff;--acc2:#0088aa;--long:#00ff88;--long2:#00cc66;--short:#ff3355;--short2:#cc1133;--warn:#ffaa00;--dim:#2a5070;--dim2:#3a6080;--text:#8ab8cc;--text2:#c8e8f0;--gold:#ffcc44;--mono:'Share Tech Mono',monospace;--body:'Rajdhani',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -682,26 +682,66 @@ function analyzeAll() {
   }
 }
 function checkExitSignals() {
+
   if (!exitSignalOn || positions.length === 0) return;
+
   var i, pos, pd2, c5, e9, e21, l9, l21, p9, p21, goldenX, deathX;
+
   for (i = positions.length - 1; i >= 0; i--) {
+
     pos = positions[i];
+
     if (closingPositions[pos.id]) continue;
+
     pd2 = pData[pos.pair];
+
     if (!pd2 || !pd2.kl5m || pd2.kl5m.length < 25) continue;
+
     c5 = [];
-    for (var j = 0; j < pd2.kl5m.length; j++) c5.push(pd2.kl5m[j].c);
-    e9  = calcEMA(c5, 9); e21 = calcEMA(c5, 21);
-    l9  = e9[e9.length-1];  l21 = e21[e21.length-1];
-    p9  = e9[e9.length-2];  p21 = e21[e21.length-2];
+
+    for (var j = 0; j < pd2.kl5m.length; j++) {
+      c5.push(pd2.kl5m[j].c);
+    }
+
+    e9 = calcEMA(c5, 9);
+    e21 = calcEMA(c5, 21);
+
+    l9  = e9[e9.length - 1];
+    l21 = e21[e21.length - 1];
+
+    p9  = e9[e9.length - 2];
+    p21 = e21[e21.length - 2];
+
     if (!l9 || !l21 || !p9 || !p21) continue;
+
+    // Yeni filtre
+    var emaGap = Math.abs(l9 - l21) / l21;
+
+    if (emaGap < 0.0015) continue;
+
     goldenX = (p9 <= p21) && (l9 > l21);
     deathX  = (p9 >= p21) && (l9 < l21);
+
     if (pos.side === 'LONG' && deathX) {
-      logPos('EXIT SIG: ' + pos.pair.replace('_USDT','') + ' DEATH X — LONG kapatiliyor', 'err');
+
+      logPos(
+        'EXIT SIG: ' +
+        pos.pair.replace('_USDT', '') +
+        ' DEATH X — LONG kapatiliyor',
+        'err'
+      );
+
       closePos(pos.id, 'EMA_DEATH_X_EXIT');
+
     } else if (pos.side === 'SHORT' && goldenX) {
-      logPos('EXIT SIG: ' + pos.pair.replace('_USDT','') + ' GOLDEN X — SHORT kapatiliyor', 'err');
+
+      logPos(
+        'EXIT SIG: ' +
+        pos.pair.replace('_USDT', '') +
+        ' GOLDEN X — SHORT kapatiliyor',
+        'err'
+      );
+
       closePos(pos.id, 'EMA_GOLDEN_X_EXIT');
     }
   }
@@ -917,42 +957,127 @@ function runTracker() {
 }
 function runTrailLogic() {
   var i, pos, pr, pnl, high, pullbackRatio, buffer, adjustedSL, betterSL, reason;
+
   for (i = positions.length - 1; i >= 0; i--) {
+
     pos = positions[i];
     if (closingPositions[pos.id]) continue;
+
     pr  = (pData[pos.pair] && pData[pos.pair].price) || pos.entry;
-    pnl = (pos.realPnl !== undefined) ? pos.realPnl : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
-    if (pos.side === 'LONG'  && pr >= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
-    if (pos.side === 'SHORT' && pr <= pos.tp) { closePos(pos.id, 'TAKE PROFIT'); continue; }
-    if (pos.side === 'LONG'  && pr <= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
-    if (pos.side === 'SHORT' && pr >= pos.sl) { closePos(pos.id, 'STOP LOSS');   continue; }
-    if (pnl > pos.highPnl) pos.highPnl = pnl;
-    high = pos.highPnl;
-    if (high <= 0) continue;
-    // V4.3.3 trailing (aynen korundu)
-    if (high >= targetUSD * 0.9)      pullbackRatio = 0.40;
-    else if (high >= targetUSD * 0.6) pullbackRatio = 0.50;
-    else if (high >= targetUSD * 0.3) pullbackRatio = 0.60;
-    else                              pullbackRatio = 0.75;
-    var pnlPerUnit = high / pos.qty;
-    buffer = (high * pullbackRatio) / pos.qty;
-    if (pos.side === 'LONG')  { adjustedSL = pos.entry + pnlPerUnit - buffer; }
-    else                      { adjustedSL = pos.entry - pnlPerUnit + buffer; }
-    betterSL = false;
-    if (pos.side === 'LONG'  && adjustedSL > pos.sl) betterSL = true;
-    if (pos.side === 'SHORT' && adjustedSL < pos.sl) betterSL = true;
-    if (!betterSL) continue;
-    reason = 'TRAIL';
-    pos.sl = adjustedSL;
-    if (high >= targetUSD * 0.85) {
-      var extTP;
-      if (pos.side === 'LONG')  { extTP = pr + (pr - pos.entry) * 0.5; if (extTP > pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; } }
-      else                      { extTP = pr - (pos.entry - pr) * 0.5; if (extTP < pos.tp) { pos.tp = extTP; reason += '+TP_EXT'; } }
+
+    pnl = (pos.realPnl !== undefined)
+      ? pos.realPnl
+      : (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
+
+    // TP / SL kontrolü
+    if (pos.side === 'LONG'  && pr >= pos.tp) {
+      closePos(pos.id, 'TAKE PROFIT');
+      continue;
     }
-    var msg2 = '[TRAIL] ' + pos.pair.replace('_USDT','') + ' | ' + reason + ' | PnL:$' + high.toFixed(4) + ' SL:' + fp(pos.sl);
-    log(msg2, 'ok'); logPos(msg2, 'ok');
-    if (appMode === 'live' && WORKER) maybePushTpSl(pos);
-    if (high >= targetUSD * 0.98) closePos(pos.id, 'HEDEF ALINDI (98%)');
+
+    if (pos.side === 'SHORT' && pr <= pos.tp) {
+      closePos(pos.id, 'TAKE PROFIT');
+      continue;
+    }
+
+    if (pos.side === 'LONG'  && pr <= pos.sl) {
+      closePos(pos.id, 'STOP LOSS');
+      continue;
+    }
+
+    if (pos.side === 'SHORT' && pr >= pos.sl) {
+      closePos(pos.id, 'STOP LOSS');
+      continue;
+    }
+
+    if (pnl > pos.highPnl) pos.highPnl = pnl;
+
+    high = pos.highPnl;
+
+    // Yeni filtre
+    if (high < targetUSD * 0.25) continue;
+
+    // Trailing ayarları
+    if (high >= targetUSD * 1.00) {
+      pullbackRatio = 0.35;
+    }
+    else if (high >= targetUSD * 0.75) {
+      pullbackRatio = 0.45;
+    }
+    else if (high >= targetUSD * 0.50) {
+      pullbackRatio = 0.55;
+    }
+    else {
+      pullbackRatio = 0.65;
+    }
+
+    var pnlPerUnit = high / pos.qty;
+
+    buffer = (high * pullbackRatio) / pos.qty;
+
+    if (pos.side === 'LONG') {
+      adjustedSL = pos.entry + pnlPerUnit - buffer;
+    } else {
+      adjustedSL = pos.entry - pnlPerUnit + buffer;
+    }
+
+    betterSL = false;
+
+    if (pos.side === 'LONG' && adjustedSL > pos.sl) betterSL = true;
+    if (pos.side === 'SHORT' && adjustedSL < pos.sl) betterSL = true;
+
+    if (!betterSL) continue;
+
+    reason = 'TRAIL';
+
+    pos.sl = adjustedSL;
+
+    // TP uzatma artık sadece hedef görüldüğünde
+    if (high >= targetUSD * 1.00) {
+
+      var extTP;
+
+      if (pos.side === 'LONG') {
+
+        extTP = pr + (pr - pos.entry) * 0.5;
+
+        if (extTP > pos.tp) {
+          pos.tp = extTP;
+          reason += '+TP_EXT';
+        }
+
+      } else {
+
+        extTP = pr - (pos.entry - pr) * 0.5;
+
+        if (extTP < pos.tp) {
+          pos.tp = extTP;
+          reason += '+TP_EXT';
+        }
+      }
+    }
+
+    var msg2 =
+      '[TRAIL] ' +
+      pos.pair.replace('_USDT', '') +
+      ' | ' +
+      reason +
+      ' | PnL:$' +
+      high.toFixed(4) +
+      ' SL:' +
+      fp(pos.sl);
+
+    log(msg2, 'ok');
+    logPos(msg2, 'ok');
+
+    if (appMode === 'live' && WORKER) {
+      maybePushTpSl(pos);
+    }
+
+    // Eski 98% kapatma kaldırıldı
+    // İstersen bunu 130% yapabilirsin:
+    // if (high >= targetUSD * 1.30)
+    //   closePos(pos.id, 'HEDEF ALINDI (130%)');
   }
 }
 function maybePushTpSl(pos) {
