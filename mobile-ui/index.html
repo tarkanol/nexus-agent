@@ -541,9 +541,14 @@ var closingNow = {};
 // SIGNAL MODE CONFIG
 // ═══════════════════════════════════════════════════
 var MODE_CFG = {
-  hard:   {scoreMin:75, volMin:1.5, tfConfirmMin:3, allowSqueeze:false, rsiOBOS:[72,28], label:'Score ≥75 | Vol ≥1.5x | 3+ TF confirm | No squeeze'},
-  medium: {scoreMin:62, volMin:1.1, tfConfirmMin:2, allowSqueeze:false, rsiOBOS:[76,24], label:'Score ≥62 | Vol ≥1.1x | 2+ TF confirm'},
-  soft:   {scoreMin:50, volMin:0.8, tfConfirmMin:2, allowSqueeze:true,  rsiOBOS:[80,20], label:'Score ≥50 | Vol ≥0.8x | 2+ TF confirm | Squeeze OK'}
+ // hard:   {scoreMin:75, volMin:1.5, tfConfirmMin:3, allowSqueeze:false, rsiOBOS:[72,28], label:'Score ≥75 | Vol ≥1.5x | 3+ TF confirm | No squeeze'},
+ // medium: {scoreMin:62, volMin:1.1, tfConfirmMin:2, allowSqueeze:false, rsiOBOS:[76,24], label:'Score ≥62 | Vol ≥1.1x | 2+ TF confirm'},
+ // soft:   {scoreMin:50, volMin:0.8, tfConfirmMin:2, allowSqueeze:true,  rsiOBOS:[80,20], label:'Score ≥50 | Vol ≥0.8x | 2+ TF confirm | Squeeze OK'}
+   hard:   {scoreMin:65, volMin:1.2, tfConfirmMin:2, allowSqueeze:false, rsiOBOS:[74,26], label:'Score ≥65 | Vol ≥1.2x | 2+ TF confirm | No squeeze'},
+   medium: {scoreMin:55, volMin:0.9, tfConfirmMin:2, allowSqueeze:false, rsiOBOS:[77,23], label:'Score ≥55 | Vol ≥0.9x | 2+ TF confirm'},
+   soft:   {scoreMin:45, volMin:0.7, tfConfirmMin:1, allowSqueeze:true,  rsiOBOS:[82,18], label:'Score ≥45 | Vol ≥0.7x | 1+ TF confirm | Squeeze OK'}
+
+
 };
 
 function setMode(m) {
@@ -781,11 +786,13 @@ function analyze(sym) {
   if (!cfg.allowSqueeze && bb5.squeeze) return null;
 
   // TF confirmation
-  var tfConfirm = 0;
+    var tfConfirm = 0;
   if (aboveEMA && rawSig==='LONG')  tfConfirm++;
   if (belowEMA && rawSig==='SHORT') tfConfirm++;
   if (trend15 === rawSig) tfConfirm++;
   if (trend1h === rawSig) tfConfirm++;
+  // MEDIUM/SOFT: golden/death cross tek başına yeterli
+  if ((signalMode==='medium'||signalMode==='soft') && (goldenX||deathX)) tfConfirm++;
   if (tfConfirm < cfg.tfConfirmMin) return null;
 
   // SCORE
@@ -819,7 +826,7 @@ function analyze(sym) {
   var riskBasedVal = Math.min(riskUSD/(slDist/price), balance*0.25);
   if (isNaN(riskBasedVal)||riskBasedVal<1) riskBasedVal=1;
   var posVal = Math.min(riskBasedVal, effectiveMaxPos());
-  if (posVal < 5) return null;
+ // if (posVal < 5) return null;
   var qty = posVal/price;
   var comm = posVal*COMM*2;
 
