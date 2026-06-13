@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.1 SAFE</title>
+<title>APEX SCALP V6.1.2 BALANCE FIX</title>
 <style>
 :root {
   --bg:#010c12; --panel:#031018; --card:#04141e; --brd:#0c1e2c; --brd2:#0a2235;
@@ -1869,7 +1869,7 @@ window.addEventListener('DOMContentLoaded',function(){
 (function () {
   'use strict';
 
-  var APP_VERSION = '6.1.1 SAFE COMPAT';
+  var APP_VERSION = '6.1.2 BALANCE FIX';
   var POSITION_STATE = Object.freeze({
     PENDING_OPEN: 'PENDING_OPEN',
     OPEN: 'OPEN',
@@ -2073,8 +2073,8 @@ window.addEventListener('DOMContentLoaded',function(){
       Runtime.capabilities.kill = false;
       if (!Runtime.compatNotified) {
         Runtime.compatNotified = true;
-        try { log('[COMPAT] Legacy Worker mode: /price + /klines + /balance' + (reason ? ' (' + reason + ')' : ''), 'info'); } catch (_) {}
-        try { notify('Legacy Worker detected — compatible live mode active', 'info'); } catch (_) {}
+        log('[COMPAT] Legacy Worker mode: /price + /klines + /balance' + (reason ? ' (' + reason + ')' : ''), 'info');
+        notify('Legacy Worker detected — compatible live mode active', 'info');
       }
     },
     applyPing: function (ping) {
@@ -2143,14 +2143,84 @@ window.addEventListener('DOMContentLoaded',function(){
       analyzeAll();
       return {success:true,legacy:true,count:okCount};
     },
+    extractBalance: function (payload) {
+      var seen = [];
+      function numeric(v) {
+        if (v === null || v === undefined || v === '' || typeof v === 'boolean') return null;
+        if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+        if (typeof v === 'string') {
+          var n = Number(v.replace(/,/g, '').trim());
+          return Number.isFinite(n) ? n : null;
+        }
+        return null;
+      }
+      function walk(obj, depth) {
+        if (depth > 5 || obj === null || obj === undefined) return null;
+        var direct = numeric(obj);
+        if (direct !== null) return direct;
+        if (typeof obj !== 'object') return null;
+        if (seen.indexOf(obj) >= 0) return null;
+        seen.push(obj);
+        if (Array.isArray(obj)) {
+          var usdtRow = obj.find(function (x) {
+            return x && /^(USDT|USD)$/i.test(String(x.currency || x.asset || x.coin || x.settle || ''));
+          });
+          if (usdtRow) {
+            var uv = walk(usdtRow, depth + 1);
+            if (uv !== null) return uv;
+          }
+          for (var ai = 0; ai < obj.length; ai++) {
+            var av = walk(obj[ai], depth + 1);
+            if (av !== null) return av;
+          }
+          return null;
+        }
+        var priority = [
+          'balance','total','equity','marginBalance','margin_balance','accountBalance','account_balance',
+          'walletBalance','wallet_balance','available','available_balance','availableBalance',
+          'cross_available','total_available_margin','amount'
+        ];
+        for (var i = 0; i < priority.length; i++) {
+          var key = priority[i];
+          if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+          var value = obj[key];
+          var n = numeric(value);
+          if (n !== null) return n;
+          if (value && typeof value === 'object') {
+            var preferred = value.USDT != null ? value.USDT : (value.usdt != null ? value.usdt : null);
+            n = numeric(preferred);
+            if (n !== null) return n;
+            n = walk(value, depth + 1);
+            if (n !== null) return n;
+          }
+        }
+        var wrappers = ['data','result','account','wallet','futures','details','payload'];
+        for (var j = 0; j < wrappers.length; j++) {
+          if (!Object.prototype.hasOwnProperty.call(obj, wrappers[j])) continue;
+          var w = walk(obj[wrappers[j]], depth + 1);
+          if (w !== null) return w;
+        }
+        return null;
+      }
+      return walk(payload, 0);
+    },
+    responseError: function (payload, fallback) {
+      if (!payload) return fallback || 'Empty Worker response';
+      return String(payload.error || payload.message || payload.label || payload.detail || fallback || 'Worker request failed');
+    },
     syncLegacyBalance: async function () {
       var d = await Http.get('/balance');
-      var src = d && (d.data || d);
-      var b = Number(src && (src.balance != null ? src.balance : src.total));
-      if (!Number.isFinite(b)) throw new Error('Balance unavailable');
+      if (d && d.success === false) throw new Error(ApiCompat.responseError(d, 'Balance request failed'));
+      var b = ApiCompat.extractBalance(d);
+      if (!Number.isFinite(b)) {
+        var roots = d && typeof d === 'object' ? Object.keys(d).slice(0, 10).join(',') : typeof d;
+        Runtime.lastReconcileAt = Date.now();
+        log('[RECONCILE] Balance field not recognised; last value kept. Response keys: ' + (roots || 'none'), 'info');
+        return {success:true,balanceUnavailable:true,raw:d};
+      }
       futBal = b; balance = b; peakBal = Math.max(peakBal, balance);
       Runtime.lastReconcileAt = Date.now();
-      try { updateBalUI(); } catch (_) {}
+      updateBalUI();
       return d;
     },
     statusText: function () {
@@ -2482,7 +2552,8 @@ window.addEventListener('DOMContentLoaded',function(){
     },
     reconcilePayload: function (payload) {
       if (!payload) return;
-      if (Number.isFinite(Number(payload.balance))) { futBal=Number(payload.balance);balance=futBal;peakBal=Math.max(peakBal,balance); }
+      var reconciledBalance = ApiCompat.extractBalance(payload);
+      if (Number.isFinite(reconciledBalance)) { futBal=reconciledBalance;balance=futBal;peakBal=Math.max(peakBal,balance); }
       if (Array.isArray(payload.positions)) {
         var next=[];
         payload.positions.filter(function(p){return Math.abs(Number(p.size || p.qty || 0))>0;}).forEach(function(sp){
@@ -2620,7 +2691,7 @@ window.addEventListener('DOMContentLoaded',function(){
   };
 
   function injectSafeUI() {
-    var logo=document.querySelector('.logo');if(logo)logo.innerHTML='APEX<span> // SCALP V6.1 SAFE</span>';
+    var logo=document.querySelector('.logo');if(logo)logo.innerHTML='APEX<span> // SCALP V6.1.2</span>';
     document.title='APEX SCALP V6.1 SAFE';
     var settings=document.querySelector('#pg-settings .scroll');
     if(settings&&!document.getElementById('safeRiskCard')){
