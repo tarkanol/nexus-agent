@@ -1869,7 +1869,7 @@ window.addEventListener('DOMContentLoaded',function(){
 (function () {
   'use strict';
 
-  var APP_VERSION = '6.1 SAFE';
+  var APP_VERSION = '6.1.1 SAFE COMPAT';
   var POSITION_STATE = Object.freeze({
     PENDING_OPEN: 'PENDING_OPEN',
     OPEN: 'OPEN',
@@ -1902,7 +1902,10 @@ window.addEventListener('DOMContentLoaded',function(){
     scanBusy: false,
     demoLastTick: 0,
     tests: [],
-    booted: false
+    booted: false,
+    apiMode: 'unknown',
+    capabilities: {snapshot:null,state:null,riskUpdate:null,kill:null},
+    compatNotified: false
   };
 
   var Utils = {
@@ -2052,6 +2055,109 @@ window.addEventListener('DOMContentLoaded',function(){
     }
   };
 
+
+  var ApiCompat = {
+    isNotFound: function (e) {
+      return !!e && (e.status === 404 || /not\s*found|endpoint/i.test(String(e.message || '')));
+    },
+    setModern: function () {
+      Runtime.apiMode = 'modern';
+      Runtime.capabilities.snapshot = true;
+      Runtime.capabilities.state = true;
+    },
+    setLegacy: function (reason) {
+      Runtime.apiMode = 'legacy';
+      Runtime.capabilities.snapshot = false;
+      Runtime.capabilities.state = false;
+      Runtime.capabilities.riskUpdate = false;
+      Runtime.capabilities.kill = false;
+      if (!Runtime.compatNotified) {
+        Runtime.compatNotified = true;
+        try { log('[COMPAT] Legacy Worker mode: /price + /klines + /balance' + (reason ? ' (' + reason + ')' : ''), 'info'); } catch (_) {}
+        try { notify('Legacy Worker detected — compatible live mode active', 'info'); } catch (_) {}
+      }
+    },
+    applyPing: function (ping) {
+      var f = ping && (ping.features || ping.capabilities);
+      if (f) {
+        Runtime.capabilities.snapshot = !!f.snapshot;
+        Runtime.capabilities.state = !!(f.state || f.reconcile);
+        Runtime.capabilities.riskUpdate = !!f.riskUpdate;
+        Runtime.capabilities.kill = !!f.kill;
+        Runtime.apiMode = Runtime.capabilities.snapshot && Runtime.capabilities.state ? 'modern' : 'legacy';
+        if (Runtime.apiMode === 'legacy') ApiCompat.setLegacy('ping capabilities');
+        return;
+      }
+      if (ping && /^6\.1/.test(String(ping.version || ''))) ApiCompat.setModern();
+    },
+    normalizeCandle: function (k) {
+      var out;
+      if (Array.isArray(k)) out = {t:+k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]};
+      else out = {t:+k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+(k.v != null ? k.v : k.sum)};
+      if (out.t > 0 && out.t < 1000000000000) out.t *= 1000;
+      return out;
+    },
+    fetchLegacyMarket: async function (symbols) {
+      var okCount = 0;
+      await Promise.all(symbols.map(async function (sym) {
+        if (!pData[sym]) pData[sym] = {};
+        var priceOk = false, candleOk = false;
+        try {
+          var d = await Http.get('/price?symbol=' + encodeURIComponent(sym));
+          var src = d && (d.data || d);
+          var pr = Number(src && (src.lastPrice != null ? src.lastPrice : src.price));
+          if (pr > 0) {
+            prevPx[sym] = pData[sym].price || pr;
+            pData[sym].price = pr;
+            if (!pxState[sym]) pxState[sym] = {price:pr,vel:0};
+            pxState[sym].price = pr;
+            priceOk = true;
+          }
+        } catch (e) {
+          log('[PRICE] ' + sym + ' ' + e.message, 'err');
+        }
+        var specs = [
+          {tf:'5m',limit:200,key:'kl5m'},
+          {tf:'15m',limit:120,key:'kl15m'},
+          {tf:'1h',limit:80,key:'kl1h'}
+        ];
+        await Promise.all(specs.map(async function (s) {
+          try {
+            var d = await Http.get('/klines?symbol=' + encodeURIComponent(sym) + '&interval=' + s.tf + '&limit=' + s.limit);
+            var rows = d && (Array.isArray(d.data) ? d.data : Array.isArray(d.klines) ? d.klines : null);
+            if (rows) {
+              pData[sym][s.key] = Utils.closedCandles(rows.map(ApiCompat.normalizeCandle).filter(function(k){return k.t&&k.c;}), s.tf, Date.now());
+              candleOk = candleOk || pData[sym][s.key].length > 0;
+            }
+          } catch (e) {
+            log('[KLINES] ' + sym + ' ' + s.tf + ' ' + e.message, 'err');
+          }
+        }));
+        if (priceOk || candleOk) {
+          pData[sym].dataUpdatedAt = Date.now();
+          pData[sym].source = 'live-legacy';
+          okCount++;
+        }
+      }));
+      if (!okCount) throw new Error('Legacy market endpoints returned no usable data');
+      analyzeAll();
+      return {success:true,legacy:true,count:okCount};
+    },
+    syncLegacyBalance: async function () {
+      var d = await Http.get('/balance');
+      var src = d && (d.data || d);
+      var b = Number(src && (src.balance != null ? src.balance : src.total));
+      if (!Number.isFinite(b)) throw new Error('Balance unavailable');
+      futBal = b; balance = b; peakBal = Math.max(peakBal, balance);
+      Runtime.lastReconcileAt = Date.now();
+      try { updateBalUI(); } catch (_) {}
+      return d;
+    },
+    statusText: function () {
+      return Runtime.apiMode === 'legacy' ? 'Live connection active — legacy compatible endpoints' : 'Live connection active — server risk manager';
+    }
+  };
+
   var RiskManager = {
     todayTrades: function () { return trades.filter(function (t) { return Utils.sameDay(t.closedAt || t.time || Date.now()); }).length; },
     drawdownPct: function () {
@@ -2194,10 +2300,23 @@ window.addEventListener('DOMContentLoaded',function(){
     },
     fetchLive: async function () {
       if (!WORKER) return;
-      var qs = encodeURIComponent(pairs.join(','));
-      var snap = await Http.get('/snapshot?symbols=' + qs);
-      if (!snap || !snap.success) throw new Error('Invalid snapshot');
-      MarketData.applySnapshot(snap);
+      if (Runtime.apiMode !== 'legacy' && Runtime.capabilities.snapshot !== false) {
+        try {
+          var qs = encodeURIComponent(pairs.join(','));
+          var snap = await Http.get('/snapshot?symbols=' + qs);
+          if (!snap || !snap.success || !snap.market) throw new Error('Invalid snapshot response');
+          Runtime.apiMode = 'modern'; Runtime.capabilities.snapshot = true;
+          MarketData.applySnapshot(snap);
+          return snap;
+        } catch (e) {
+          if (ApiCompat.isNotFound(e) || /invalid snapshot/i.test(String(e.message || ''))) ApiCompat.setLegacy(e.message);
+          else {
+            log('[SNAPSHOT] ' + e.message + ' — trying legacy endpoints', 'info');
+            ApiCompat.setLegacy('snapshot fallback');
+          }
+        }
+      }
+      return ApiCompat.fetchLegacyMarket(pairs.slice());
     }
   };
 
@@ -2224,9 +2343,6 @@ window.addEventListener('DOMContentLoaded',function(){
     finalizeLiveOpen: function (pos, r) {
       pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
       if (r.fillPrice) pos.entry = Number(r.fillPrice);
-      if (r.qty) pos.qty = Math.abs(Number(r.qty));
-      if (r.entryFee != null) pos.entryFee = Math.abs(Number(r.entryFee));
-      pos.posVal = pos.entry * pos.qty;
       StateMachine.transition(pos, POSITION_STATE.OPEN);
       positions.push(pos);
       SafeStore.save();
@@ -2260,9 +2376,8 @@ window.addEventListener('DOMContentLoaded',function(){
             sl:sl, tp:tp, clientOrderId:clientOrderId,
             maxSlippageBps:SafeConfig.slippageBps + SafeConfig.spreadBps
           });
-          if (!r || !r.success) throw new Error((r && r.error) || 'Order rejected');
+          if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Order rejected');
           Execution.finalizeLiveOpen(pos, r);
-          await Utils.sleep(500);
           await Execution.reconcile(true);
         } else Execution.finalizeDemoOpen(pos);
         notify((auto?'AUTO ':'') + side + ' ' + sym.replace('_USDT','') + ' opened','success');
@@ -2289,16 +2404,17 @@ window.addEventListener('DOMContentLoaded',function(){
         if (appMode === 'live') {
           var cid = Utils.orderId('close', pos.pair);
           var r = await Http.post('/close', {symbol:pos.pair, side:pos.side, clientOrderId:cid, reason:reason || 'MANUAL'});
-          if (!r || !r.success) throw new Error((r && r.error) || 'Close rejected');
-          if (r.trade) Execution.recordClosures([r.trade]);
-          var stillOpen=true;
-          for(var attempt=0;attempt<4;attempt++){
-            await Utils.sleep(400+attempt*250);
+          if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Close rejected');
+          if (Runtime.apiMode === 'legacy' || Runtime.capabilities.state === false) {
+            var sr = r.trade || null;
+            var legacyExit = Number(sr && sr.exitPrice) || Number(r.fillPrice) || Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+            Execution.finalizeLegacyLiveClose(pos, legacyExit, reason || 'MANUAL', sr);
+            try { await ApiCompat.syncLegacyBalance(); } catch (_) {}
+          } else {
             await Execution.reconcile(true);
-            stillOpen=positions.some(function(p){return p.pair===pos.pair && p.state!==POSITION_STATE.CLOSED;});
-            if(!stillOpen)break;
+            var stillOpen = positions.some(function(p){return p.id===id || (p.pair===pos.pair && p.state!==POSITION_STATE.CLOSED);});
+            if (stillOpen) throw new Error('Exchange still reports position open');
           }
-          if (stillOpen) throw new Error('Exchange still reports position open');
           notify(pos.pair.replace('_USDT','') + ' closed','success');
         } else {
           var pr = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
@@ -2334,19 +2450,23 @@ window.addEventListener('DOMContentLoaded',function(){
       if (!positions.length) stopTracker();
       updatePosUI(); updateWRStrip(); updateBalUI(); drawEquity();
     },
-    recordClosures: function (rows) {
-      (rows || []).forEach(function(c){
-        var closureId=String(c.closureId || c.orderId || '');
-        if(!closureId || trades.some(function(t){return t.closureId===closureId;}))return;
-        var net=Number(c.net || 0);
-        var tr={closureId:closureId,pair:c.symbol,side:c.side,pnl:net,gross:Number(c.gross||0),entryFee:Number(c.entryFee||0),exitFee:Number(c.exitFee||0),reason:c.reason||'SERVER',entry:Number(c.entryPrice||0),exit:Number(c.exitPrice||0),openedAt:Number(c.openedAt||0),closedAt:Number(c.closedAt||Date.now())};
-        trades.push(tr);
-        if(Utils.sameDay(tr.closedAt))dailyPnL+=net;
-        if(net>0){winStreak++;loseStreak=0;}else{loseStreak++;winStreak=0;}
-        equityHistory.push(balance);if(equityHistory.length>300)equityHistory.shift();
-        logPos('[SERVER CLOSE] '+tr.pair+' '+tr.reason+' net:'+(net>=0?'+':'')+'$'+net.toFixed(4),net>=0?'ok':'err');
-      });
-      SafeStore.save();updateWRStrip();drawEquity();
+    finalizeLegacyLiveClose: function (pos, exitPrice, reason, serverTrade) {
+      var br = Accounting.closeBreakdown(pos, exitPrice, 0);
+      var net = serverTrade && Number.isFinite(Number(serverTrade.net)) ? Number(serverTrade.net) : br.tradeNet;
+      try { StateMachine.transition(pos, POSITION_STATE.CLOSED); } catch (_) { pos.state = POSITION_STATE.CLOSED; }
+      positions = positions.filter(function(p){ return p.id !== pos.id; });
+      delete closingNow[pos.id];
+      var tr = {
+        pair:pos.pair, side:pos.side, pnl:net, gross:serverTrade && Number.isFinite(Number(serverTrade.gross)) ? Number(serverTrade.gross) : br.gross,
+        entryFee:serverTrade && Number.isFinite(Number(serverTrade.entryFee)) ? Number(serverTrade.entryFee) : br.entryFee,
+        exitFee:serverTrade && Number.isFinite(Number(serverTrade.exitFee)) ? Number(serverTrade.exitFee) : br.exitFee,
+        reason:reason, entry:pos.entry, exit:exitPrice, openedAt:pos.openTime, closedAt:Date.now(), legacyVerified:false
+      };
+      trades.push(tr); dailyPnL += net;
+      if (net > 0) { winStreak++; loseStreak=0; } else { loseStreak++; winStreak=0; }
+      logPos('LEGACY CLOSE ' + pos.pair + ' net:' + (net>=0?'+':'') + '$' + net.toFixed(4) + ' — exchange position list endpoint unavailable', net>=0?'ok':'err');
+      SafeStore.save(); updatePosUI(); updateWRStrip(); drawEquity();
+      if (!positions.length) stopTracker();
     },
     normalizeServerPosition: function (p) {
       var side = p.side || (Number(p.size) >= 0 ? 'LONG' : 'SHORT');
@@ -2364,10 +2484,10 @@ window.addEventListener('DOMContentLoaded',function(){
       if (!payload) return;
       if (Number.isFinite(Number(payload.balance))) { futBal=Number(payload.balance);balance=futBal;peakBal=Math.max(peakBal,balance); }
       if (Array.isArray(payload.positions)) {
-        var previous=positions.slice(),next=[];
+        var next=[];
         payload.positions.filter(function(p){return Math.abs(Number(p.size || p.qty || 0))>0;}).forEach(function(sp){
           var sym=sp.symbol||sp.contract;
-          var old=previous.find(function(x){return x.pair===sym && x.state!==POSITION_STATE.CLOSED;});
+          var old=positions.find(function(x){return x.pair===sym && x.state!==POSITION_STATE.CLOSED;});
           if(old){
             old.entry=Number(sp.entryPrice||sp.entry_price||old.entry);
             old.qty=Math.abs(Number(sp.qty||sp.baseQty||old.qty));
@@ -2376,15 +2496,8 @@ window.addEventListener('DOMContentLoaded',function(){
             next.push(old);
           } else next.push(Execution.normalizeServerPosition(sp));
         });
-        previous.forEach(function(local){
-          var represented=next.some(function(x){return x.pair===local.pair;});
-          var recentOpen=local.serverManaged&&local.state===POSITION_STATE.OPEN&&Date.now()-local.openTime<10000&&!closingNow[local.id];
-          if(!represented&&recentOpen)next.push(local);
-        });
         positions=next;
       }
-      if(Array.isArray(payload.closures))Execution.recordClosures(payload.closures);
-      if(payload.killSwitch===true)SafeConfig.killSwitch=true;
       Runtime.lastReconcileAt=Date.now(); SafeStore.save(); updatePosUI();updateBalUI();
     },
     reconcile: async function (force) {
@@ -2392,9 +2505,19 @@ window.addEventListener('DOMContentLoaded',function(){
       if(!force && Date.now()-Runtime.lastReconcileAt<SafeConfig.reconcileMs) return;
       Runtime.liveReconcileBusy=true;
       try {
-        var r=await Http.get('/state');
-        if(!r||!r.success) throw new Error((r&&r.error)||'State unavailable');
-        Execution.reconcilePayload(r);
+        if (Runtime.apiMode !== 'legacy' && Runtime.capabilities.state !== false) {
+          try {
+            var r=await Http.get('/state');
+            if(!r||!r.success) throw new Error((r&&r.error)||'State unavailable');
+            Runtime.apiMode='modern';Runtime.capabilities.state=true;
+            Execution.reconcilePayload(r);
+            return r;
+          } catch(e) {
+            if (ApiCompat.isNotFound(e)) ApiCompat.setLegacy(e.message);
+            else throw e;
+          }
+        }
+        return await ApiCompat.syncLegacyBalance();
       } catch(e){log('[RECONCILE] '+e.message,'err');}
       finally{Runtime.liveReconcileBusy=false;}
     }
@@ -2412,10 +2535,13 @@ window.addEventListener('DOMContentLoaded',function(){
       if(!improved || Math.abs(newSL-pos.sl)/pos.entry<0.0002) return;
       var old=pos.sl;pos.sl=newSL;pos.trailActive=true;
       logPos('[TRAIL] '+pos.pair+' '+fp(old)+' -> '+fp(newSL),'ok');
-      if(appMode==='live'&&WORKER&&(!pos.lastRiskSync||Date.now()-pos.lastRiskSync>1200)){
+      if(appMode==='live'&&WORKER&&Runtime.capabilities.riskUpdate!==false&&(!pos.lastRiskSync||Date.now()-pos.lastRiskSync>1200)){
         pos.lastRiskSync=Date.now();
-        try{await Http.post('/risk/update',{symbol:pos.pair,side:pos.side,sl:pos.sl,tp:pos.tp,clientOrderId:Utils.orderId('risk',pos.pair)});}
-        catch(e){pos.lastError='Risk sync: '+e.message;logPos('[RISK SYNC ERROR] '+e.message,'err');}
+        try{await Http.post('/risk/update',{symbol:pos.pair,side:pos.side,sl:pos.sl,tp:pos.tp,clientOrderId:Utils.orderId('risk',pos.pair)});Runtime.capabilities.riskUpdate=true;}
+        catch(e){
+          if(ApiCompat.isNotFound(e)){Runtime.capabilities.riskUpdate=false;logPos('[COMPAT] Server trailing endpoint unavailable; local trail only','info');}
+          else{pos.lastError='Risk sync: '+e.message;logPos('[RISK SYNC ERROR] '+e.message,'err');}
+        }
       }
     }
   };
@@ -2530,7 +2656,7 @@ window.addEventListener('DOMContentLoaded',function(){
     };
     var kill=document.getElementById('safeKill');if(kill)kill.onclick=async function(){
       SafeConfig.killSwitch=!SafeConfig.killSwitch;SafeStore.save();renderRiskStatus();
-      if(appMode==='live'&&WORKER){try{await Http.post('/kill',{enabled:SafeConfig.killSwitch,closeAll:false});}catch(e){notify('Worker kill sync failed','error');}}
+      if(appMode==='live'&&WORKER&&Runtime.capabilities.kill!==false){try{await Http.post('/kill',{enabled:SafeConfig.killSwitch,closeAll:false});Runtime.capabilities.kill=true;}catch(e){if(ApiCompat.isNotFound(e)){Runtime.capabilities.kill=false;notify('Legacy Worker: kill switch is local only','info');}else notify('Worker kill sync failed','error');}}
     };
     var bt=document.getElementById('runBacktest');if(bt)bt.onclick=function(){
       var out=document.getElementById('safeDiagOut');try{var r=Backtester.run(currentPair);out.textContent='BACKTEST '+currentPair+'\nTrades: '+r.trades+'\nWin rate: '+r.winRate.toFixed(1)+'%\nNet: '+(r.net>=0?'+':'')+'$'+r.net.toFixed(4)+'\nProfit factor: '+r.pf.toFixed(2)+'\nMax DD: '+r.maxDD.toFixed(2)+'%\nEnding: $'+r.ending.toFixed(2)+'\n\nCosts included: entry/exit fees, spread, slippage. Same-candle TP+SL is counted as SL.';}catch(e){out.textContent='BACKTEST ERROR: '+e.message;}
@@ -2594,14 +2720,19 @@ window.addEventListener('DOMContentLoaded',function(){
   window.connectLive=async function(){
     var url=document.getElementById('wUrl').value.trim();if(!url){notify('Enter Worker URL','error');return;}
     WORKER=url.replace(/\/+$/,'');
+    Runtime.apiMode='unknown';Runtime.capabilities={snapshot:null,state:null,riskUpdate:null,kill:null};Runtime.compatNotified=false;
     try{
       var d=await Http.get('/ping');if(!d||!d.success)throw new Error('Worker not responding');
-      appMode='live';document.getElementById('bdgConn').textContent='LIVE';document.getElementById('bdgConn').className='bdg live';document.getElementById('connStatus').textContent='Live connection active — server risk manager';
-      await Execution.reconcile(true);if(loopTimer)clearTimeout(loopTimer);mainLoop();notify('Live connected','success');
+      ApiCompat.applyPing(d);
+      appMode='live';document.getElementById('bdgConn').textContent='LIVE';document.getElementById('bdgConn').className='bdg live';
+      await Execution.reconcile(true);
+      await MarketData.fetchLive();
+      document.getElementById('connStatus').textContent=ApiCompat.statusText();
+      if(loopTimer)clearTimeout(loopTimer);mainLoop();notify('Live connected ('+Runtime.apiMode+')','success');
     }catch(e){WORKER='';appMode='demo';notify('Connection error: '+e.message,'error');}
   };
   window.startDemo=function(){
-    WORKER='';appMode='demo';futBal=null;document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='bdg';document.getElementById('connStatus').textContent='Demo mode — coherent 1m candles';
+    WORKER='';appMode='demo';futBal=null;Runtime.apiMode='unknown';document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='bdg';document.getElementById('connStatus').textContent='Demo mode — coherent 1m candles';
     if(loopTimer)clearTimeout(loopTimer);mainLoop();log('V6.1 safe demo started','ok');
   };
 
@@ -2653,7 +2784,7 @@ window.addEventListener('DOMContentLoaded',function(){
     },100);
   });
 
-  window.ApexSafe={Utils:Utils,Accounting:Accounting,StateMachine:StateMachine,RiskManager:RiskManager,CandleEngine:CandleEngine,MarketData:MarketData,Execution:Execution,Backtester:Backtester,TestSuite:TestSuite,config:SafeConfig};
+  window.ApexSafe={Utils:Utils,Accounting:Accounting,StateMachine:StateMachine,RiskManager:RiskManager,CandleEngine:CandleEngine,MarketData:MarketData,Execution:Execution,ApiCompat:ApiCompat,Backtester:Backtester,TestSuite:TestSuite,config:SafeConfig,runtime:Runtime};
 })();
 
 </script>
