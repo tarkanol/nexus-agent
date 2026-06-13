@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6</title>
+<title>APEX SCALP V6.1 SAFE</title>
 <style>
 :root {
   --bg:#010c12; --panel:#031018; --card:#04141e; --brd:#0c1e2c; --brd2:#0a2235;
@@ -1857,6 +1857,805 @@ window.addEventListener('DOMContentLoaded',function(){
   log('Win rate strip + equity curve active','ok');
   log('Coherent price sim — indicators are real','ok');
 });
+</script>
+
+<script>
+/* APEX SCALP V6.1 SAFE OVERRIDE
+ * Adds: correct accounting, position state machine, idempotency,
+ * coherent 1m demo candles, live reconciliation, server risk updates,
+ * closed-candle freshness checks, cost-aware backtest, modular services,
+ * and an in-browser automated test suite.
+ */
+(function () {
+  'use strict';
+
+  var APP_VERSION = '6.1 SAFE';
+  var POSITION_STATE = Object.freeze({
+    PENDING_OPEN: 'PENDING_OPEN',
+    OPEN: 'OPEN',
+    PENDING_CLOSE: 'PENDING_CLOSE',
+    ERROR: 'ERROR',
+    CLOSED: 'CLOSED'
+  });
+
+  var SafeConfig = {
+    feeRate: Number(COMM || 0.0004),
+    slippageBps: 2,
+    spreadBps: 1,
+    maxDailyLoss: 2.00,
+    maxDrawdownPct: 8,
+    maxTradesPerDay: 20,
+    staleDataMs: 90000,
+    reconcileMs: 3000,
+    trackerMs: 500,
+    killSwitch: false,
+    persistKey: 'apex-scalp-v61-safe',
+    dayKey: new Date().toISOString().slice(0, 10)
+  };
+
+  var Runtime = {
+    openingLocks: new Set(),
+    requestLocks: new Set(),
+    liveReconcileBusy: false,
+    lastReconcileAt: 0,
+    lastScanAt: 0,
+    scanBusy: false,
+    demoLastTick: 0,
+    tests: [],
+    booted: false
+  };
+
+  var Utils = {
+    clamp: function (n, a, b) { return Math.max(a, Math.min(b, n)); },
+    num: function (v, d) { var n = Number(v); return Number.isFinite(n) ? n : (d || 0); },
+    uid: function (prefix) {
+      var rand = Math.random().toString(36).slice(2, 8);
+      return (prefix || 'apx') + '-' + Date.now().toString(36) + '-' + rand;
+    },
+    orderId: function (action, sym) {
+      var base = 't-apx-' + action.charAt(0) + '-' + String(sym || '').replace('_USDT', '').toLowerCase() + '-' + Date.now().toString(36);
+      return base.slice(0, 28);
+    },
+    symbol: function (s) {
+      s = String(s || '').trim().toUpperCase();
+      if (!/^[A-Z0-9]{2,20}_USDT$/.test(s)) throw new Error('Invalid symbol');
+      return s;
+    },
+    sleep: function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); },
+    sameDay: function (ts) { return new Date(ts).toISOString().slice(0, 10) === SafeConfig.dayKey; },
+    escape: function (s) {
+      return String(s).replace(/[&<>'"]/g, function (c) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[c];
+      });
+    },
+    intervalMs: function (tf) {
+      return ({'1m':60000,'5m':300000,'15m':900000,'1h':3600000})[tf] || 60000;
+    },
+    closedCandles: function (arr, tf, now) {
+      if (!Array.isArray(arr)) return [];
+      var ms = Utils.intervalMs(tf), cutoff = Math.floor((now || Date.now()) / ms) * ms;
+      return arr.filter(function (k) { return Number(k.t) < cutoff; });
+    }
+  };
+
+  var SafeStore = {
+    load: function () {
+      try {
+        var raw = localStorage.getItem(SafeConfig.persistKey);
+        if (!raw) return;
+        var s = JSON.parse(raw);
+        if (s.dayKey === SafeConfig.dayKey) {
+          balance = Utils.num(s.balance, START_BAL);
+          dailyPnL = Utils.num(s.dailyPnL, 0);
+          trades = Array.isArray(s.trades) ? s.trades : [];
+          equityHistory = Array.isArray(s.equityHistory) && s.equityHistory.length ? s.equityHistory : [balance];
+          winStreak = Utils.num(s.winStreak, 0);
+          loseStreak = Utils.num(s.loseStreak, 0);
+          peakBal = Math.max(Utils.num(s.peakBal, balance), balance);
+        }
+        if (s.risk) Object.assign(SafeConfig, s.risk);
+      } catch (e) { console.warn('SafeStore load', e); }
+    },
+    save: function () {
+      try {
+        localStorage.setItem(SafeConfig.persistKey, JSON.stringify({
+          dayKey: SafeConfig.dayKey,
+          balance: balance,
+          dailyPnL: dailyPnL,
+          trades: trades.slice(-300),
+          equityHistory: equityHistory.slice(-300),
+          winStreak: winStreak,
+          loseStreak: loseStreak,
+          peakBal: peakBal,
+          risk: {
+            maxDailyLoss: SafeConfig.maxDailyLoss,
+            maxDrawdownPct: SafeConfig.maxDrawdownPct,
+            maxTradesPerDay: SafeConfig.maxTradesPerDay,
+            staleDataMs: SafeConfig.staleDataMs,
+            slippageBps: SafeConfig.slippageBps,
+            spreadBps: SafeConfig.spreadBps,
+            killSwitch: SafeConfig.killSwitch
+          }
+        }));
+      } catch (e) { console.warn('SafeStore save', e); }
+    }
+  };
+
+  var Accounting = {
+    entryFee: function (notional, rate) { return Math.abs(notional) * Utils.num(rate, SafeConfig.feeRate); },
+    exitFee: function (qty, exitPrice, rate) { return Math.abs(qty * exitPrice) * Utils.num(rate, SafeConfig.feeRate); },
+    grossPnl: function (side, entry, exit, qty) {
+      return (Utils.num(exit) - Utils.num(entry)) * (side === 'LONG' ? 1 : -1) * Math.abs(Utils.num(qty));
+    },
+    marginRequired: function (notional, lev) { return Math.abs(notional) / Math.max(1, Utils.num(lev, 1)); },
+    closeBreakdown: function (pos, exitPrice, funding) {
+      var gross = Accounting.grossPnl(pos.side, pos.entry, exitPrice, pos.qty);
+      var exitFee = Accounting.exitFee(pos.qty, exitPrice, pos.feeRate);
+      var fundingCost = Utils.num(funding, 0);
+      return {
+        gross: gross,
+        entryFee: Utils.num(pos.entryFee, Accounting.entryFee(pos.posVal, pos.feeRate)),
+        exitFee: exitFee,
+        funding: fundingCost,
+        balanceDelta: gross - exitFee - fundingCost,
+        tradeNet: gross - Utils.num(pos.entryFee, 0) - exitFee - fundingCost
+      };
+    },
+    pnlTargetToDistance: function (usd, qty) {
+      qty = Math.abs(Utils.num(qty));
+      if (!qty) throw new Error('Quantity is zero');
+      return Math.abs(Utils.num(usd)) / qty;
+    }
+  };
+
+  var StateMachine = {
+    allowed: {
+      PENDING_OPEN: ['OPEN', 'ERROR'],
+      OPEN: ['PENDING_CLOSE', 'ERROR'],
+      PENDING_CLOSE: ['CLOSED', 'OPEN', 'ERROR'],
+      ERROR: ['OPEN', 'PENDING_CLOSE', 'CLOSED'],
+      CLOSED: []
+    },
+    transition: function (pos, next, message) {
+      var current = pos.state || POSITION_STATE.OPEN;
+      var allowed = StateMachine.allowed[current] || [];
+      if (allowed.indexOf(next) === -1) throw new Error('Invalid state transition ' + current + ' -> ' + next);
+      pos.state = next;
+      pos.stateUpdatedAt = Date.now();
+      pos.lastError = next === POSITION_STATE.ERROR ? String(message || 'Unknown error') : '';
+      return pos;
+    }
+  };
+
+  var Http = {
+    request: function (url, options, timeoutMs) {
+      options = options || {};
+      timeoutMs = timeoutMs || 12000;
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      if (controller) options.signal = controller.signal;
+      var timer = setTimeout(function () { if (controller) controller.abort(); }, timeoutMs);
+      return fetch(url, options).then(function (res) {
+        return res.text().then(function (txt) {
+          var data = null;
+          try { data = txt ? JSON.parse(txt) : {}; } catch (e) { data = {raw: txt}; }
+          if (!res.ok) {
+            var err = new Error((data && (data.error || data.message)) || ('HTTP ' + res.status));
+            err.status = res.status; err.data = data; throw err;
+          }
+          return data;
+        });
+      }).finally(function () { clearTimeout(timer); });
+    },
+    get: function (path) { return Http.request(WORKER + path); },
+    post: function (path, body) {
+      return Http.request(WORKER + path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body || {})});
+    }
+  };
+
+  var RiskManager = {
+    todayTrades: function () { return trades.filter(function (t) { return Utils.sameDay(t.closedAt || t.time || Date.now()); }).length; },
+    drawdownPct: function () {
+      if (!peakBal) return 0;
+      return Math.max(0, (peakBal - balance) / peakBal * 100);
+    },
+    stale: function (sym) {
+      var pd = pData[sym];
+      return !pd || !pd.dataUpdatedAt || Date.now() - pd.dataUpdatedAt > SafeConfig.staleDataMs;
+    },
+    gate: function (sym, notional) {
+      if (SafeConfig.killSwitch) return {ok:false, reason:'KILL SWITCH'};
+      if (dailyPnL <= -Math.abs(SafeConfig.maxDailyLoss)) return {ok:false, reason:'DAILY LOSS LIMIT'};
+      if (RiskManager.drawdownPct() >= SafeConfig.maxDrawdownPct) return {ok:false, reason:'MAX DRAWDOWN'};
+      if (RiskManager.todayTrades() >= SafeConfig.maxTradesPerDay) return {ok:false, reason:'TRADE LIMIT'};
+      if (isDeadHour()) return {ok:false, reason:'DEAD HOUR'};
+      if (inCD(sym)) return {ok:false, reason:'COOLDOWN'};
+      if (RiskManager.stale(sym)) return {ok:false, reason:'STALE DATA'};
+      if (positions.filter(function (p) { return p.state !== POSITION_STATE.CLOSED; }).length >= MAX_P) return {ok:false, reason:'MAX POSITIONS'};
+      if (positions.some(function (p) { return p.pair === sym && p.state !== POSITION_STATE.CLOSED; })) return {ok:false, reason:'PAIR ALREADY OPEN'};
+      if (Runtime.openingLocks.has(sym)) return {ok:false, reason:'OPEN REQUEST PENDING'};
+      var margin = Accounting.marginRequired(notional, leverage);
+      if (appMode === 'demo' && margin > balance * 0.95) return {ok:false, reason:'INSUFFICIENT MARGIN'};
+      return {ok:true};
+    },
+    enforce: function () {
+      var reason = null;
+      if (dailyPnL <= -Math.abs(SafeConfig.maxDailyLoss)) reason = 'Daily loss limit';
+      if (RiskManager.drawdownPct() >= SafeConfig.maxDrawdownPct) reason = 'Drawdown limit';
+      if (reason && !SafeConfig.killSwitch) {
+        SafeConfig.killSwitch = true;
+        notify(reason + ' — kill switch enabled', 'error');
+        log('[RISK] ' + reason, 'err');
+        SafeStore.save();
+      }
+    }
+  };
+
+  var CandleEngine = {
+    seed: function (sym, count) {
+      count = count || 9000;
+      var base = DEMO_BASE[sym] || 1;
+      var nowBucket = Math.floor(Date.now() / 60000) * 60000;
+      var out = [], p = base * (0.93 + Math.random() * 0.14), vel = 0;
+      var trend = Math.random() > 0.5 ? 1 : -1, phase = Math.random() * 6.28;
+      for (var i = count; i > 0; i--) {
+        if (i % (90 + Math.floor(Math.random() * 180)) === 0) trend *= -1;
+        phase += 0.07;
+        var drift = trend * p * (0.00003 + Math.random() * 0.00004);
+        var cyc = Math.sin(phase) * p * 0.00008;
+        var noise = (Math.random() - 0.5) * p * 0.00045;
+        vel = vel * 0.55 + drift + cyc + noise;
+        var o = p;
+        p = Math.max(base * 0.2, p + vel);
+        var range = Math.abs(vel) + p * (0.0003 + Math.random() * 0.0008);
+        out.push({
+          t: nowBucket - i * 60000,
+          o: o,
+          h: Math.max(o, p) + range * Math.random(),
+          l: Math.min(o, p) - range * Math.random(),
+          c: p,
+          v: (500 + Math.random() * 9000) * (0.7 + Math.abs(Math.sin(phase)))
+        });
+      }
+      return out;
+    },
+    aggregate: function (oneMinute, minutes, includeOpen) {
+      if (!Array.isArray(oneMinute)) return [];
+      var bucketMs = minutes * 60000, map = new Map();
+      oneMinute.forEach(function (k) {
+        var bt = Math.floor(Number(k.t) / bucketMs) * bucketMs;
+        var x = map.get(bt);
+        if (!x) x = {t:bt,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v};
+        else { x.h=Math.max(x.h,+k.h);x.l=Math.min(x.l,+k.l);x.c=+k.c;x.v+=+k.v; }
+        map.set(bt, x);
+      });
+      var arr = Array.from(map.values()).sort(function(a,b){return a.t-b.t;});
+      if (!includeOpen) {
+        var current = Math.floor(Date.now()/bucketMs)*bucketMs;
+        arr = arr.filter(function(k){return k.t < current;});
+      }
+      return arr;
+    },
+    tick: function (sym) {
+      if (!pData[sym]) pData[sym] = {};
+      if (!pData[sym].masterKlines || pData[sym].masterKlines.length < 4000) {
+        pData[sym].masterKlines = CandleEngine.seed(sym, 9000);
+      }
+      if (!pxState[sym]) {
+        var lastSeed = pData[sym].masterKlines[pData[sym].masterKlines.length - 1];
+        pxState[sym] = {price:lastSeed.c,vel:0,volMult:1};
+      }
+      if (!trendState[sym]) initTrendState(sym);
+      prevPx[sym] = pxState[sym].price;
+      demoTick(sym);
+      var now = Date.now(), bucket = Math.floor(now/60000)*60000;
+      var mk = pData[sym].masterKlines, last = mk[mk.length-1], price = pxState[sym].price;
+      if (!last || last.t < bucket) {
+        mk.push({t:bucket,o:last?last.c:price,h:price,l:price,c:price,v:100+Math.random()*1000});
+      } else {
+        last.c=price;last.h=Math.max(last.h,price);last.l=Math.min(last.l,price);last.v+=20+Math.random()*200;
+      }
+      if (mk.length > 10000) mk.splice(0, mk.length-10000);
+      pData[sym].price = price;
+      pData[sym].kl1m = CandleEngine.aggregate(mk,1,false).slice(-500);
+      pData[sym].kl5m = CandleEngine.aggregate(mk,5,false).slice(-500);
+      pData[sym].kl15m = CandleEngine.aggregate(mk,15,false).slice(-300);
+      pData[sym].kl1h = CandleEngine.aggregate(mk,60,false).slice(-200);
+      pData[sym].dataUpdatedAt = now;
+      pData[sym].source = 'demo';
+    }
+  };
+
+  var MarketData = {
+    demoRefresh: function () {
+      pairs.forEach(function (s) { CandleEngine.tick(s); });
+      analyzeAll();
+    },
+    applySnapshot: function (snap) {
+      var now = Date.now();
+      Object.keys(snap.market || {}).forEach(function (sym) {
+        var m = snap.market[sym];
+        if (!pData[sym]) pData[sym] = {};
+        prevPx[sym] = pData[sym].price || Number(m.price);
+        pData[sym].price = Number(m.price);
+        if (!pxState[sym]) pxState[sym] = {price:Number(m.price),vel:0};
+        pxState[sym].price = Number(m.price);
+        ['1m','5m','15m','1h'].forEach(function (tf) {
+          var key = tf === '1m' ? 'kl1m' : tf === '5m' ? 'kl5m' : tf === '15m' ? 'kl15m' : 'kl1h';
+          var raw = Array.isArray(m[tf]) ? m[tf] : [];
+          pData[sym][key] = Utils.closedCandles(raw.map(function(k){
+            return {t:+k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v};
+          }), tf, now);
+        });
+        pData[sym].dataUpdatedAt = Number(m.serverTime || snap.serverTime || now);
+        pData[sym].source = 'live';
+      });
+      analyzeAll();
+      if (snap.account) Execution.reconcilePayload(snap.account);
+    },
+    fetchLive: async function () {
+      if (!WORKER) return;
+      var qs = encodeURIComponent(pairs.join(','));
+      var snap = await Http.get('/snapshot?symbols=' + qs);
+      if (!snap || !snap.success) throw new Error('Invalid snapshot');
+      MarketData.applySnapshot(snap);
+    }
+  };
+
+  var Execution = {
+    makePosition: function (sym, side, price, posVal, qty, sl, tp, auto, clientOrderId) {
+      return {
+        id: posId++, pair:sym, side:side, entry:price, qty:qty, posVal:posVal,
+        sl:sl, tp:tp, initialSL:sl, initialTP:tp,
+        feeRate:SafeConfig.feeRate, entryFee:Accounting.entryFee(posVal, SafeConfig.feeRate),
+        openTime:Date.now(), highPnl:0, trailActive:false, auto:!!auto,
+        state:POSITION_STATE.PENDING_OPEN, stateUpdatedAt:Date.now(),
+        clientOrderId:clientOrderId, exchangeOrderId:null, lastError:'', serverManaged:appMode==='live'
+      };
+    },
+    finalizeDemoOpen: function (pos) {
+      balance -= pos.entryFee;
+      dailyPnL -= pos.entryFee;
+      StateMachine.transition(pos, POSITION_STATE.OPEN);
+      positions.push(pos);
+      peakBal = Math.max(peakBal, balance);
+      SafeStore.save();
+      logPos('OPEN ' + pos.side + ' ' + pos.pair + ' fee:$' + pos.entryFee.toFixed(4), 'ok');
+    },
+    finalizeLiveOpen: function (pos, r) {
+      pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
+      if (r.fillPrice) pos.entry = Number(r.fillPrice);
+      if (r.qty) pos.qty = Math.abs(Number(r.qty));
+      if (r.entryFee != null) pos.entryFee = Math.abs(Number(r.entryFee));
+      pos.posVal = pos.entry * pos.qty;
+      StateMachine.transition(pos, POSITION_STATE.OPEN);
+      positions.push(pos);
+      SafeStore.save();
+    },
+    open: async function (sym, side, auto, manualTargetUsd, manualRiskUsd) {
+      try { sym = Utils.symbol(sym); } catch (e) { notify(e.message,'error'); return; }
+      var pd = pData[sym], an = pd && pd.an && pd.an.signal !== 'WAIT' ? pd.an : null;
+      var price = an ? Number(an.price) : Number(pd && pd.price);
+      if (!price) { notify('Price unavailable','error'); return; }
+      var posVal, qty, sl, tp;
+      if (manualTargetUsd && manualRiskUsd) {
+        posVal = Math.min(effectiveMaxPos(), Math.max(5, balance * 0.10 * Math.max(1, leverage)));
+        qty = posVal / price;
+        var slDist = Accounting.pnlTargetToDistance(manualRiskUsd, qty);
+        var tpDist = Accounting.pnlTargetToDistance(manualTargetUsd, qty);
+        sl = side === 'LONG' ? price - slDist : price + slDist;
+        tp = side === 'LONG' ? price + tpDist : price - tpDist;
+      } else if (an) {
+        posVal = Number(an.posVal); qty = posVal / price; sl = Number(an.sl); tp = Number(an.tp);
+      } else { notify('No signal — manual target/risk required','error'); return; }
+      var gate = RiskManager.gate(sym, posVal);
+      if (!gate.ok) { notify(gate.reason,'error'); return; }
+      var clientOrderId = Utils.orderId('open', sym);
+      var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, clientOrderId);
+      Runtime.openingLocks.add(sym);
+      updateSignalUI();
+      try {
+        if (appMode === 'live') {
+          var r = await Http.post('/order', {
+            symbol:sym, side:side, usdAmount:posVal, leverage:leverage,
+            sl:sl, tp:tp, clientOrderId:clientOrderId,
+            maxSlippageBps:SafeConfig.slippageBps + SafeConfig.spreadBps
+          });
+          if (!r || !r.success) throw new Error((r && r.error) || 'Order rejected');
+          Execution.finalizeLiveOpen(pos, r);
+          await Utils.sleep(500);
+          await Execution.reconcile(true);
+        } else Execution.finalizeDemoOpen(pos);
+        notify((auto?'AUTO ':'') + side + ' ' + sym.replace('_USDT','') + ' opened','success');
+        log((auto?'[AUTO] ':'') + side + ' ' + sym + ' id=' + clientOrderId,'ok');
+        startTracker();
+      } catch (e) {
+        StateMachine.transition(pos, POSITION_STATE.ERROR, e.message);
+        notify('Open failed: ' + e.message,'error'); log('[OPEN ERROR] '+e.message,'err');
+      } finally {
+        Runtime.openingLocks.delete(sym);
+        updatePosUI(); updateSignalUI();
+      }
+    },
+    close: async function (id, reason) {
+      var pos = positions.find(function(p){return p.id===id;});
+      if (!pos || pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.CLOSED) return;
+      try {
+        if (pos.state === POSITION_STATE.ERROR) StateMachine.transition(pos, POSITION_STATE.PENDING_CLOSE);
+        else StateMachine.transition(pos, POSITION_STATE.PENDING_CLOSE);
+      } catch (e) { notify(e.message,'error'); return; }
+      closingNow[id] = true;
+      updatePosUI();
+      try {
+        if (appMode === 'live') {
+          var cid = Utils.orderId('close', pos.pair);
+          var r = await Http.post('/close', {symbol:pos.pair, side:pos.side, clientOrderId:cid, reason:reason || 'MANUAL'});
+          if (!r || !r.success) throw new Error((r && r.error) || 'Close rejected');
+          if (r.trade) Execution.recordClosures([r.trade]);
+          var stillOpen=true;
+          for(var attempt=0;attempt<4;attempt++){
+            await Utils.sleep(400+attempt*250);
+            await Execution.reconcile(true);
+            stillOpen=positions.some(function(p){return p.pair===pos.pair && p.state!==POSITION_STATE.CLOSED;});
+            if(!stillOpen)break;
+          }
+          if (stillOpen) throw new Error('Exchange still reports position open');
+          notify(pos.pair.replace('_USDT','') + ' closed','success');
+        } else {
+          var pr = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+          Execution.finalizeDemoClose(pos, pr, reason || 'MANUAL');
+        }
+      } catch (e) {
+        delete closingNow[id];
+        try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch (_) { pos.state=POSITION_STATE.ERROR;pos.lastError=e.message; }
+        logPos('CLOSE FAILED ' + pos.pair + ': ' + e.message,'err');
+        notify('Close failed; position kept: ' + e.message,'error');
+        if (appMode === 'live') setTimeout(function(){Execution.reconcile(true);},1000);
+      } finally { updatePosUI(); updateSignalUI(); }
+    },
+    finalizeDemoClose: function (pos, exitPrice, reason) {
+      var br = Accounting.closeBreakdown(pos, exitPrice, 0);
+      balance += br.balanceDelta;
+      dailyPnL += br.balanceDelta;
+      peakBal = Math.max(peakBal, balance);
+      try { StateMachine.transition(pos, POSITION_STATE.CLOSED); } catch (_) { pos.state=POSITION_STATE.CLOSED; }
+      positions = positions.filter(function(p){return p.id!==pos.id;});
+      delete closingNow[pos.id];
+      var tr = {pair:pos.pair,side:pos.side,pnl:br.tradeNet,gross:br.gross,entryFee:br.entryFee,exitFee:br.exitFee,
+        reason:reason,entry:pos.entry,exit:exitPrice,openedAt:pos.openTime,closedAt:Date.now()};
+      trades.push(tr);
+      if (tr.pnl > 0) { winStreak++; loseStreak=0; } else { loseStreak++; winStreak=0; }
+      equityHistory.push(balance); if (equityHistory.length>300) equityHistory.shift();
+      if (tr.pnl<0 && /STOP|SL/.test(reason)) {
+        slStreak[pos.pair]=(slStreak[pos.pair]||0)+1;
+        if(slStreak[pos.pair]>=2){setCD(pos.pair,20,'2 SL row');slStreak[pos.pair]=0;}
+      } else if(tr.pnl>0) slStreak[pos.pair]=0;
+      logPos('CLOSE '+pos.pair+' '+reason+' gross:'+(br.gross>=0?'+':'')+'$'+br.gross.toFixed(4)+' fees:$'+(br.entryFee+br.exitFee).toFixed(4)+' net:'+(tr.pnl>=0?'+':'')+'$'+tr.pnl.toFixed(4),tr.pnl>=0?'ok':'err');
+      RiskManager.enforce(); SafeStore.save();
+      if (!positions.length) stopTracker();
+      updatePosUI(); updateWRStrip(); updateBalUI(); drawEquity();
+    },
+    recordClosures: function (rows) {
+      (rows || []).forEach(function(c){
+        var closureId=String(c.closureId || c.orderId || '');
+        if(!closureId || trades.some(function(t){return t.closureId===closureId;}))return;
+        var net=Number(c.net || 0);
+        var tr={closureId:closureId,pair:c.symbol,side:c.side,pnl:net,gross:Number(c.gross||0),entryFee:Number(c.entryFee||0),exitFee:Number(c.exitFee||0),reason:c.reason||'SERVER',entry:Number(c.entryPrice||0),exit:Number(c.exitPrice||0),openedAt:Number(c.openedAt||0),closedAt:Number(c.closedAt||Date.now())};
+        trades.push(tr);
+        if(Utils.sameDay(tr.closedAt))dailyPnL+=net;
+        if(net>0){winStreak++;loseStreak=0;}else{loseStreak++;winStreak=0;}
+        equityHistory.push(balance);if(equityHistory.length>300)equityHistory.shift();
+        logPos('[SERVER CLOSE] '+tr.pair+' '+tr.reason+' net:'+(net>=0?'+':'')+'$'+net.toFixed(4),net>=0?'ok':'err');
+      });
+      SafeStore.save();updateWRStrip();drawEquity();
+    },
+    normalizeServerPosition: function (p) {
+      var side = p.side || (Number(p.size) >= 0 ? 'LONG' : 'SHORT');
+      return {
+        id: p.localId || posId++, pair:p.symbol || p.contract, side:side,
+        entry:Number(p.entryPrice || p.entry_price), qty:Math.abs(Number(p.qty || p.baseQty || 0)),
+        posVal:Math.abs(Number(p.notional || p.value || 0)), sl:Number(p.sl || 0), tp:Number(p.tp || 0),
+        initialSL:Number(p.sl || 0), initialTP:Number(p.tp || 0), feeRate:SafeConfig.feeRate,
+        entryFee:Number(p.entryFee || 0), openTime:Number(p.openTime || Date.now()), highPnl:0,
+        trailActive:!!p.trailActive, state:POSITION_STATE.OPEN, stateUpdatedAt:Date.now(),
+        clientOrderId:p.clientOrderId || '', exchangeOrderId:p.orderId || '', serverManaged:true
+      };
+    },
+    reconcilePayload: function (payload) {
+      if (!payload) return;
+      if (Number.isFinite(Number(payload.balance))) { futBal=Number(payload.balance);balance=futBal;peakBal=Math.max(peakBal,balance); }
+      if (Array.isArray(payload.positions)) {
+        var previous=positions.slice(),next=[];
+        payload.positions.filter(function(p){return Math.abs(Number(p.size || p.qty || 0))>0;}).forEach(function(sp){
+          var sym=sp.symbol||sp.contract;
+          var old=previous.find(function(x){return x.pair===sym && x.state!==POSITION_STATE.CLOSED;});
+          if(old){
+            old.entry=Number(sp.entryPrice||sp.entry_price||old.entry);
+            old.qty=Math.abs(Number(sp.qty||sp.baseQty||old.qty));
+            old.posVal=Math.abs(Number(sp.notional||sp.value||old.posVal));
+            old.sl=Number(sp.sl||old.sl);old.tp=Number(sp.tp||old.tp);old.state=POSITION_STATE.OPEN;old.lastError='';
+            next.push(old);
+          } else next.push(Execution.normalizeServerPosition(sp));
+        });
+        previous.forEach(function(local){
+          var represented=next.some(function(x){return x.pair===local.pair;});
+          var recentOpen=local.serverManaged&&local.state===POSITION_STATE.OPEN&&Date.now()-local.openTime<10000&&!closingNow[local.id];
+          if(!represented&&recentOpen)next.push(local);
+        });
+        positions=next;
+      }
+      if(Array.isArray(payload.closures))Execution.recordClosures(payload.closures);
+      if(payload.killSwitch===true)SafeConfig.killSwitch=true;
+      Runtime.lastReconcileAt=Date.now(); SafeStore.save(); updatePosUI();updateBalUI();
+    },
+    reconcile: async function (force) {
+      if (appMode!=='live'||!WORKER||Runtime.liveReconcileBusy) return;
+      if(!force && Date.now()-Runtime.lastReconcileAt<SafeConfig.reconcileMs) return;
+      Runtime.liveReconcileBusy=true;
+      try {
+        var r=await Http.get('/state');
+        if(!r||!r.success) throw new Error((r&&r.error)||'State unavailable');
+        Execution.reconcilePayload(r);
+      } catch(e){log('[RECONCILE] '+e.message,'err');}
+      finally{Runtime.liveReconcileBusy=false;}
+    }
+  };
+
+  var TrailService = {
+    update: async function (pos, price) {
+      var pnl = Accounting.grossPnl(pos.side,pos.entry,price,pos.qty);
+      if(pnl>pos.highPnl) pos.highPnl=pnl;
+      if(pos.highPnl<targetUSD*0.25) return;
+      var pullback=pos.highPnl>=targetUSD?0.22:pos.highPnl>=targetUSD*0.75?0.28:pos.highPnl>=targetUSD*0.5?0.35:0.42;
+      var locked=pos.highPnl*(1-pullback), dist=locked/Math.max(pos.qty,1e-12);
+      var newSL=pos.side==='LONG'?pos.entry+dist:pos.entry-dist;
+      var improved=pos.side==='LONG'?newSL>pos.sl:newSL<pos.sl;
+      if(!improved || Math.abs(newSL-pos.sl)/pos.entry<0.0002) return;
+      var old=pos.sl;pos.sl=newSL;pos.trailActive=true;
+      logPos('[TRAIL] '+pos.pair+' '+fp(old)+' -> '+fp(newSL),'ok');
+      if(appMode==='live'&&WORKER&&(!pos.lastRiskSync||Date.now()-pos.lastRiskSync>1200)){
+        pos.lastRiskSync=Date.now();
+        try{await Http.post('/risk/update',{symbol:pos.pair,side:pos.side,sl:pos.sl,tp:pos.tp,clientOrderId:Utils.orderId('risk',pos.pair)});}
+        catch(e){pos.lastError='Risk sync: '+e.message;logPos('[RISK SYNC ERROR] '+e.message,'err');}
+      }
+    }
+  };
+
+  var Backtester = {
+    run: function (sym) {
+      var pd=pData[sym]; if(!pd||!pd.masterKlines||pd.masterKlines.length<3000) throw new Error('Not enough 1m history');
+      var one=pd.masterKlines.slice(), full5=CandleEngine.aggregate(one,5,false), full15=CandleEngine.aggregate(one,15,false), full60=CandleEngine.aggregate(one,60,false);
+      var original=pData[sym], out=[], equity=START_BAL, peak=START_BAL, maxDD=0;
+      var start=Math.max(60,full5.length-450);
+      for(var i=start;i<full5.length-2;i++){
+        var t=full5[i].t;
+        pData[sym]={price:full5[i].c,kl5m:full5.slice(0,i+1),kl15m:full15.filter(function(k){return k.t<=t;}),kl1h:full60.filter(function(k){return k.t<=t;}),dataUpdatedAt:Date.now()};
+        var an=null; try{an=analyze(sym);}catch(e){}
+        if(!an||an.signal==='WAIT') continue;
+        var entryRaw=full5[i+1].o, side=an.signal;
+        var entry=entryRaw*(1+(side==='LONG'?1:-1)*(SafeConfig.spreadBps/2+SafeConfig.slippageBps)/10000);
+        var qty=an.posVal/entry, exit=full5[i+1].c, reason='TIME', exitIndex=i+1;
+        var slDist=Math.abs(an.price-an.sl),tpDist=Math.abs(an.tp-an.price);
+        var sl=side==='LONG'?entry-slDist:entry+slDist, tp=side==='LONG'?entry+tpDist:entry-tpDist;
+        for(var j=i+1;j<Math.min(full5.length,i+25);j++){
+          var k=full5[j], hitSL=side==='LONG'?k.l<=sl:k.h>=sl, hitTP=side==='LONG'?k.h>=tp:k.l<=tp;
+          if(hitSL&&hitTP){exit=sl;reason='SL_CONSERVATIVE';exitIndex=j;break;}
+          if(hitSL){exit=sl;reason='SL';exitIndex=j;break;}
+          if(hitTP){exit=tp;reason='TP';exitIndex=j;break;}
+          exit=k.c;exitIndex=j;
+        }
+        exit*=1-(side==='LONG'?1:-1)*(SafeConfig.spreadBps/2+SafeConfig.slippageBps)/10000;
+        var gross=Accounting.grossPnl(side,entry,exit,qty), fees=Accounting.entryFee(an.posVal)+Accounting.exitFee(qty,exit), net=gross-fees;
+        equity+=net;peak=Math.max(peak,equity);maxDD=Math.max(maxDD,(peak-equity)/peak*100);
+        out.push({side:side,entry:entry,exit:exit,pnl:net,reason:reason});
+        i=exitIndex;
+      }
+      pData[sym]=original;
+      var wins=out.filter(function(x){return x.pnl>0;}).length, gp=out.filter(function(x){return x.pnl>0;}).reduce(function(a,x){return a+x.pnl;},0), gl=Math.abs(out.filter(function(x){return x.pnl<=0;}).reduce(function(a,x){return a+x.pnl;},0));
+      return {trades:out.length,wins:wins,winRate:out.length?wins/out.length*100:0,net:equity-START_BAL,pf:gl?gp/gl:0,maxDD:maxDD,ending:equity};
+    }
+  };
+
+  var TestSuite = {
+    assert: function (name, fn) {
+      try { fn(); Runtime.tests.push({name:name,ok:true}); }
+      catch(e){Runtime.tests.push({name:name,ok:false,error:e.message});}
+    },
+    near: function (a,b,eps) { if(Math.abs(a-b)>(eps||1e-9)) throw new Error(a+' != '+b); },
+    run: function () {
+      Runtime.tests=[];
+      TestSuite.assert('Flat trade only loses two fees',function(){
+        var p={side:'LONG',entry:100,qty:0.1,posVal:10,feeRate:0.0004,entryFee:0.004};
+        var b=Accounting.closeBreakdown(p,100,0);TestSuite.near(b.tradeNet,-0.008,1e-10);
+      });
+      TestSuite.assert('Notional is never credited on close',function(){
+        var p={side:'LONG',entry:100,qty:0.1,posVal:10,feeRate:0.0004,entryFee:0.004};
+        var b=Accounting.closeBreakdown(p,101,0);if(b.balanceDelta>1)throw new Error('notional leak');
+      });
+      TestSuite.assert('Long and short PnL signs',function(){
+        TestSuite.near(Accounting.grossPnl('LONG',100,101,1),1);TestSuite.near(Accounting.grossPnl('SHORT',100,99,1),1);
+      });
+      TestSuite.assert('State machine rejects impossible transition',function(){
+        var p={state:POSITION_STATE.PENDING_OPEN};var threw=false;try{StateMachine.transition(p,POSITION_STATE.CLOSED);}catch(e){threw=true;}if(!threw)throw new Error('transition accepted');
+      });
+      TestSuite.assert('Close error can keep position recoverable',function(){
+        var p={state:POSITION_STATE.OPEN};StateMachine.transition(p,POSITION_STATE.PENDING_CLOSE);StateMachine.transition(p,POSITION_STATE.ERROR,'network');if(p.state!==POSITION_STATE.ERROR)throw new Error('not recoverable');
+      });
+      TestSuite.assert('Manual USD target converts to price distance',function(){TestSuite.near(Accounting.pnlTargetToDistance(0.10,0.02),5);});
+      TestSuite.assert('Demo produces sufficient 1h history',function(){
+        var s=pairs[0];CandleEngine.tick(s);if((pData[s].kl1h||[]).length<100)throw new Error('only '+(pData[s].kl1h||[]).length+' candles');
+      });
+      TestSuite.assert('Stale data is blocked',function(){
+        var s=pairs[0],old=pData[s].dataUpdatedAt;pData[s].dataUpdatedAt=Date.now()-SafeConfig.staleDataMs-1;if(!RiskManager.stale(s))throw new Error('not stale');pData[s].dataUpdatedAt=old;
+      });
+      TestSuite.assert('Duplicate symbol validation blocks injection',function(){var ok=false;try{Utils.symbol("BTC_USDT');alert(1)//");}catch(e){ok=true;}if(!ok)throw new Error('unsafe symbol');});
+      TestSuite.assert('Margin uses leverage, not notional debit',function(){TestSuite.near(Accounting.marginRequired(10,2),5);});
+      return Runtime.tests;
+    }
+  };
+
+  function injectSafeUI() {
+    var logo=document.querySelector('.logo');if(logo)logo.innerHTML='APEX<span> // SCALP V6.1 SAFE</span>';
+    document.title='APEX SCALP V6.1 SAFE';
+    var settings=document.querySelector('#pg-settings .scroll');
+    if(settings&&!document.getElementById('safeRiskCard')){
+      var card=document.createElement('div');card.className='card';card.id='safeRiskCard';
+      card.innerHTML='<div class="sec-title">SAFETY LIMITS</div>'+
+        '<div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max daily loss ($)</span><input id="safeDaily" type="number" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">Max drawdown (%)</span><input id="safeDD" type="number" step="0.5" min="1"></div></div>'+
+        '<div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max trades/day</span><input id="safeTrades" type="number" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Stale data (sec)</span><input id="safeStale" type="number" step="5" min="10"></div></div>'+
+        '<div class="manual-row"><div class="inp-wrap"><span class="inp-label">Slippage (bps)</span><input id="safeSlip" type="number" step="0.5" min="0"></div><div class="inp-wrap"><span class="inp-label">Spread (bps)</span><input id="safeSpread" type="number" step="0.5" min="0"></div></div>'+
+        '<div class="btn-row"><button class="btn btn-gold btn-sm" id="safeSave">SAVE LIMITS</button><button class="btn btn-danger btn-sm" id="safeKill">KILL SWITCH: OFF</button></div>'+
+        '<div id="safeRiskStatus" style="font:9px var(--mono);color:var(--dim2);margin-top:6px"></div>';
+      settings.insertBefore(card,settings.firstChild);
+    }
+    var engine=document.querySelector('#pg-engine .scroll');
+    if(engine&&!document.getElementById('safeDiagCard')){
+      var d=document.createElement('div');d.className='card';d.id='safeDiagCard';
+      d.innerHTML='<div class="sec-title">BACKTEST & SELF TEST</div><div class="btn-row"><button class="btn btn-acc btn-sm" id="runBacktest">RUN COST-AWARE BACKTEST</button><button class="btn btn-out btn-sm" id="runTests">RUN 10 TESTS</button></div><div id="safeDiagOut" class="logbox" style="height:145px;margin-top:7px"></div>';
+      engine.appendChild(d);
+    }
+    bindSafeUI();
+  }
+
+  function bindSafeUI(){
+    var ids={safeDaily:SafeConfig.maxDailyLoss,safeDD:SafeConfig.maxDrawdownPct,safeTrades:SafeConfig.maxTradesPerDay,safeStale:SafeConfig.staleDataMs/1000,safeSlip:SafeConfig.slippageBps,safeSpread:SafeConfig.spreadBps};
+    Object.keys(ids).forEach(function(id){var e=document.getElementById(id);if(e)e.value=ids[id];});
+    var save=document.getElementById('safeSave');if(save)save.onclick=function(){
+      SafeConfig.maxDailyLoss=Math.abs(Utils.num(document.getElementById('safeDaily').value,2));
+      SafeConfig.maxDrawdownPct=Math.abs(Utils.num(document.getElementById('safeDD').value,8));
+      SafeConfig.maxTradesPerDay=Math.max(1,Math.floor(Utils.num(document.getElementById('safeTrades').value,20)));
+      SafeConfig.staleDataMs=Math.max(10000,Utils.num(document.getElementById('safeStale').value,90)*1000);
+      SafeConfig.slippageBps=Math.max(0,Utils.num(document.getElementById('safeSlip').value,2));
+      SafeConfig.spreadBps=Math.max(0,Utils.num(document.getElementById('safeSpread').value,1));
+      SafeStore.save();renderRiskStatus();notify('Safety limits saved','success');
+    };
+    var kill=document.getElementById('safeKill');if(kill)kill.onclick=async function(){
+      SafeConfig.killSwitch=!SafeConfig.killSwitch;SafeStore.save();renderRiskStatus();
+      if(appMode==='live'&&WORKER){try{await Http.post('/kill',{enabled:SafeConfig.killSwitch,closeAll:false});}catch(e){notify('Worker kill sync failed','error');}}
+    };
+    var bt=document.getElementById('runBacktest');if(bt)bt.onclick=function(){
+      var out=document.getElementById('safeDiagOut');try{var r=Backtester.run(currentPair);out.textContent='BACKTEST '+currentPair+'\nTrades: '+r.trades+'\nWin rate: '+r.winRate.toFixed(1)+'%\nNet: '+(r.net>=0?'+':'')+'$'+r.net.toFixed(4)+'\nProfit factor: '+r.pf.toFixed(2)+'\nMax DD: '+r.maxDD.toFixed(2)+'%\nEnding: $'+r.ending.toFixed(2)+'\n\nCosts included: entry/exit fees, spread, slippage. Same-candle TP+SL is counted as SL.';}catch(e){out.textContent='BACKTEST ERROR: '+e.message;}
+    };
+    var rt=document.getElementById('runTests');if(rt)rt.onclick=function(){
+      var out=document.getElementById('safeDiagOut'),res=TestSuite.run();out.textContent=res.map(function(x,i){return (x.ok?'PASS':'FAIL')+' '+(i+1)+'. '+x.name+(x.error?' — '+x.error:'');}).join('\n')+'\n\n'+res.filter(function(x){return x.ok;}).length+'/'+res.length+' passed';
+    };
+    renderRiskStatus();
+  }
+
+  function renderRiskStatus(){
+    var k=document.getElementById('safeKill');if(k){k.textContent='KILL SWITCH: '+(SafeConfig.killSwitch?'ON':'OFF');k.style.background=SafeConfig.killSwitch?'rgba(255,51,85,.18)':'transparent';}
+    var s=document.getElementById('safeRiskStatus');if(s)s.textContent='Daily PnL: '+(dailyPnL>=0?'+':'')+'$'+dailyPnL.toFixed(2)+' | DD: '+RiskManager.drawdownPct().toFixed(2)+'% | Trades: '+RiskManager.todayTrades()+'/'+SafeConfig.maxTradesPerDay;
+  }
+
+  // ----- Safe global overrides -----
+  window.initKlines=function(sym){return CandleEngine.seed(sym,9000);};
+  window.getKlineSlice=function(sym,interval){var pd=pData[sym]||{};return pd[interval==='1m'?'kl1m':interval==='5m'?'kl5m':interval==='15m'?'kl15m':'kl1h']||[];};
+  window.refreshDemo=function(){MarketData.demoRefresh();};
+  window.openPos=function(sym,side,auto,manTP,manSL){return Execution.open(sym,side,auto,manTP,manSL);};
+  window.closePos=function(id,reason){return Execution.close(id,reason);};
+  window.finalizeOpen=function(){throw new Error('Legacy finalizeOpen disabled');};
+  window.finalizeClose=function(){throw new Error('Legacy finalizeClose disabled');};
+
+  window.startTracker=function(){
+    if(TRACKER_INTERVAL)clearInterval(TRACKER_INTERVAL);
+    trackerTick=0;TRACKER_INTERVAL=setInterval(window.runTracker,SafeConfig.trackerMs);logPos('Safe tracker '+SafeConfig.trackerMs+'ms','ok');
+  };
+  window.runTracker=function(){
+    if(!positions.length){stopTracker();return;}trackerTick++;
+    var el=document.getElementById('eTrack');if(el)el.textContent=appMode==='live'?'SERVER+RECON':'TICK #'+trackerTick;
+    if(appMode==='demo')pairs.forEach(function(s){CandleEngine.tick(s);});
+    positions.slice().forEach(function(pos){
+      if(pos.state!==POSITION_STATE.OPEN&&pos.state!==POSITION_STATE.ERROR)return;
+      var pr=Number(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
+      if(appMode==='demo'){
+        if(pos.side==='LONG'&&pr>=pos.tp||pos.side==='SHORT'&&pr<=pos.tp){Execution.close(pos.id,'TAKE PROFIT');return;}
+        if(pos.side==='LONG'&&pr<=pos.sl||pos.side==='SHORT'&&pr>=pos.sl){Execution.close(pos.id,'STOP LOSS');return;}
+      }
+      if(trailOn)TrailService.update(pos,pr);
+    });
+    if(appMode==='live'&&trackerTick%Math.max(1,Math.round(SafeConfig.reconcileMs/SafeConfig.trackerMs))===0)Execution.reconcile(false);
+    if(trackerTick%4===0){updatePosUI();updateTicker();renderRiskStatus();}
+  };
+  window.runTrail=function(pos,pr){return TrailService.update(pos,pr);};
+
+  var legacyUpdatePosUI=window.updatePosUI;
+  window.updatePosUI=function(){
+    legacyUpdatePosUI();
+    document.querySelectorAll('.pos-card').forEach(function(card,idx){
+      var pos=positions[idx];if(!pos)return;
+      var hd=card.querySelector('.pos-hd');if(hd){var st=document.createElement('span');st.style.cssText='font:8px var(--mono);color:var(--warn);margin-left:4px';st.textContent=pos.state||'OPEN';hd.appendChild(st);}
+      var btn=card.querySelector('button');if(btn){btn.disabled=pos.state===POSITION_STATE.PENDING_CLOSE;btn.textContent=pos.state===POSITION_STATE.PENDING_CLOSE?'CLOSING...':pos.state===POSITION_STATE.ERROR?'RETRY CLOSE':'CLOSE';}
+      if(pos.lastError){var er=document.createElement('div');er.style.cssText='font:8px var(--mono);color:var(--short);margin-top:4px';er.textContent=pos.lastError;card.appendChild(er);}
+    });
+    renderRiskStatus();
+  };
+
+  window.fetchLive=function(){return MarketData.fetchLive();};
+  window.syncBal=function(){return Execution.reconcile(true);};
+  window.connectLive=async function(){
+    var url=document.getElementById('wUrl').value.trim();if(!url){notify('Enter Worker URL','error');return;}
+    WORKER=url.replace(/\/+$/,'');
+    try{
+      var d=await Http.get('/ping');if(!d||!d.success)throw new Error('Worker not responding');
+      appMode='live';document.getElementById('bdgConn').textContent='LIVE';document.getElementById('bdgConn').className='bdg live';document.getElementById('connStatus').textContent='Live connection active — server risk manager';
+      await Execution.reconcile(true);if(loopTimer)clearTimeout(loopTimer);mainLoop();notify('Live connected','success');
+    }catch(e){WORKER='';appMode='demo';notify('Connection error: '+e.message,'error');}
+  };
+  window.startDemo=function(){
+    WORKER='';appMode='demo';futBal=null;document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='bdg';document.getElementById('connStatus').textContent='Demo mode — coherent 1m candles';
+    if(loopTimer)clearTimeout(loopTimer);mainLoop();log('V6.1 safe demo started','ok');
+  };
+
+  window.mainLoop=async function(){
+    if(Runtime.scanBusy){loopTimer=setTimeout(mainLoop,1000);return;}
+    Runtime.scanBusy=true;
+    try{
+      if(appMode==='demo')MarketData.demoRefresh();else await MarketData.fetchLive();
+      Runtime.lastScanAt=Date.now();
+      if(engineOn)runEngine();
+      updateSignalUI();updatePairRow();updateTicker();updateCoinScoreTable();updateWRStrip();drawChart();drawEquity();renderRiskStatus();
+      if(engineOn)startCountdown();
+    }catch(e){log('[SCAN] '+e.message,'err');notify('Scan error: '+e.message,'error');}
+    finally{Runtime.scanBusy=false;loopTimer=setTimeout(mainLoop,scanSec*1000);}
+  };
+
+  window.doReset=function(){
+    if(!confirm('Reset demo ledger? Live exchange positions will not be hidden or deleted.'))return;
+    if(appMode==='live'&&positions.length){notify('Live positions exist; close them through reconciliation first','error');return;}
+    balance=START_BAL;dailyPnL=0;positions=[];trades=[];winStreak=0;loseStreak=0;tpSlHits=0;equityHistory=[START_BAL];peakBal=START_BAL;SafeConfig.killSwitch=false;
+    localStorage.removeItem(SafeConfig.persistKey);stopTracker();updatePosUI();updateBalUI();updateWRStrip();drawEquity();renderRiskStatus();log('Safe ledger reset','info');
+  };
+
+  window.addCoin=function(){
+    var raw=document.getElementById('newCoin').value.trim().toUpperCase();if(!raw)return;
+    var rejected=[];
+    raw.split(/[,\s]+/).filter(Boolean).forEach(function(v){
+      try{var sym=Utils.symbol(v.indexOf('_USDT')===-1?v+'_USDT':v);if(pairs.indexOf(sym)===-1){pairs.push(sym);DEMO_BASE[sym]=DEMO_BASE[sym]||1;}}
+      catch(e){rejected.push(v);}
+    });
+    document.getElementById('newCoin').value='';renderCoinList();if(rejected.length)notify('Rejected: '+rejected.join(', '),'error');
+  };
+  window.renderCoinList=function(){
+    var root=document.getElementById('coinList');root.textContent='';
+    pairs.forEach(function(s){var tag=document.createElement('span');tag.style.cssText='cursor:pointer;font-size:9px;padding:3px 8px;border-radius:2px;background:rgba(0,212,255,.05);border:1px solid var(--brd2);color:var(--text2);font-family:var(--mono)';tag.textContent=s.replace('_USDT','')+' ×';tag.onclick=function(){removeCoin(s);};root.appendChild(tag);});
+  };
+
+  var legacyUpdateBalUI=window.updateBalUI;
+  window.updateBalUI=function(){legacyUpdateBalUI();renderRiskStatus();};
+
+  document.addEventListener('DOMContentLoaded',function(){
+    SafeStore.load();injectSafeUI();
+    setTimeout(function(){
+      updateBalUI();updateWRStrip();renderRiskStatus();
+      var results=TestSuite.run();var failed=results.filter(function(x){return !x.ok;});
+      log('APEX '+APP_VERSION+' loaded — '+(results.length-failed.length)+'/'+results.length+' self-tests passed',failed.length?'err':'ok');
+      if(failed.length)notify('Self-test failure — live trading blocked','error');
+      if(failed.length)SafeConfig.killSwitch=true;
+    },100);
+  });
+
+  window.ApexSafe={Utils:Utils,Accounting:Accounting,StateMachine:StateMachine,RiskManager:RiskManager,CandleEngine:CandleEngine,MarketData:MarketData,Execution:Execution,Backtester:Backtester,TestSuite:TestSuite,config:SafeConfig};
+})();
+
 </script>
 </body>
 </html>
