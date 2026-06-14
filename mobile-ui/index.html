@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.3 TIERED PRECISION</title>
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=sPWsr3_9oNNaSSdHSqbKBaGFz1UL0cUC8HyHCCj26WWFoMwMnRMiq0Jtrh1LPLAT1Ow4WLDdc24ui2jJhwWxJa70b1NabTKs2JNiTIH7x_wETavzfn5ayGAFZfQ4_PfYSle_CjL8OeHGixECaxxSIXnx7Jn-iuYhRl_nWhXcU2aUtq5QzX4WAXZbArjeSGnpLoyTnpYvXUuPnvVg6ci0PPVNDA4zvsMXMqnEzGqXkynsjSWmBHMJyy22hRpVGXPSeNsj0NwkbXV9jweCTs5VHQ" charset="UTF-8"></script><style>
+<title>APEX SCALP V6.3.1 LOAD FIX</title>
+<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=OugYG9VyydT-HIpsH6j9bUFqtN0Noq77qgitMzpehcKMw-9aQkIdquU5Ay2szDfS89PcVRXA_VLK1AUT-59_N9-H09M5MzLhU8VqgGCvGlN4OkIHLPaezYHSv8mnQ-vsM9zHB3lCcDhBP72qY3WfoizOfdWTUyOMQ_UDiBf0cyTPIrAmrde7fsY73nUxvU3qPz6tyLzq5Udqlf2GjYiBGvLIYgip4qMbxcmXZBBMcPSHZu6bclgIgapa9VGsuT3YySr12-m-HLh3DCNbPe4m3A" charset="UTF-8"></script><style>
 :root {
   --bg:#010c12; --panel:#031018; --card:#04141e; --brd:#0c1e2c; --brd2:#0a2235;
   --acc:#00d4ff; --acc2:#0088aa; --long:#00ff88; --long2:#00cc66;
@@ -223,6 +223,7 @@ select option{background:#041018}
 </style>
 </head>
 <body>
+<noscript><div style="margin:12px;padding:12px;border:1px solid #ff3355;color:#ff6680;background:#21040a;font-family:monospace">JavaScript is disabled. Open this file with Chrome, Edge, Firefox, or Safari rather than a document previewer.</div></noscript>
 <div id="notif"></div>
 
 <header class="hdr">
@@ -539,6 +540,50 @@ select option{background:#041018}
 </nav>
 
 <script>
+
+'use strict';
+/* V6.3.1 portable-file bootstrap.
+ * Some mobile file viewers expose localStorage through a getter that throws.
+ * Use an in-memory fallback so the interface can still start normally.
+ */
+(function () {
+  var memory = {};
+  var fallback = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(memory, k) ? memory[k] : null; },
+    setItem: function (k, v) { memory[k] = String(v); },
+    removeItem: function (k) { delete memory[k]; }
+  };
+  try {
+    var nativeStore = window.localStorage;
+    var probe = '__apex_storage_probe__';
+    nativeStore.setItem(probe, '1');
+    nativeStore.removeItem(probe);
+    window.__apexStorage = nativeStore;
+  } catch (e) {
+    window.__apexStorage = fallback;
+  }
+
+  window.__apexReady = function (fn) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, {once:true});
+    } else {
+      setTimeout(fn, 0);
+    }
+  };
+
+  window.addEventListener('error', function (ev) {
+    try {
+      var box = document.getElementById('apexBootError');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'apexBootError';
+        box.style.cssText = 'position:fixed;z-index:100000;left:8px;right:8px;top:8px;padding:10px;background:#21040a;color:#ff6680;border:1px solid #ff3355;border-radius:4px;font:11px monospace;white-space:pre-wrap';
+        document.body.appendChild(box);
+      }
+      box.textContent = 'STARTUP ERROR: ' + (ev.message || 'Unknown JavaScript error');
+    } catch (_) {}
+  });
+})();
 'use strict';
 
 // ═══════════════════════════════════════════════
@@ -1842,7 +1887,7 @@ function toggleStreak(){streakBoostOn=!streakBoostOn;document.getElementById('to
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded',function(){
+window.__apexReady(function(){
   initChart();
   renderCoinList();
   readSettings();
@@ -1857,9 +1902,7 @@ window.addEventListener('DOMContentLoaded',function(){
   log('Win rate strip + equity curve active','ok');
   log('Coherent price sim — indicators are real','ok');
 });
-</script>
 
-<script>
 /* APEX SCALP V6.1 SAFE OVERRIDE
  * Adds: correct accounting, position state machine, idempotency,
  * coherent 1m demo candles, live reconciliation, server risk updates,
@@ -1944,7 +1987,7 @@ window.addEventListener('DOMContentLoaded',function(){
   var SafeStore = {
     load: function () {
       try {
-        var raw = localStorage.getItem(SafeConfig.persistKey);
+        var raw = window.__apexStorage.getItem(SafeConfig.persistKey);
         if (!raw) return;
         var s = JSON.parse(raw);
         if (s.dayKey === SafeConfig.dayKey) {
@@ -1961,7 +2004,7 @@ window.addEventListener('DOMContentLoaded',function(){
     },
     save: function () {
       try {
-        localStorage.setItem(SafeConfig.persistKey, JSON.stringify({
+        window.__apexStorage.setItem(SafeConfig.persistKey, JSON.stringify({
           dayKey: SafeConfig.dayKey,
           balance: balance,
           dailyPnL: dailyPnL,
@@ -2824,7 +2867,7 @@ window.addEventListener('DOMContentLoaded',function(){
     if(!confirm('Reset demo ledger? Live exchange positions will not be hidden or deleted.'))return;
     if(appMode==='live'&&positions.length){notify('Live positions exist; close them through reconciliation first','error');return;}
     balance=START_BAL;dailyPnL=0;positions=[];trades=[];winStreak=0;loseStreak=0;tpSlHits=0;equityHistory=[START_BAL];peakBal=START_BAL;SafeConfig.killSwitch=false;
-    localStorage.removeItem(SafeConfig.persistKey);stopTracker();updatePosUI();updateBalUI();updateWRStrip();drawEquity();renderRiskStatus();log('Safe ledger reset','info');
+    window.__apexStorage.removeItem(SafeConfig.persistKey);stopTracker();updatePosUI();updateBalUI();updateWRStrip();drawEquity();renderRiskStatus();log('Safe ledger reset','info');
   };
 
   window.addCoin=function(){
@@ -2844,7 +2887,7 @@ window.addEventListener('DOMContentLoaded',function(){
   var legacyUpdateBalUI=window.updateBalUI;
   window.updateBalUI=function(){legacyUpdateBalUI();renderRiskStatus();};
 
-  document.addEventListener('DOMContentLoaded',function(){
+  window.__apexReady(function(){
     SafeStore.load();injectSafeUI();
     setTimeout(function(){
       updateBalUI();updateWRStrip();renderRiskStatus();
@@ -2858,10 +2901,7 @@ window.addEventListener('DOMContentLoaded',function(){
   window.ApexSafe={Utils:Utils,Accounting:Accounting,StateMachine:StateMachine,RiskManager:RiskManager,CandleEngine:CandleEngine,MarketData:MarketData,Execution:Execution,ApiCompat:ApiCompat,Backtester:Backtester,TestSuite:TestSuite,config:SafeConfig,runtime:Runtime};
 })();
 
-</script>
-
-<script>
-/* APEX SCALP V6.3 TIERED PRECISION OVERRIDE
+/* APEX SCALP V6.2 PRECISION OVERRIDE
  * Goals:
  *  - replace the cross-only entry trigger with persistent trend/momentum setups;
  *  - keep an A+ precision mode without claiming guaranteed accuracy;
@@ -2912,7 +2952,7 @@ window.addEventListener('DOMContentLoaded',function(){
 
   function v62Load() {
     try {
-      var raw = localStorage.getItem(V62.storageKey);
+      var raw = window.__apexStorage.getItem(V62.storageKey);
       if (!raw) return;
       var s = JSON.parse(raw);
       if (typeof s.adaptiveSizing === 'boolean') V62.adaptiveSizing = s.adaptiveSizing;
@@ -2926,7 +2966,7 @@ window.addEventListener('DOMContentLoaded',function(){
 
   function v62Save() {
     try {
-      localStorage.setItem(V62.storageKey, JSON.stringify({
+      window.__apexStorage.setItem(V62.storageKey, JSON.stringify({
         adaptiveSizing: V62.adaptiveSizing,
         maxMarginPct: V62.maxMarginPct,
         eliteCap: V62.eliteCap,
@@ -3361,8 +3401,8 @@ window.addEventListener('DOMContentLoaded',function(){
     }
     v62RenderSizing();
     var logo = document.querySelector('.logo');
-    if (logo) logo.innerHTML = 'APEX<span> // SCALP V6.3</span>';
-    document.title = 'APEX SCALP V6.3 TIERED PRECISION';
+    if (logo) logo.innerHTML = 'APEX<span> // SCALP V6.3.1</span>';
+    document.title = 'APEX SCALP V6.3.1 LOAD FIX';
   }
 
   function v62RenderSizing() {
@@ -3391,7 +3431,7 @@ window.addEventListener('DOMContentLoaded',function(){
   };
 
   v62Load();
-  document.addEventListener('DOMContentLoaded', function () {
+  window.__apexReady(function () {
     v62InjectUI();
     setTimeout(function () {
       analyzeAll(); updateSignalUI(); updateCoinScoreTable(); v62RenderSizing();
@@ -3409,6 +3449,10 @@ window.addEventListener('DOMContentLoaded',function(){
   };
 })();
 </script>
+
+
+
+
 
 </body>
 </html>
