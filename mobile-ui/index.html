@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>APEX SCALP V6.3.2 STABILITY FIX</title>
-<style>
+<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=xrsPkWptOwVvwYQ_YeaUZo0ZTfAEcV2SmmNaughC3MmuXO8EJfTUkuZs3NpMHnlV-JFX3ueJudlTqLodJF_XeQqPJwddBtyYKqSOmem2gFbDmcIaMf7UjJyEM7Bsp27wsOxfVYktZcQrNsAZYLegWl8zsyBVa6zuX71bhScMqvNxANAvRWzXwsRQgNRly37JEYo_m9jM7O-mnEw2G_R1BJZWzPffYRJxAQ9USRULFAkAfKDCrroElW_3QnGEQDCR-JmbVNfeJKtyGJ2fQ2Slqw" charset="UTF-8"></script><style>
 :root {
   --bg:#010c12; --panel:#031018; --card:#04141e; --brd:#0c1e2c; --brd2:#0a2235;
   --acc:#00d4ff; --acc2:#0088aa; --long:#00ff88; --long2:#00cc66;
@@ -1937,6 +1937,7 @@ window.__apexReady(function(){
     staleDataMs: 90000,
     reconcileMs: 3000,
     trackerMs: 500,
+    livePriceMs: 1000, // lightweight open-position price polling
     killSwitch: false,
     persistKey: 'apex-scalp-v61-safe',
     dayKey: new Date().toISOString().slice(0, 10)
@@ -1946,6 +1947,8 @@ window.__apexReady(function(){
     openingLocks: new Set(),
     requestLocks: new Set(),
     liveReconcileBusy: false,
+    livePriceBusy: false,
+    lastLivePriceAt: 0,
     lastReconcileAt: 0,
     lastScanAt: 0,
     scanBusy: false,
@@ -2446,6 +2449,65 @@ window.__apexReady(function(){
         }
       }
       return ApiCompat.fetchLegacyMarket(pairs.slice());
+    },
+
+    // Lightweight live-price refresh used only while positions are open.
+    // The normal scan loop can remain slow because risk tracking has its own feed.
+    refreshOpenPrices: function () {
+      if (appMode !== 'live' || !WORKER || !positions.length) return Promise.resolve(false);
+      if (Runtime.livePriceBusy) return Promise.resolve(false);
+      var now = Date.now();
+      if (now - Runtime.lastLivePriceAt < SafeConfig.livePriceMs) return Promise.resolve(false);
+
+      var symbols = [];
+      positions.forEach(function (p) {
+        if (p && p.pair && symbols.indexOf(p.pair) === -1) symbols.push(p.pair);
+      });
+      if (!symbols.length) return Promise.resolve(false);
+
+      Runtime.livePriceBusy = true;
+      Runtime.lastLivePriceAt = now;
+
+      function applyPrice(sym, value) {
+        var price = Number(value);
+        if (!Number.isFinite(price) || price <= 0) return false;
+        if (!pData[sym]) pData[sym] = {};
+        prevPx[sym] = Number(pData[sym].price) || price;
+        pData[sym].price = price;
+        pData[sym].priceUpdatedAt = Date.now();
+        pData[sym].source = 'live';
+        return true;
+      }
+
+      function legacyPrices() {
+        return Promise.all(symbols.map(function (sym) {
+          return Http.request(WORKER + '/price?symbol=' + encodeURIComponent(sym), {}, 1800)
+            .then(function (d) {
+              var raw = d && d.data ? d.data : (d || {});
+              return applyPrice(sym, raw.lastPrice || raw.price || raw.markPrice || raw.indexPrice);
+            })
+            .catch(function () { return false; });
+        }));
+      }
+
+      var request;
+      if (Runtime.apiMode !== 'legacy' && Runtime.capabilities.snapshot !== false) {
+        request = Http.request(WORKER + '/snapshot?symbols=' + encodeURIComponent(symbols.join(',')), {}, 1800)
+          .then(function (snap) {
+            if (!snap || !snap.success || !snap.market) throw new Error('Fast snapshot unavailable');
+            var changed = false;
+            symbols.forEach(function (sym) {
+              var m = snap.market[sym];
+              if (m) changed = applyPrice(sym, m.price || m.lastPrice || m.markPrice) || changed;
+            });
+            return changed;
+          })
+          .catch(function () { return legacyPrices(); });
+      } else {
+        request = legacyPrices();
+      }
+
+      return Promise.resolve(request).finally(function () { Runtime.livePriceBusy = false; });
     }
   };
 
@@ -2629,7 +2691,17 @@ window.__apexReady(function(){
             old.entry=Number(sp.entryPrice||sp.entry_price||old.entry);
             old.qty=Math.abs(Number(sp.qty||sp.baseQty||old.qty));
             old.posVal=Math.abs(Number(sp.notional||sp.value||old.posVal));
-            old.sl=Number(sp.sl||old.sl);old.tp=Number(sp.tp||old.tp);old.state=POSITION_STATE.OPEN;old.lastError='';
+
+            // Never let a stale server snapshot loosen an already tightened local trail.
+            var serverSL=Number(sp.sl), localSL=Number(old.sl);
+            if(Number.isFinite(serverSL)&&serverSL>0){
+              if(old.trailActive&&Number.isFinite(localSL)&&localSL>0){
+                old.sl=old.side==='LONG'?Math.max(localSL,serverSL):Math.min(localSL,serverSL);
+              }else old.sl=serverSL;
+            }
+            var serverTP=Number(sp.tp);
+            if(Number.isFinite(serverTP)&&serverTP>0) old.tp=serverTP;
+            old.state=POSITION_STATE.OPEN;old.lastError='';
             next.push(old);
           } else next.push(Execution.normalizeServerPosition(sp));
         });
@@ -2674,7 +2746,12 @@ window.__apexReady(function(){
       logPos('[TRAIL] '+pos.pair+' '+fp(old)+' -> '+fp(newSL),'ok');
       if(appMode==='live'&&WORKER&&Runtime.capabilities.riskUpdate!==false&&(!pos.lastRiskSync||Date.now()-pos.lastRiskSync>1200)){
         pos.lastRiskSync=Date.now();
-        try{await Http.post('/risk/update',{symbol:pos.pair,side:pos.side,sl:pos.sl,tp:pos.tp,clientOrderId:Utils.orderId('risk',pos.pair)});Runtime.capabilities.riskUpdate=true;}
+        try{
+          var riskResult=await Http.post('/risk/update',{symbol:pos.pair,side:pos.side,sl:pos.sl,tp:pos.tp,clientOrderId:Utils.orderId('risk',pos.pair)});
+          if(!riskResult||!(riskResult.success||riskResult.ok)) throw new Error((riskResult&&riskResult.error)||'Risk update rejected');
+          Runtime.capabilities.riskUpdate=true;
+          pos.lastRiskAckSL=pos.sl;
+        }
         catch(e){
           if(ApiCompat.isNotFound(e)){Runtime.capabilities.riskUpdate=false;logPos('[COMPAT] Server trailing endpoint unavailable; local trail only','info');}
           else{pos.lastError='Risk sync: '+e.message;logPos('[RISK SYNC ERROR] '+e.message,'err');}
@@ -2825,56 +2902,68 @@ window.__apexReady(function(){
   // V6.3.2 FIX: use the cheap CandleEngine.tickPrice() here instead of the
   // full CandleEngine.tick() — see the CandleEngine comment above. This is
   // the main fix for the lag/freeze that happened whenever a position was open.
-  window.runTracker = function() {
-  if (!positions.length) { stopTracker(); return; }
-  trackerTick++;
-  var el = document.getElementById('eTrack');
-  if (el) el.textContent = (appMode === 'live' ? 'SERVER+RECON' : 'TICK #' + trackerTick);
-  
-  // Demo modda fiyatları güncelle (sadece basit tick, full analiz değil)
-  if (appMode === 'demo') pairs.forEach(function(s) { CandleEngine.tickPrice(s); });
-  
-  // Geriye doğru döngü – kapanan elemanları güvenle silebiliriz
-  for (var i = positions.length - 1; i >= 0; i--) {
-    var pos = positions[i];
-    // Halihazırda kapatılmaya çalışılan veya açık olmayan posizyonları atla
-    if (closingNow[pos.id]) continue;
-    if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
-    
-    var pr = Number((pData[pos.pair] && pData[pos.pair].price) || pos.entry);
-    if (!pr || pr <= 0) continue;
-    
-    // Demo: TP/SL kontrolü – hemen close çağrılır, sonra döngü devam eder (ama aynı pos tekrar işlenmez)
-    if (appMode === 'demo') {
-      if ((pos.side === 'LONG' && pr >= pos.tp) || (pos.side === 'SHORT' && pr <= pos.tp)) {
-        Execution.close(pos.id, 'TAKE PROFIT');
-        continue; // Bu pos kapatılıyor, diğer işlemlere gerek yok
-      }
-      if ((pos.side === 'LONG' && pr <= pos.sl) || (pos.side === 'SHORT' && pr >= pos.sl)) {
-        Execution.close(pos.id, 'STOP LOSS');
+  function processTrackedPositions() {
+    for (var i = positions.length - 1; i >= 0; i--) {
+      var pos = positions[i];
+      if (!pos || closingNow[pos.id]) continue;
+      if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
+
+      var pr = Number(pData[pos.pair] && pData[pos.pair].price);
+      if (!Number.isFinite(pr) || pr <= 0) continue;
+
+      // Update the trail first. The synchronous part of TrailService.update()
+      // moves pos.sl before its optional server request starts.
+      if (trailOn) TrailService.update(pos, pr);
+
+      var hitSL = (pos.side === 'LONG' && pr <= Number(pos.sl)) ||
+                  (pos.side === 'SHORT' && pr >= Number(pos.sl));
+      if (hitSL) {
+        logPos('[LOCAL SL HIT] ' + pos.pair + ' price:' + fp(pr) + ' sl:' + fp(pos.sl), 'err');
+        Execution.close(pos.id, pos.trailActive ? 'TRAILING STOP' : 'STOP LOSS');
         continue;
       }
+
+      var hitTP = (pos.side === 'LONG' && pr >= Number(pos.tp)) ||
+                  (pos.side === 'SHORT' && pr <= Number(pos.tp));
+      if (hitTP) {
+        logPos('[LOCAL TP HIT] ' + pos.pair + ' price:' + fp(pr) + ' tp:' + fp(pos.tp), 'ok');
+        Execution.close(pos.id, 'TAKE PROFIT');
+      }
     }
-    
-    // Trailing stop (demo ve live için)
-    if (trailOn) TrailService.update(pos, pr);
   }
-  
-  // Live modda periyodik reconcile
-  if (appMode === 'live' && trackerTick % Math.max(1, Math.round(SafeConfig.reconcileMs / SafeConfig.trackerMs)) === 0) {
-    Execution.reconcile(false);
-  }
-  
-  // UI güncelleme – her tick'te değil, ama her 2 tick'te bir yapalım (daha hızlı tepki)
-  if (trackerTick % 2 === 0) {
-    updatePosUI();
-    updateTicker();
-    renderRiskStatus();
-  }
-  
-  // Eğer hiç pozisyon kalmamışsa tracker'ı durdur
-  if (positions.length === 0) stopTracker();
-};
+
+  window.runTracker = function() {
+    if (!positions.length) { stopTracker(); return; }
+    trackerTick++;
+
+    var el = document.getElementById('eTrack');
+    if (el) el.textContent = (appMode === 'live' ? 'LIVE RISK #' : 'TICK #') + trackerTick;
+
+    if (appMode === 'demo') {
+      pairs.forEach(function (s) { CandleEngine.tickPrice(s); });
+      processTrackedPositions();
+    } else {
+      // Check the latest cached quote immediately, then check again as soon as
+      // a lightweight fresh quote arrives. This is the client-side fallback;
+      // exchange-native stop orders remain the primary protection.
+      processTrackedPositions();
+      MarketData.refreshOpenPrices()
+        .then(function () { processTrackedPositions(); updateTicker(); })
+        .catch(function (e) { logPos('[LIVE PRICE] ' + e.message, 'err'); });
+    }
+
+    if (appMode === 'live' && trackerTick % Math.max(1, Math.round(SafeConfig.reconcileMs / SafeConfig.trackerMs)) === 0) {
+      Execution.reconcile(false);
+    }
+
+    if (trackerTick % 2 === 0) {
+      updatePosUI();
+      updateTicker();
+      renderRiskStatus();
+    }
+    if (!positions.length) stopTracker();
+  };
+
   window.runTrail=function(pos,pr){return TrailService.update(pos,pr);};
 
   var legacyUpdatePosUI=window.updatePosUI;
