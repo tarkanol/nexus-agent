@@ -2825,22 +2825,56 @@ window.__apexReady(function(){
   // V6.3.2 FIX: use the cheap CandleEngine.tickPrice() here instead of the
   // full CandleEngine.tick() — see the CandleEngine comment above. This is
   // the main fix for the lag/freeze that happened whenever a position was open.
-  window.runTracker=function(){
-    if(!positions.length){stopTracker();return;}trackerTick++;
-    var el=document.getElementById('eTrack');if(el)el.textContent=appMode==='live'?'SERVER+RECON':'TICK #'+trackerTick;
-    if(appMode==='demo')pairs.forEach(function(s){CandleEngine.tickPrice(s);});
-    positions.slice().forEach(function(pos){
-      if(pos.state!==POSITION_STATE.OPEN&&pos.state!==POSITION_STATE.ERROR)return;
-      var pr=Number(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
-      if(appMode==='demo'){
-        if(pos.side==='LONG'&&pr>=pos.tp||pos.side==='SHORT'&&pr<=pos.tp){Execution.close(pos.id,'TAKE PROFIT');return;}
-        if(pos.side==='LONG'&&pr<=pos.sl||pos.side==='SHORT'&&pr>=pos.sl){Execution.close(pos.id,'STOP LOSS');return;}
+  window.runTracker = function() {
+  if (!positions.length) { stopTracker(); return; }
+  trackerTick++;
+  var el = document.getElementById('eTrack');
+  if (el) el.textContent = (appMode === 'live' ? 'SERVER+RECON' : 'TICK #' + trackerTick);
+  
+  // Demo modda fiyatları güncelle (sadece basit tick, full analiz değil)
+  if (appMode === 'demo') pairs.forEach(function(s) { CandleEngine.tickPrice(s); });
+  
+  // Geriye doğru döngü – kapanan elemanları güvenle silebiliriz
+  for (var i = positions.length - 1; i >= 0; i--) {
+    var pos = positions[i];
+    // Halihazırda kapatılmaya çalışılan veya açık olmayan posizyonları atla
+    if (closingNow[pos.id]) continue;
+    if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
+    
+    var pr = Number((pData[pos.pair] && pData[pos.pair].price) || pos.entry);
+    if (!pr || pr <= 0) continue;
+    
+    // Demo: TP/SL kontrolü – hemen close çağrılır, sonra döngü devam eder (ama aynı pos tekrar işlenmez)
+    if (appMode === 'demo') {
+      if ((pos.side === 'LONG' && pr >= pos.tp) || (pos.side === 'SHORT' && pr <= pos.tp)) {
+        Execution.close(pos.id, 'TAKE PROFIT');
+        continue; // Bu pos kapatılıyor, diğer işlemlere gerek yok
       }
-      if(trailOn)TrailService.update(pos,pr);
-    });
-    if(appMode==='live'&&trackerTick%Math.max(1,Math.round(SafeConfig.reconcileMs/SafeConfig.trackerMs))===0)Execution.reconcile(false);
-    if(trackerTick%4===0){updatePosUI();updateTicker();renderRiskStatus();}
-  };
+      if ((pos.side === 'LONG' && pr <= pos.sl) || (pos.side === 'SHORT' && pr >= pos.sl)) {
+        Execution.close(pos.id, 'STOP LOSS');
+        continue;
+      }
+    }
+    
+    // Trailing stop (demo ve live için)
+    if (trailOn) TrailService.update(pos, pr);
+  }
+  
+  // Live modda periyodik reconcile
+  if (appMode === 'live' && trackerTick % Math.max(1, Math.round(SafeConfig.reconcileMs / SafeConfig.trackerMs)) === 0) {
+    Execution.reconcile(false);
+  }
+  
+  // UI güncelleme – her tick'te değil, ama her 2 tick'te bir yapalım (daha hızlı tepki)
+  if (trackerTick % 2 === 0) {
+    updatePosUI();
+    updateTicker();
+    renderRiskStatus();
+  }
+  
+  // Eğer hiç pozisyon kalmamışsa tracker'ı durdur
+  if (positions.length === 0) stopTracker();
+};
   window.runTrail=function(pos,pr){return TrailService.update(pos,pr);};
 
   var legacyUpdatePosUI=window.updatePosUI;
