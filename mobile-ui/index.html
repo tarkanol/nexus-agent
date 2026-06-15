@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.3.1 LOAD FIX</title>
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=OugYG9VyydT-HIpsH6j9bUFqtN0Noq77qgitMzpehcKMw-9aQkIdquU5Ay2szDfS89PcVRXA_VLK1AUT-59_N9-H09M5MzLhU8VqgGCvGlN4OkIHLPaezYHSv8mnQ-vsM9zHB3lCcDhBP72qY3WfoizOfdWTUyOMQ_UDiBf0cyTPIrAmrde7fsY73nUxvU3qPz6tyLzq5Udqlf2GjYiBGvLIYgip4qMbxcmXZBBMcPSHZu6bclgIgapa9VGsuT3YySr12-m-HLh3DCNbPe4m3A" charset="UTF-8"></script><style>
+<title>APEX SCALP V6.3.2 STABILITY FIX</title>
+<style>
 :root {
   --bg:#010c12; --panel:#031018; --card:#04141e; --brd:#0c1e2c; --brd2:#0a2235;
   --acc:#00d4ff; --acc2:#0088aa; --long:#00ff88; --long2:#00cc66;
@@ -542,7 +542,7 @@ select option{background:#041018}
 <script>
 
 'use strict';
-/* V6.3.1 portable-file bootstrap.
+/* V6.3.2 portable-file bootstrap.
  * Some mobile file viewers expose localStorage through a getter that throws.
  * Use an in-memory fallback so the interface can still start normally.
  */
@@ -1608,6 +1608,12 @@ function drawChart(){
     for(i=0;i<k.length;i++){if(k[i].l<mn)mn=k[i].l;if(k[i].h>mx)mx=k[i].h;}
     var an=pd.an&&pd.an.signal!=='WAIT'?pd.an:null;
     if(an){if(an.sl){mn=Math.min(mn,an.sl*.999);mx=Math.max(mx,an.sl*1.001);}if(an.tp){mn=Math.min(mn,an.tp*.999);mx=Math.max(mx,an.tp*1.001);}}
+    for(i=0;i<positions.length;i++){
+      if(positions[i].pair===currentPair){
+        if(positions[i].sl){mn=Math.min(mn,positions[i].sl*.999);mx=Math.max(mx,positions[i].sl*1.001);}
+        if(positions[i].tp){mn=Math.min(mn,positions[i].tp*.999);mx=Math.max(mx,positions[i].tp*1.001);}
+      }
+    }
     var rng=mx-mn;if(rng<=0) return;
     var cw=W/n;
     function toY(v){return H-8-((v-mn)/rng)*(H-16);}
@@ -1912,7 +1918,7 @@ window.__apexReady(function(){
 (function () {
   'use strict';
 
-  var APP_VERSION = '6.1.2 BALANCE FIX';
+  var APP_VERSION = '6.3.2 STABILITY FIX';
   var POSITION_STATE = Object.freeze({
     PENDING_OPEN: 'PENDING_OPEN',
     OPEN: 'OPEN',
@@ -2097,7 +2103,6 @@ window.__apexReady(function(){
       return Http.request(WORKER + path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body || {})});
     }
   };
-
 
   var ApiCompat = {
     isNotFound: function (e) {
@@ -2354,7 +2359,14 @@ window.__apexReady(function(){
       }
       return arr;
     },
-    tick: function (sym) {
+    // V6.3.2 FIX: split into a cheap price-only tick (used by the 500ms tracker)
+    // and the full tick (price + full 1m/5m/15m/1h re-aggregation, used by
+    // the mainLoop scan only). Previously the 500ms tracker called the full
+    // version for ALL pairs every 500ms, re-aggregating up to 10,000 candles
+    // x4 timeframes x10 pairs for no benefit (analyze() is only ever read
+    // from analyzeAll() on the mainLoop cadence) — this was the main cause
+    // of UI lag/freezing whenever a position was open.
+    tickPrice: function (sym) {
       if (!pData[sym]) pData[sym] = {};
       if (!pData[sym].masterKlines || pData[sym].masterKlines.length < 4000) {
         pData[sym].masterKlines = CandleEngine.seed(sym, 9000);
@@ -2370,17 +2382,21 @@ window.__apexReady(function(){
       var mk = pData[sym].masterKlines, last = mk[mk.length-1], price = pxState[sym].price;
       if (!last || last.t < bucket) {
         mk.push({t:bucket,o:last?last.c:price,h:price,l:price,c:price,v:100+Math.random()*1000});
+        if (mk.length > 10000) mk.splice(0, mk.length-10000);
       } else {
         last.c=price;last.h=Math.max(last.h,price);last.l=Math.min(last.l,price);last.v+=20+Math.random()*200;
       }
-      if (mk.length > 10000) mk.splice(0, mk.length-10000);
       pData[sym].price = price;
+      pData[sym].dataUpdatedAt = now;
+      pData[sym].source = 'demo';
+    },
+    tick: function (sym) {
+      CandleEngine.tickPrice(sym);
+      var mk = pData[sym].masterKlines;
       pData[sym].kl1m = CandleEngine.aggregate(mk,1,false).slice(-500);
       pData[sym].kl5m = CandleEngine.aggregate(mk,5,false).slice(-500);
       pData[sym].kl15m = CandleEngine.aggregate(mk,15,false).slice(-300);
       pData[sym].kl1h = CandleEngine.aggregate(mk,60,false).slice(-200);
-      pData[sym].dataUpdatedAt = now;
-      pData[sym].source = 'demo';
     }
   };
 
@@ -2460,6 +2476,11 @@ window.__apexReady(function(){
       positions.push(pos);
       SafeStore.save();
     },
+    // V6.3.2 FIX: re-introduced the minimum-size guard that existed in the
+    // original V6 openPos() but was dropped in V6.1, and made the manual
+    // (TP$/SL$) order size simply equal "Max Nominal Position" (effectiveMaxPos())
+    // instead of an unrelated balance*0.10*leverage formula, so what you see
+    // in Engine settings is what actually gets traded.
     open: async function (sym, side, auto, manualTargetUsd, manualRiskUsd) {
       try { sym = Utils.symbol(sym); } catch (e) { notify(e.message,'error'); return; }
       var pd = pData[sym], an = pd && pd.an && pd.an.signal !== 'WAIT' ? pd.an : null;
@@ -2467,7 +2488,8 @@ window.__apexReady(function(){
       if (!price) { notify('Price unavailable','error'); return; }
       var posVal, qty, sl, tp;
       if (manualTargetUsd && manualRiskUsd) {
-        posVal = Math.min(effectiveMaxPos(), Math.max(5, balance * 0.10 * Math.max(1, leverage)));
+        posVal = effectiveMaxPos();
+        if (posVal < 5) { notify('Position too small ($'+posVal.toFixed(2)+'). Increase Max Nominal Position.','error'); return; }
         qty = posVal / price;
         var slDist = Accounting.pnlTargetToDistance(manualRiskUsd, qty);
         var tpDist = Accounting.pnlTargetToDistance(manualTargetUsd, qty);
@@ -2475,6 +2497,7 @@ window.__apexReady(function(){
         tp = side === 'LONG' ? price + tpDist : price - tpDist;
       } else if (an) {
         posVal = Number(an.posVal); qty = posVal / price; sl = Number(an.sl); tp = Number(an.tp);
+        if (posVal < 5) { notify((auto?'AUTO ':'')+'Signal size too small ($'+posVal.toFixed(2)+')','error'); return; }
       } else { notify('No signal — manual target/risk required','error'); return; }
       var gate = RiskManager.gate(sym, posVal);
       if (!gate.ok) { notify(gate.reason,'error'); return; }
@@ -2734,8 +2757,8 @@ window.__apexReady(function(){
   };
 
   function injectSafeUI() {
-    var logo=document.querySelector('.logo');if(logo)logo.innerHTML='APEX<span> // SCALP V6.1.2</span>';
-    document.title='APEX SCALP V6.1 SAFE';
+    var logo=document.querySelector('.logo');if(logo)logo.innerHTML='APEX<span> // SCALP V6.3.2</span>';
+    document.title='APEX SCALP V6.3.2 STABILITY FIX';
     var settings=document.querySelector('#pg-settings .scroll');
     if(settings&&!document.getElementById('safeRiskCard')){
       var card=document.createElement('div');card.className='card';card.id='safeRiskCard';
@@ -2799,10 +2822,13 @@ window.__apexReady(function(){
     if(TRACKER_INTERVAL)clearInterval(TRACKER_INTERVAL);
     trackerTick=0;TRACKER_INTERVAL=setInterval(window.runTracker,SafeConfig.trackerMs);logPos('Safe tracker '+SafeConfig.trackerMs+'ms','ok');
   };
+  // V6.3.2 FIX: use the cheap CandleEngine.tickPrice() here instead of the
+  // full CandleEngine.tick() — see the CandleEngine comment above. This is
+  // the main fix for the lag/freeze that happened whenever a position was open.
   window.runTracker=function(){
     if(!positions.length){stopTracker();return;}trackerTick++;
     var el=document.getElementById('eTrack');if(el)el.textContent=appMode==='live'?'SERVER+RECON':'TICK #'+trackerTick;
-    if(appMode==='demo')pairs.forEach(function(s){CandleEngine.tick(s);});
+    if(appMode==='demo')pairs.forEach(function(s){CandleEngine.tickPrice(s);});
     positions.slice().forEach(function(pos){
       if(pos.state!==POSITION_STATE.OPEN&&pos.state!==POSITION_STATE.ERROR)return;
       var pr=Number(pData[pos.pair]&&pData[pos.pair].price)||pos.entry;
@@ -2847,7 +2873,7 @@ window.__apexReady(function(){
   };
   window.startDemo=function(){
     WORKER='';appMode='demo';futBal=null;Runtime.apiMode='unknown';document.getElementById('bdgConn').textContent='DEMO';document.getElementById('bdgConn').className='bdg';document.getElementById('connStatus').textContent='Demo mode — coherent 1m candles';
-    if(loopTimer)clearTimeout(loopTimer);mainLoop();log('V6.1 safe demo started','ok');
+    if(loopTimer)clearTimeout(loopTimer);mainLoop();log('V6.3.2 safe demo started','ok');
   };
 
   window.mainLoop=async function(){
@@ -2907,13 +2933,23 @@ window.__apexReady(function(){
  *  - keep an A+ precision mode without claiming guaranteed accuracy;
  *  - size from stop risk, confidence and available margin;
  *  - show near-miss scores and exact blockers instead of a silent WAIT screen.
+ *
+ * V6.3.2 FIXES applied in this block:
+ *  - adaptiveSizing now defaults to OFF, so "Max Nominal Position" ($10 etc.)
+ *    always equals the actual trade size unless you explicitly turn the
+ *    A/B tier size boost back on.
+ *  - the SIGNAL MODE description text is refreshed on load to match the
+ *    real thresholds below.
+ *  - when a position is open on the current pair, the PLAN box shows that
+ *    REAL position's entry/SL(incl. trailing)/TP/PnL instead of a constantly
+ *    recalculated hypothetical new-signal plan.
  */
 (function () {
   'use strict';
 
   var V62 = {
-    version: '6.3.0 TIERED PRECISION',
-    adaptiveSizing: true,
+    version: '6.3.2 STABILITY FIX',
+    adaptiveSizing: false,
     maxMarginPct: 0.30,
     eliteCap: 75,
     aTierBoost: 2.0,
@@ -3148,6 +3184,7 @@ window.__apexReady(function(){
 
     var reasons = [];
     var score = 0;
+    var setupConfirm = false;
     if (rawSig !== 'WAIT') {
       score += 12; reasons.push({t:'5M_STRUCTURE',cls:rawSig.toLowerCase()});
       if (trend15 === rawSig) { score += 16; reasons.push({t:'15M_ALIGN',cls:rawSig.toLowerCase()}); }
@@ -3174,7 +3211,7 @@ window.__apexReady(function(){
       reasons.push({t:'RSI:' + rsi5.toFixed(0),cls:rsiIdeal?rawSig.toLowerCase():'neut'});
 
       var twoCandle = rawSig === 'LONG' ? bull2 : bear2;
-      var setupConfirm = rawSig === 'LONG' ? (breakoutLong || pullbackLong) : (breakoutShort || pullbackShort);
+      setupConfirm = rawSig === 'LONG' ? (breakoutLong || pullbackLong) : (breakoutShort || pullbackShort);
       if (twoCandle) { score += 5; reasons.push({t:'2_CANDLE',cls:rawSig.toLowerCase()}); }
       if (setupConfirm) { score += 4; reasons.push({t:rawSig === 'LONG'?(breakoutLong?'BREAKOUT':'PULLBACK'):(breakoutShort?'BREAKDOWN':'PULLBACK'),cls:rawSig.toLowerCase()}); }
       if ((goldenX && rawSig === 'LONG') || (deathX && rawSig === 'SHORT')) { score += 5; reasons.push({t:'FRESH_CROSS',cls:rawSig.toLowerCase()}); }
@@ -3262,11 +3299,40 @@ window.__apexReady(function(){
     return out;
   };
 
+  // V6.3.2 FIX: shows the REAL open position (entry / live SL incl. trailing /
+  // TP / live PnL / size) instead of letting the PLAN box keep showing a
+  // recalculated hypothetical new-signal plan that doesn't match what you
+  // actually have open.
+  function v62RenderActivePosition(pos) {
+    var pr = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+    var pnl = (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
+    var cls = pos.side.toLowerCase();
+    var trailTxt = pos.trailActive ? ' (TRAILING)' : '';
+    return '<div class="plan-box">' +
+      '<div class="plan-hd ' + cls + '"><span>ACTIVE POSITION // ' + pos.pair.replace('_USDT','') + '</span><span style="font-size:9px">' + pos.side + '</span></div>' +
+      '<div class="plan-body">' +
+        '<div class="plan-row"><span class="pk">ENTRY</span><span>$' + fp(pos.entry) + '</span></div>' +
+        '<div class="plan-row"><span class="pk">NOW</span><span>$' + fp(pr) + '</span></div>' +
+        '<div class="plan-row"><span class="pk">TP</span><span class="pv tp">$' + fp(pos.tp) + '</span></div>' +
+        '<div class="plan-row"><span class="pk">SL' + trailTxt + '</span><span class="pv sl">$' + fp(pos.sl) + '</span></div>' +
+        '<div class="plan-row"><span class="pk">PNL</span><span style="color:' + (pnl >= 0 ? 'var(--long)' : 'var(--short)') + '">' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(4) + '</span></div>' +
+        '<div class="plan-row"><span class="pk">SIZE</span><span style="color:var(--acc)">$' + pos.posVal.toFixed(2) + '</span></div>' +
+      '</div></div>';
+  }
+
   var legacySignalUI = window.updateSignalUI;
   window.updateSignalUI = function () {
     legacySignalUI();
     var pd = pData[currentPair], an = pd && pd.an;
-    if (!an) return;
+    var openHere = null;
+    for (var pj=0; pj<positions.length; pj++) if (positions[pj].pair === currentPair) { openHere = positions[pj]; break; }
+    if (!an) {
+      if (openHere) {
+        var pw0 = document.getElementById('planWrap');
+        if (pw0) pw0.innerHTML = v62RenderActivePosition(openHere);
+      }
+      return;
+    }
     var qv = document.getElementById('qVal'), qb = document.getElementById('qBar');
     if (an.signal === 'WAIT' && an.score > 0) {
       if (qv) qv.textContent = an.score + '% candidate';
@@ -3303,6 +3369,10 @@ window.__apexReady(function(){
     }
     var note = document.getElementById('manNote');
     if (note && V62.adaptiveSizing) note.textContent += ' | A×' + V62.aTierBoost.toFixed(1) + ' B×' + V62.bTierBoost.toFixed(1) + ' Cap:$' + V62.eliteCap + ' Margin:' + Math.round(V62.maxMarginPct * 100) + '%';
+    if (openHere) {
+      var pw = document.getElementById('planWrap');
+      if (pw) pw.innerHTML = v62RenderActivePosition(openHere);
+    }
   };
 
   window.updateCoinScoreTable = function () {
@@ -3401,13 +3471,18 @@ window.__apexReady(function(){
     }
     v62RenderSizing();
     var logo = document.querySelector('.logo');
-    if (logo) logo.innerHTML = 'APEX<span> // SCALP V6.3.1</span>';
-    document.title = 'APEX SCALP V6.3.1 LOAD FIX';
+    if (logo) logo.innerHTML = 'APEX<span> // SCALP V6.3.2</span>';
+    document.title = 'APEX SCALP V6.3.2 STABILITY FIX';
   }
 
+  // V6.3.2 FIX: clearer description of what the size boost actually does,
+  // and the off-state now says explicitly that size = your selected Max
+  // Nominal Position (matching the new default).
   function v62RenderSizing() {
     var d = document.getElementById('v62AdaptiveDesc');
-    if (d) d.textContent = V62.adaptiveSizing ? 'On — tier multiplier, then hard risk/margin caps' : 'Off — selected nominal cap only';
+    if (d) d.textContent = V62.adaptiveSizing
+      ? ('On — A-tier signals ×' + V62.aTierBoost.toFixed(1) + ', B-tier ×' + V62.bTierBoost.toFixed(1) + ' (still capped by risk/margin)')
+      : 'Off (default) — position size always equals your selected Max Nominal Position';
     var ef = document.getElementById('v62EliteFilterDesc');
     if (ef) ef.textContent = V62.eliteFilter ? 'On — only score 80+ A-tier signals may trade' : 'Off — B/C signals remain eligible by mode';
     var eft = document.getElementById('togV62EliteFilter');
@@ -3418,8 +3493,8 @@ window.__apexReady(function(){
       var marginCeiling = Math.max(0, balance) * V62.maxMarginPct * Math.max(1, leverage);
       var aCap = Math.min(base * V62.aTierBoost, V62.eliteCap, marginCeiling);
       var bCap = Math.min(base * V62.bTierBoost, V62.eliteCap, marginCeiling);
-      n.textContent = 'Base $' + base.toFixed(2) + ' → A up to $' + aCap.toFixed(2) + ' / B up to $' + bCap.toFixed(2) +
-        ' notional. Margin ceiling $' + marginCeiling.toFixed(2) + '; configured net-risk cap is still enforced.';
+      n.textContent = 'Base $' + base.toFixed(2) + (V62.adaptiveSizing ? (' → A up to $' + aCap.toFixed(2) + ' / B up to $' + bCap.toFixed(2) + ' notional.') : ' (boost off — size stays $' + base.toFixed(2) + ').') +
+        ' Margin ceiling $' + marginCeiling.toFixed(2) + '; configured net-risk cap is still enforced.';
     }
   }
 
@@ -3434,9 +3509,11 @@ window.__apexReady(function(){
   window.__apexReady(function () {
     v62InjectUI();
     setTimeout(function () {
+      var desc = document.getElementById('modeDesc');
+      if (desc && MODE_CFG[signalMode]) desc.textContent = MODE_CFG[signalMode].label;
       analyzeAll(); updateSignalUI(); updateCoinScoreTable(); v62RenderSizing();
-      log('APEX ' + V62.version + ' loaded — calibrated modes + A/B tier sizing', 'ok');
-      log('A-tier means score 80+, not guaranteed accuracy; every size remains risk/margin capped', 'info');
+      log('APEX ' + V62.version + ' loaded — calibrated modes + position-size fix', 'ok');
+      log('Tier size boost is OFF by default: $ selected = $ traded. Enable it under Engine > Position Settings if you want A/B-tier boosts.', 'info');
     }, 180);
   });
 
@@ -3449,10 +3526,5 @@ window.__apexReady(function(){
   };
 })();
 </script>
-
-
-
-
-
 </body>
 </html>
