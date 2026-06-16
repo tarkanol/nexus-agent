@@ -222,292 +222,225 @@ select option{background:#041018}
 .inp-wrap{flex:1}
 </style>
 </head>
+
 <script>
-/* ═══════════════════════════════════════════════════════════
-   APEX SCALP V6.3.3 — RUNTIME PATCH
-   ═══════════════════════════════════════════════════════════
-   FIX 1 — TrailService: fee-aware activation threshold,
-            softer pullback fractions (0.18-0.55 vs 0.22-0.42).
-   FIX 2 — ApiCompat: /state 404 silently falls to legacy;
-            legacy reconcile never attempts /state again.
-   FIX 3 — finalizeLegacyLiveClose: balance update added.
-   FIX 4 — syncLegacyBalance: rate-limited (max 1 per 2.5s).
-   FIX 5 — "EXCHANGE POSITION LIST" log fires only once.
-*/
+/* APEX V6.3.3 — FINAL PATCH (FIX 1-6 consolidated) */
 (function () {
   'use strict';
 
-  /* ─── FIX 1: TrailService ─────────────────────────────── */
+  /* ─── FIX 1: Trail — fee-aware, softer pullback ───────── */
   if (window.ApexSafe && window.ApexSafe.config) {
     var _cfg = window.ApexSafe.config;
-
     window.runTrail = function (pos, pr) {
       var qty = Math.abs(Number(pos.qty) || 0);
       if (!qty) return;
-
-      var grossPnl = (Number(pr) - Number(pos.entry)) *
-                     (pos.side === 'LONG' ? 1 : -1) * qty;
+      var grossPnl = (Number(pr) - Number(pos.entry)) * (pos.side === 'LONG' ? 1 : -1) * qty;
       if (grossPnl > (pos.highPnl || 0)) pos.highPnl = grossPnl;
       var high = pos.highPnl || 0;
-
       var feeRate   = Number(pos.feeRate || _cfg.feeRate || 0.0004);
       var spreadBps = Number(_cfg.spreadBps  || 1);
       var slipBps   = Number(_cfg.slippageBps || 2);
       var roundTrip = (pos.posVal || 0) * (feeRate * 2 + (spreadBps + slipBps) / 10000);
-
-      // Activation: must exceed fees to be meaningful
       var threshold = Math.max(Number(targetUSD) * 0.40, roundTrip * 1.5);
       if (high < threshold) return;
-
-      // Softer pullback — give the trade room to run
       var pullback;
       if      (high >= Number(targetUSD) * 1.5)  pullback = 0.18;
       else if (high >= Number(targetUSD) * 1.0)  pullback = 0.28;
       else if (high >= Number(targetUSD) * 0.75) pullback = 0.36;
       else if (high >= Number(targetUSD) * 0.50) pullback = 0.45;
       else                                        pullback = 0.55;
-
-      // Always lock in at least break-even (after costs)
       var locked = Math.max(high * (1 - pullback), roundTrip);
       var dist   = locked / qty;
-
-      var newSL = pos.side === 'LONG'
-        ? Number(pos.entry) + dist
-        : Number(pos.entry) - dist;
-
-      var improved = pos.side === 'LONG'
-        ? newSL > Number(pos.sl)
-        : newSL < Number(pos.sl);
+      var newSL  = pos.side === 'LONG' ? Number(pos.entry) + dist : Number(pos.entry) - dist;
+      var improved = pos.side === 'LONG' ? newSL > Number(pos.sl) : newSL < Number(pos.sl);
       if (!improved) return;
-
-      // Only move if change > 0.03% of price
       if (Math.abs(newSL - Number(pos.sl)) / (Number(pr) || Number(pos.entry)) < 0.0003) return;
-
-      var old = pos.sl;
-      pos.sl = newSL;
-      pos.trailActive = true;
+      var old = pos.sl; pos.sl = newSL; pos.trailActive = true;
       if (typeof logPos === 'function')
-        logPos('[TRAIL] ' + pos.pair.replace('_USDT','') + ' SL ' + fp(old) +
-               ' → ' + fp(newSL) + ' locked≥$' + locked.toFixed(4), 'ok');
-
-      // TP extension (only when meaningfully in profit)
+        logPos('[TRAIL] ' + pos.pair.replace('_USDT','') + ' SL ' + fp(old) + ' → ' + fp(newSL) + ' locked≥$' + locked.toFixed(4), 'ok');
       if (high >= Number(targetUSD) * 1.0) {
         var ext;
-        if (pos.side === 'LONG') {
-          ext = Number(pr) + (Number(pr) - Number(pos.entry)) * 0.4;
-          if (ext > Number(pos.tp)) pos.tp = ext;
-        } else {
-          ext = Number(pr) - (Number(pos.entry) - Number(pr)) * 0.4;
-          if (ext < Number(pos.tp)) pos.tp = ext;
-        }
+        if (pos.side === 'LONG') { ext = Number(pr) + (Number(pr) - Number(pos.entry)) * 0.4; if (ext > Number(pos.tp)) pos.tp = ext; }
+        else { ext = Number(pr) - (Number(pos.entry) - Number(pr)) * 0.4; if (ext < Number(pos.tp)) pos.tp = ext; }
       }
-
-      // Server-side risk update (best-effort, non-blocking)
       if (appMode === 'live' && WORKER &&
           window.ApexSafe.runtime.capabilities.riskUpdate !== false &&
           (!pos.lastRiskSync || Date.now() - pos.lastRiskSync > 1200)) {
         pos.lastRiskSync = Date.now();
-        fetch(WORKER + '/risk/update', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
+        fetch(WORKER + '/risk/update', {method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({symbol:pos.pair, side:pos.side, sl:pos.sl, tp:pos.tp,
             clientOrderId:'t-apx-r-' + Date.now().toString(36)})
         }).then(function(r){return r.json();})
           .then(function(r){
-            if (r && (r.success || r.ok)) {
-              window.ApexSafe.runtime.capabilities.riskUpdate = true;
-            } else throw new Error((r && r.error) || 'rejected');
+            if (r && (r.success || r.ok)) window.ApexSafe.runtime.capabilities.riskUpdate = true;
+            else throw new Error((r && r.error) || 'rejected');
           })
           .catch(function(e){
             if (/404|not.?found|endpoint/i.test(String(e.status || '') + e.message)) {
               window.ApexSafe.runtime.capabilities.riskUpdate = false;
-              if (typeof logPos === 'function')
-                logPos('[COMPAT] /risk/update N/A — local trail only', 'info');
+              if (typeof logPos === 'function') logPos('[COMPAT] /risk/update N/A — local trail only', 'info');
             }
           });
       }
     };
   }
 
-  /* ─── FIX 2-5: Legacy reconcile & balance ─────────────── */
-  if (window.ApexSafe && window.ApexSafe.Execution) {
-    var _rt   = window.ApexSafe.runtime;
-    var _ac   = window.ApexSafe.ApiCompat;
-    var _ex   = window.ApexSafe.Execution;
-    var _cfg2 = window.ApexSafe.config;
-    var _posListWarnedOnce = false;
-    var _lastBalSync = 0;
-
-    // FIX 4: rate-limit syncLegacyBalance
-    var _origSync = _ac.syncLegacyBalance.bind(_ac);
-    _ac.syncLegacyBalance = async function () {
-      var now = Date.now();
-      if (now - _lastBalSync < 2500) return {success:true, skipped:true};
-      _lastBalSync = now;
-      return _origSync();
-    };
-
-    // FIX 2: reconcile — skip /state in legacy mode
-    _ex.reconcile = async function (force) {
-      if (appMode !== 'live' || !WORKER) return;
-      if (_rt.liveReconcileBusy) return;
-      if (!force && Date.now() - _rt.lastReconcileAt < _cfg2.reconcileMs) return;
-      _rt.liveReconcileBusy = true;
-      try {
-        if (_rt.apiMode === 'legacy' || _rt.capabilities.state === false) {
-          return await _ac.syncLegacyBalance();
-        }
-        try {
-          var res = await fetch(WORKER + '/state');
-          var r = await res.json();
-          if (!res.ok || !r || !r.success) {
-            var err = new Error((r && r.error) || 'HTTP ' + res.status);
-            err.status = res.status; throw err;
-          }
-          _rt.apiMode = 'modern'; _rt.capabilities.state = true;
-          _ex.reconcilePayload(r);
-          return r;
-        } catch (e) {
-          if (e.status === 404 || /not.?found|endpoint/i.test(String(e.message || ''))) {
-            _ac.setLegacy('/state: ' + e.message);
-            return await _ac.syncLegacyBalance();
-          }
-          throw e;
-        }
-      } catch (e) {
-        if (typeof log === 'function') log('[RECONCILE] ' + e.message, 'err');
-      } finally { _rt.liveReconcileBusy = false; }
-    };
-
-    // FIX 3 + 5: finalizeLegacyLiveClose — balance update + one-time log
-    var _origLC = _ex.finalizeLegacyLiveClose.bind(_ex);
-    _ex.finalizeLegacyLiveClose = function (pos, exitPrice, reason, serverTrade) {
-      _origLC(pos, exitPrice, reason, serverTrade);
-      var tr = trades[trades.length - 1];
-      if (tr && tr.pair === pos.pair && typeof tr.pnl === 'number') {
-        balance = Number(balance) + tr.pnl + Number(pos.posVal || 0);
-        if (!isFinite(balance)) balance = START_BAL;
-        peakBal = Math.max(peakBal, balance);
-        equityHistory.push(balance);
-        if (equityHistory.length > 300) equityHistory.shift();
-        if (typeof updateBalUI === 'function') updateBalUI();
-        if (typeof drawEquity  === 'function') drawEquity();
-        if (!_posListWarnedOnce) {
-          _posListWarnedOnce = true;
-          if (typeof logPos === 'function')
-            logPos('[COMPAT] Position list N/A — close price estimated locally; /balance will reconcile.', 'info');
-        }
-        _ac.syncLegacyBalance().catch(function(){});
-      }
-    };
-  }
-
-  window.__apexReady(function () {
-    setTimeout(function () {
-      if (typeof log === 'function')
-        log('V6.3.3 patch: trail fee-aware, /state fixed, balance-on-close fixed', 'ok');
-    }, 350);
-  });
-
-})();
-</script>
-
-<script>
-/* APEX V6.3.3 — FIX 6: Zombie position cleanup */
-(function () {
-  'use strict';
-
   if (!window.ApexSafe || !window.ApexSafe.Execution) return;
 
-  var _ex = window.ApexSafe.Execution;
-  var _rt = window.ApexSafe.runtime;
+  var _rt   = window.ApexSafe.runtime;
+  var _ac   = window.ApexSafe.ApiCompat;
+  var _ex   = window.ApexSafe.Execution;
+  var _cfg2 = window.ApexSafe.config;
+  var _posListWarnedOnce = false;
+  var _lastBalSync = 0;
 
-  // Eğer close başarısız olursa pozisyonu zombie bırakma
+  /* ─── FIX 4: syncLegacyBalance rate-limit ─────────────── */
+  var _origSync = _ac.syncLegacyBalance.bind(_ac);
+  _ac.syncLegacyBalance = async function () {
+    var now = Date.now();
+    if (now - _lastBalSync < 2500) return {success:true, skipped:true};
+    _lastBalSync = now;
+    return _origSync();
+  };
+
+  /* ─── FIX 2: reconcile — legacy /state bypass ─────────── */
+  _ex.reconcile = async function (force) {
+    if (appMode !== 'live' || !WORKER) return;
+    if (_rt.liveReconcileBusy) return;
+    if (!force && Date.now() - _rt.lastReconcileAt < _cfg2.reconcileMs) return;
+    _rt.liveReconcileBusy = true;
+    try {
+      if (_rt.apiMode === 'legacy' || _rt.capabilities.state === false)
+        return await _ac.syncLegacyBalance();
+      try {
+        var res = await fetch(WORKER + '/state');
+        var r   = await res.json();
+        if (!res.ok || !r || !r.success) { var e2 = new Error((r&&r.error)||'HTTP '+res.status); e2.status=res.status; throw e2; }
+        _rt.apiMode = 'modern'; _rt.capabilities.state = true;
+        _ex.reconcilePayload(r); return r;
+      } catch (e) {
+        if (e.status === 404 || /not.?found|endpoint/i.test(String(e.message||''))) {
+          _ac.setLegacy('/state: ' + e.message);
+          return await _ac.syncLegacyBalance();
+        }
+        throw e;
+      }
+    } catch (e) { if (typeof log === 'function') log('[RECONCILE] ' + e.message, 'err'); }
+    finally { _rt.liveReconcileBusy = false; }
+  };
+
+  /* ─── FIX 3: finalizeLegacyLiveClose — tam override ───── */
+  // Orijinali çağırmıyoruz — double-add önlemek için
+  _ex.finalizeLegacyLiveClose = function (pos, exitPrice, reason, serverTrade) {
+    var gross   = (Number(exitPrice) - Number(pos.entry)) * (pos.side === 'LONG' ? 1 : -1) * Math.abs(Number(pos.qty));
+    var exitFee = Math.abs(Number(pos.qty) * Number(exitPrice)) * Number(pos.feeRate || 0.0004);
+    var net     = (serverTrade && isFinite(Number(serverTrade.net)))
+                  ? Number(serverTrade.net)
+                  : gross - Number(pos.entryFee || 0) - exitFee;
+
+    // State
+    try {
+      if (window.ApexSafe.StateMachine) window.ApexSafe.StateMachine.transition(pos, 'CLOSED');
+      else pos.state = 'CLOSED';
+    } catch (_) { pos.state = 'CLOSED'; }
+
+    // positions'dan çıkar
+    positions = positions.filter(function (p) { return p.id !== pos.id; });
+    delete closingNow[pos.id];
+
+    // Balance: posVal (margin) geri gel + net kazanç/kayıp
+    balance = Number(balance) + Number(pos.posVal || 0) + net;
+    if (!isFinite(balance)) balance = START_BAL;
+    dailyPnL += net;
+    peakBal   = Math.max(peakBal, balance);
+
+    // Streak
+    if (net > 0) { winStreak++; loseStreak = 0; }
+    else         { loseStreak++; winStreak  = 0; }
+
+    // SL streak / cooldown
+    if (net < 0 && /STOP|SL/.test(reason)) {
+      slStreak[pos.pair] = (slStreak[pos.pair] || 0) + 1;
+      if (slStreak[pos.pair] >= 2) { setCD(pos.pair, 20, '2 SL row'); slStreak[pos.pair] = 0; }
+    } else if (net > 0) slStreak[pos.pair] = 0;
+
+    // Trade history
+    trades.push({pair:pos.pair, side:pos.side, pnl:net, gross:gross,
+      entryFee:Number(pos.entryFee||0), exitFee:exitFee, reason:reason,
+      entry:pos.entry, exit:exitPrice, openedAt:pos.openTime, closedAt:Date.now()});
+
+    // Equity
+    equityHistory.push(balance);
+    if (equityHistory.length > 300) equityHistory.shift();
+
+    // Log (bir kez uyar)
+    if (!_posListWarnedOnce) {
+      _posListWarnedOnce = true;
+      if (typeof logPos === 'function')
+        logPos('[COMPAT] Legacy close — exit price local. /balance reconciling.', 'info');
+    }
+    var ps = (net >= 0 ? '+' : '') + '$' + net.toFixed(4);
+    if (typeof logPos  === 'function') logPos('CLOSE ' + pos.pair.replace('_USDT','') + ' (' + reason + ') ' + ps, net >= 0 ? 'ok' : 'err');
+    if (typeof notify  === 'function') notify(pos.pair.replace('_USDT','') + ' closed ' + ps, net >= 0 ? 'success' : 'error');
+    if (typeof tpSlHits !== 'undefined' && /TAKE PROFIT|STOP LOSS|TRAILING/.test(reason)) tpSlHits++;
+
+    // UI
+    if (!positions.length && typeof stopTracker === 'function') stopTracker();
+    if (typeof updatePosUI    === 'function') updatePosUI();
+    if (typeof updateSignalUI === 'function') updateSignalUI();
+    if (typeof updateWRStrip  === 'function') updateWRStrip();
+    if (typeof updateBalUI    === 'function') updateBalUI();
+    if (typeof drawEquity     === 'function') drawEquity();
+
+    // Exchange balance sync
+    _ac.syncLegacyBalance().catch(function(){});
+  };
+
+  /* ─── FIX 5+6: close override — zombie & flag cleanup ─── */
   var _origClose = _ex.close.bind(_ex);
   _ex.close = async function (id, reason) {
     try {
       await _origClose(id, reason);
-    } catch (e) {
-      // Hata olsa bile temizle
-    } finally {
-      // Her halükarda closingNow flag'ini temizle
-      delete closingNow[id];
-    }
+    } catch (_) {}
+    finally { delete closingNow[id]; }
 
-    // Exchange'de gerçekten kapandıysa ama local'de hala varsa temizle
+    // 8 sn sonra hala varsa force temizle
     setTimeout(function () {
-      var stillHere = positions.find(function (p) { return p.id === id; });
-      if (!stillHere) return; // zaten temizlendi, tamam
-
-      var pos = stillHere;
-      var STUCK_STATES = ['PENDING_CLOSE', 'ERROR', 'CLOSED'];
-      if (STUCK_STATES.indexOf(pos.state) === -1) return; // hala aktif, dokunma
-
-      // State CLOSED ama listede hala duruyorsa çıkar
+      var pos = positions.find(function (p) { return p.id === id; });
+      if (!pos) return;
       if (pos.state === 'CLOSED') {
         positions = positions.filter(function (p) { return p.id !== id; });
         delete closingNow[id];
         if (typeof updatePosUI === 'function') updatePosUI();
-        if (typeof log === 'function') log('[FIX6] Zombie CLOSED pos removed: ' + pos.pair, 'info');
         return;
       }
-
-      // PENDING_CLOSE'da 8 saniyeden fazla kaldıysa exchange'e sor
       var stuckMs = Date.now() - (pos.stateUpdatedAt || 0);
       if (stuckMs < 8000) return;
-
-      if (typeof log === 'function')
-        log('[FIX6] Stuck PENDING_CLOSE detected: ' + pos.pair + ' — reconciling', 'info');
-
-      if (appMode === 'live' && WORKER && window.ApexSafe.ApiCompat) {
-        window.ApexSafe.ApiCompat.syncLegacyBalance()
-          .then(function () {
-            // Reconcile sonrası hala varsa force-remove
-            var still = positions.find(function (p) { return p.id === id; });
-            if (still && (still.state === 'PENDING_CLOSE' || still.state === 'ERROR')) {
-              if (typeof logPos === 'function')
-                logPos('[FIX6] Force-removing stuck position ' + still.pair + ' after reconcile', 'err');
-              positions = positions.filter(function (p) { return p.id !== id; });
-              delete closingNow[id];
-              if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
-              if (typeof updatePosUI === 'function') updatePosUI();
-              if (typeof updateSignalUI === 'function') updateSignalUI();
-            }
-          })
-          .catch(function () {
-            // Reconcile de başarısız olduysa yine de temizle
-            positions = positions.filter(function (p) { return p.id !== id; });
-            delete closingNow[id];
-            if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
-            if (typeof updatePosUI === 'function') updatePosUI();
-          });
-      } else {
-        // Demo modda direkt temizle
-        positions = positions.filter(function (p) { return p.id !== id; });
-        delete closingNow[id];
-        if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
-        if (typeof updatePosUI === 'function') updatePosUI();
-        if (typeof updateSignalUI === 'function') updateSignalUI();
-      }
+      if (typeof log === 'function') log('[FIX6] Stuck pos force-removed: ' + pos.pair, 'err');
+      positions = positions.filter(function (p) { return p.id !== id; });
+      delete closingNow[id];
+      if (!positions.length && typeof stopTracker   === 'function') stopTracker();
+      if (typeof updatePosUI    === 'function') updatePosUI();
+      if (typeof updateSignalUI === 'function') updateSignalUI();
     }, 8000);
   };
 
-  // Sayfa açıldığında zaten takılı zombie varsa temizle
+  /* ─── Boot: mevcut zombie'leri temizle ─────────────────── */
   window.__apexReady(function () {
     setTimeout(function () {
-      var zombies = positions.filter(function (p) {
-        return p.state === 'CLOSED' || p.state === 'PENDING_CLOSE';
+      var before = positions.length;
+      positions = positions.filter(function (p) {
+        return p.state !== 'CLOSED' && p.state !== 'PENDING_CLOSE';
       });
-      if (!zombies.length) return;
-      zombies.forEach(function (p) {
-        positions = positions.filter(function (x) { return x.id !== p.id; });
-        delete closingNow[p.id];
-        if (typeof log === 'function')
-          log('[FIX6] Boot-time zombie removed: ' + p.pair + ' (' + p.state + ')', 'info');
-      });
-      if (typeof updatePosUI === 'function') updatePosUI();
-      if (typeof updateSignalUI === 'function') updateSignalUI();
-    }, 500);
+      Object.keys(closingNow).forEach(function (k) { delete closingNow[k]; });
+      if (positions.length !== before) {
+        if (typeof updatePosUI    === 'function') updatePosUI();
+        if (typeof updateSignalUI === 'function') updateSignalUI();
+        if (typeof log === 'function') log('[FIX6] ' + (before - positions.length) + ' zombie cleared', 'info');
+      }
+      if (typeof log === 'function')
+        log('V6.3.3 FINAL PATCH loaded — FIX 1-6 active', 'ok');
+    }, 600);
   });
 
 })();
