@@ -412,6 +412,106 @@ select option{background:#041018}
 })();
 </script>
 
+<script>
+/* APEX V6.3.3 — FIX 6: Zombie position cleanup */
+(function () {
+  'use strict';
+
+  if (!window.ApexSafe || !window.ApexSafe.Execution) return;
+
+  var _ex = window.ApexSafe.Execution;
+  var _rt = window.ApexSafe.runtime;
+
+  // Eğer close başarısız olursa pozisyonu zombie bırakma
+  var _origClose = _ex.close.bind(_ex);
+  _ex.close = async function (id, reason) {
+    try {
+      await _origClose(id, reason);
+    } catch (e) {
+      // Hata olsa bile temizle
+    } finally {
+      // Her halükarda closingNow flag'ini temizle
+      delete closingNow[id];
+    }
+
+    // Exchange'de gerçekten kapandıysa ama local'de hala varsa temizle
+    setTimeout(function () {
+      var stillHere = positions.find(function (p) { return p.id === id; });
+      if (!stillHere) return; // zaten temizlendi, tamam
+
+      var pos = stillHere;
+      var STUCK_STATES = ['PENDING_CLOSE', 'ERROR', 'CLOSED'];
+      if (STUCK_STATES.indexOf(pos.state) === -1) return; // hala aktif, dokunma
+
+      // State CLOSED ama listede hala duruyorsa çıkar
+      if (pos.state === 'CLOSED') {
+        positions = positions.filter(function (p) { return p.id !== id; });
+        delete closingNow[id];
+        if (typeof updatePosUI === 'function') updatePosUI();
+        if (typeof log === 'function') log('[FIX6] Zombie CLOSED pos removed: ' + pos.pair, 'info');
+        return;
+      }
+
+      // PENDING_CLOSE'da 8 saniyeden fazla kaldıysa exchange'e sor
+      var stuckMs = Date.now() - (pos.stateUpdatedAt || 0);
+      if (stuckMs < 8000) return;
+
+      if (typeof log === 'function')
+        log('[FIX6] Stuck PENDING_CLOSE detected: ' + pos.pair + ' — reconciling', 'info');
+
+      if (appMode === 'live' && WORKER && window.ApexSafe.ApiCompat) {
+        window.ApexSafe.ApiCompat.syncLegacyBalance()
+          .then(function () {
+            // Reconcile sonrası hala varsa force-remove
+            var still = positions.find(function (p) { return p.id === id; });
+            if (still && (still.state === 'PENDING_CLOSE' || still.state === 'ERROR')) {
+              if (typeof logPos === 'function')
+                logPos('[FIX6] Force-removing stuck position ' + still.pair + ' after reconcile', 'err');
+              positions = positions.filter(function (p) { return p.id !== id; });
+              delete closingNow[id];
+              if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
+              if (typeof updatePosUI === 'function') updatePosUI();
+              if (typeof updateSignalUI === 'function') updateSignalUI();
+            }
+          })
+          .catch(function () {
+            // Reconcile de başarısız olduysa yine de temizle
+            positions = positions.filter(function (p) { return p.id !== id; });
+            delete closingNow[id];
+            if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
+            if (typeof updatePosUI === 'function') updatePosUI();
+          });
+      } else {
+        // Demo modda direkt temizle
+        positions = positions.filter(function (p) { return p.id !== id; });
+        delete closingNow[id];
+        if (positions.length === 0 && typeof stopTracker === 'function') stopTracker();
+        if (typeof updatePosUI === 'function') updatePosUI();
+        if (typeof updateSignalUI === 'function') updateSignalUI();
+      }
+    }, 8000);
+  };
+
+  // Sayfa açıldığında zaten takılı zombie varsa temizle
+  window.__apexReady(function () {
+    setTimeout(function () {
+      var zombies = positions.filter(function (p) {
+        return p.state === 'CLOSED' || p.state === 'PENDING_CLOSE';
+      });
+      if (!zombies.length) return;
+      zombies.forEach(function (p) {
+        positions = positions.filter(function (x) { return x.id !== p.id; });
+        delete closingNow[p.id];
+        if (typeof log === 'function')
+          log('[FIX6] Boot-time zombie removed: ' + p.pair + ' (' + p.state + ')', 'info');
+      });
+      if (typeof updatePosUI === 'function') updatePosUI();
+      if (typeof updateSignalUI === 'function') updateSignalUI();
+    }, 500);
+  });
+
+})();
+</script>
 
 
 <body>
