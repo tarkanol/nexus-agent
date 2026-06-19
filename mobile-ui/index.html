@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.3.5 NEUTRAL</title>
+<title>APEX SCALP V6.3.5</title>
 <style>
 
 :root {
@@ -62,20 +62,17 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .pp-sig{font-size:7px;font-weight:700;padding:1px 3px;border-radius:2px}
 .pp-sig.LONG{background:rgba(0,255,136,0.15);color:var(--long)}
 .pp-sig.SHORT{background:rgba(255,51,85,0.15);color:var(--short)}
-.pp-sig.RANGE{background:rgba(255,204,68,0.15);color:var(--gold)}
 .pp-sig.WAIT{color:var(--dim)}
 .sig-display{text-align:center;padding:14px 0 10px}
 .sig-badge{font-family:var(--mono);font-size:26px;letter-spacing:4px;padding:10px 28px;border-radius:4px;display:inline-block;min-width:160px;transition:all .3s}
 .sig-badge.LONG{background:rgba(0,255,136,0.07);color:var(--long);border:1px solid rgba(0,255,136,0.5);box-shadow:0 0 24px rgba(0,255,136,0.12)}
 .sig-badge.SHORT{background:rgba(255,51,85,0.07);color:var(--short);border:1px solid rgba(255,51,85,0.5);box-shadow:0 0 24px rgba(255,51,85,0.12)}
-.sig-badge.RANGE{background:rgba(255,204,68,0.07);color:var(--gold);border:1px solid rgba(255,204,68,0.5);box-shadow:0 0 24px rgba(255,204,68,0.12)}
 .sig-badge.WAIT{background:var(--card);color:var(--dim2);border:1px solid var(--brd2)}
 .sig-meta{font-family:var(--mono);font-size:9px;color:var(--dim2);margin-top:6px;letter-spacing:1px}
 .conf-tier{display:inline-block;font-family:var(--mono);font-size:8px;padding:2px 8px;border-radius:2px;margin-top:4px;letter-spacing:2px}
 .conf-tier.A{background:rgba(0,255,136,0.1);color:var(--long);border:1px solid rgba(0,255,136,0.3)}
 .conf-tier.B{background:rgba(255,204,68,0.1);color:var(--gold);border:1px solid rgba(255,204,68,0.3)}
 .conf-tier.C{background:rgba(255,51,85,0.05);color:var(--short);border:1px solid rgba(255,51,85,0.2)}
-.conf-tier.RANGE{background:rgba(255,204,68,0.15);color:var(--gold);border:1px solid rgba(255,204,68,0.4)}
 .qbar-wrap{margin:4px 0 6px}
 .qbar-hd{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--dim2);margin-bottom:3px}
 .qbar-track{height:5px;background:var(--brd2);border-radius:2px;overflow:hidden}
@@ -84,7 +81,6 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .rtag{font-family:var(--mono);font-size:8px;padding:2px 5px;border-radius:2px;border:1px solid var(--brd2);color:var(--dim2)}
 .rtag.long{border-color:rgba(0,255,136,0.4);color:var(--long);background:rgba(0,255,136,0.04)}
 .rtag.short{border-color:rgba(255,51,85,0.4);color:var(--short);background:rgba(255,51,85,0.04)}
-.rtag.range{border-color:rgba(255,204,68,0.4);color:var(--gold);background:rgba(255,204,68,0.04)}
 .rtag.neut{border-color:var(--acc2);color:var(--acc);background:rgba(0,212,255,0.04)}
 .rtag.warn{border-color:rgba(255,170,0,0.4);color:var(--warn);background:rgba(255,170,0,0.04)}
 .tf-row{display:flex;gap:4px;margin-bottom:6px}
@@ -95,7 +91,7 @@ canvas{display:block;width:100%;border-radius:4px;background:#010a10;border:1px 
 .mtf-cell{text-align:center;background:rgba(2,10,16,0.8);border:1px solid var(--brd);border-radius:3px;padding:5px}
 .mtf-label{font-size:8px;color:var(--dim2);font-family:var(--mono)}
 .mtf-val{font-size:10px;font-weight:700;font-family:var(--mono);margin-top:1px}
-.mtf-val.LONG{color:var(--long)}.mtf-val.SHORT{color:var(--short)}.mtf-val.RANGE{color:var(--gold)}.mtf-val.WAIT{color:var(--dim2)}
+.mtf-val.LONG{color:var(--long)}.mtf-val.SHORT{color:var(--short)}.mtf-val.WAIT{color:var(--dim2)}
 .filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px}
 .filter-cell{background:rgba(2,10,16,0.8);border:1px solid var(--brd);border-radius:3px;padding:4px 6px;text-align:center}
 .filter-label{font-size:7px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px}
@@ -110,7 +106,6 @@ canvas{display:block;width:100%;border-radius:4px;background:#010a10;border:1px 
 .plan-hd{padding:6px 10px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;display:flex;justify-content:space-between;align-items:center}
 .plan-hd.long{background:rgba(0,255,136,0.08);color:var(--long);border-left:3px solid var(--long)}
 .plan-hd.short{background:rgba(255,51,85,0.08);color:var(--short);border-left:3px solid var(--short)}
-.plan-hd.range{background:rgba(255,204,68,0.08);color:var(--gold);border-left:3px solid var(--gold)}
 .plan-body{background:rgba(2,10,16,0.9);padding:8px 10px;border:1px solid var(--brd2);border-top:none}
 .plan-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:10px}
 .plan-row:last-child{border:none}
@@ -122,7 +117,15 @@ canvas{display:block;width:100%;border-radius:4px;background:#010a10;border:1px 
 .mode-btn.active.quality{border-color:var(--long);color:var(--long);background:rgba(0,255,136,0.07)}
 .mode-btn.active.standard{border-color:var(--warn);color:var(--warn);background:rgba(255,170,0,0.07)}
 .mode-btn.active.aggressive{border-color:var(--short);color:var(--short);background:rgba(255,51,85,0.07)}
-.mode-btn.active.neutral{border-color:var(--gold);color:var(--gold);background:rgba(255,204,68,0.09)}
+.mode-btn.active.neutral{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,0.07)}
+.sig-badge.NEAR_TOP{background:rgba(255,170,0,0.07);color:var(--warn);border:1px solid rgba(255,170,0,0.5);box-shadow:0 0 24px rgba(255,170,0,0.12)}
+.sig-badge.NEAR_BOTTOM{background:rgba(0,212,255,0.07);color:var(--acc);border:1px solid rgba(0,212,255,0.5);box-shadow:0 0 24px rgba(0,212,255,0.12)}
+.grid-box{border-radius:4px;overflow:hidden;margin-bottom:7px}
+.grid-hd{padding:6px 10px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;background:rgba(0,212,255,0.08);color:var(--acc);border-left:3px solid var(--acc)}
+.grid-body{background:rgba(2,10,16,0.9);padding:8px 10px;border:1px solid var(--brd2);border-top:none}
+.grid-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:10px}
+.grid-row:last-child{border:none}
+.grid-note{font:8px var(--mono);color:var(--dim2);line-height:1.5;margin-top:6px;text-align:center}
 .v62-note{font:8px var(--mono);color:var(--dim2);line-height:1.5;text-align:center;margin-top:4px}
 .fr{margin-bottom:7px}
 .inp-label{font-size:8px;color:var(--dim2);font-family:var(--mono);letter-spacing:1px;display:block;margin-bottom:2px}
@@ -248,10 +251,10 @@ select option{background:#041018}
         <button class="mode-btn quality active" id="modeQuality" onclick="setMode('quality')">QUALITY<br><span style="font-size:7px;opacity:.7">BEST</span></button>
         <button class="mode-btn standard" id="modeStandard" onclick="setMode('standard')">STANDARD<br><span style="font-size:7px;opacity:.7">BALANCED</span></button>
         <button class="mode-btn aggressive" id="modeAggressive" onclick="setMode('aggressive')">ACTIVE<br><span style="font-size:7px;opacity:.7">MORE</span></button>
-        <button class="mode-btn neutral" id="modeNeutral" onclick="setMode('neutral')">NEUTRAL<br><span style="font-size:7px;opacity:.7">RANGE</span></button>
+        <button class="mode-btn neutral" id="modeNeutral" onclick="setMode('neutral')">NEUTRAL<br><span style="font-size:7px;opacity:.7">RANGE/GRID</span></button>
       </div>
       <div id="modeDesc" style="font-family:var(--mono);font-size:8px;color:var(--dim2);text-align:center;margin-top:4px">--</div>
-      <div class="v62-note">Neutral mod: BB sıkışıklığı + düşük ATR + 24-48h range skoru — yön bağımsız, grid için uygun.</div>
+      <div class="v62-note">Precision means stricter evidence, not guaranteed wins. Size remains stop-risk and margin capped.</div>
     </div>
 
     <div class="pairs" id="pairRow"></div>
@@ -307,22 +310,6 @@ select option{background:#041018}
     </div>
 
     <div id="planWrap"></div>
-
-    <!-- GRID SETUP CARD (sadece NEUTRAL modda ve RANGE sinyali varsa görünür) -->
-    <div id="gridSetupWrap" style="display:none">
-      <div class="card">
-        <div class="sec-title">📐 GRID SETUP (Bilgi amaçlı)</div>
-        <div id="gridSetupContent">
-          <div class="plan-row"><span class="pk">Coin</span><span id="gridCoin" style="color:var(--acc)">--</span></div>
-          <div class="plan-row"><span class="pk">24-48h Range (min)</span><span id="gridMin" style="color:var(--dim2)">--</span></div>
-          <div class="plan-row"><span class="pk">24-48h Range (max)</span><span id="gridMax" style="color:var(--dim2)">--</span></div>
-          <div class="plan-row"><span class="pk">Önerilen Grid Sayısı</span><span id="gridCount" style="color:var(--gold)">--</span></div>
-          <div class="plan-row"><span class="pk">Önerilen Kaldıraç</span><span id="gridLev" style="color:var(--gold)">--</span></div>
-          <div class="plan-row"><span class="pk">Range Genişliği (%)</span><span id="gridWidthPct" style="color:var(--warn)">--</span></div>
-        </div>
-        <div style="font-size:9px;color:var(--dim2);margin-top:6px;font-family:var(--mono)">Bu bilgiler manuel grid kurulumu içindir. Bot otomatik işlem açmaz.</div>
-      </div>
-    </div>
 
     <div class="card">
       <div class="sec-title">MANUAL ENTRY</div>
@@ -563,8 +550,14 @@ select option{background:#041018}
 
 <script>
 'use strict';
+'use strict';
+
 /* ═══════════════════════════════════════════════════════════
-   APEX SCALP V6.3.5 — NEUTRAL / RANGE MOD EKLENDİ
+   APEX SCALP V6.3.3 — CLEAN BUILD
+   All previous patch layers (V6.1 Safe / V6.2 Precision / V6.3.2
+   Stability / V6.3.3 hotfixes) consolidated into ONE coherent
+   codebase. No runtime monkey-patching, no duplicate trail
+   logic, no double balance updates.
    ═══════════════════════════════════════════════════════════ */
 
 /* ---- storage bootstrap (mobile-safe) ---- */
@@ -646,7 +639,7 @@ var CFG = {
   trackerMs: 500,
   livePriceMs: 1000,
   killSwitch: false,
-  persistKey: 'apex-scalp-v635',
+  persistKey: 'apex-scalp-v633',
   dayKey: new Date().toISOString().slice(0, 10)
 };
 
@@ -657,7 +650,7 @@ var V62 = {
   aTierBoost: 2.0,
   bTierBoost: 1.5,
   eliteFilter: false,
-  storageKey: 'apex-scalp-v635-sizing'
+  storageKey: 'apex-scalp-v633-sizing'
 };
 
 var Runtime = {
@@ -684,8 +677,7 @@ var MODE_CFG = {
                label:'Score≥56 | 2/3 TF | Vol≥0.90x | SHORT RSI 28–58 | MACD momentum vote'},
   aggressive: {scoreMin:50, volMin:0.78, tfMin:2, atrMin:0.012, atrMax:4.0, longRsi:[42,72], shortRsi:[24,58], minRR:1.40,
                label:'Score≥50 | 2/3 TF | Vol≥0.78x | wider RSI, more frequent signals'},
-  neutral:    {scoreMin:50, volMin:0.5, tfMin:0, atrMin:0.008, atrMax:1.5, longRsi:[0,100], shortRsi:[0,100], minRR:0,
-               label:'NEUTRAL | BB sıkışıklığı + düşük ATR + 24-48h range | Yön bağımsız, grid için'}
+  neutral:    {label:'Range-bound only | Price near BB band | Grid setup suggestion, no auto trade'}
 };
 
 function setMode(m) {
@@ -697,13 +689,10 @@ function setMode(m) {
   });
   var desc = document.getElementById('modeDesc');
   if (desc) desc.textContent = MODE_CFG[m].label;
-  // Grid setup kartını göster/gizle
-  var gridWrap = document.getElementById('gridSetupWrap');
-  if (gridWrap) gridWrap.style.display = (m === 'neutral') ? 'block' : 'none';
   analyzeAll();
   updateSignalUI();
   updateCoinScoreTable();
-  log('Mode: ' + m.toUpperCase() + (m === 'neutral' ? ' (RANGE / Grid bilgisi)' : ''), 'ok');
+  log('Mode: ' + m.toUpperCase() + (m === 'elite' ? ' (precision, not guaranteed)' : m === 'neutral' ? ' (range scan — no auto trade)' : ''), 'ok');
 }
 
 /* ═══════════════════════════════════════════════
@@ -1080,7 +1069,6 @@ function minLowOf(kl, fromEnd, count) {
    SIGNAL ENGINE — single consolidated analyze()
    Combines persistent trend/momentum voting with
    strict tier scoring and risk-based sizing.
-   NEUTRAL mod: range skoru hesaplar, sinyal = RANGE
    ═══════════════════════════════════════════════ */
 
 function costRate() {
@@ -1109,46 +1097,6 @@ function effectiveMaxPos(score, tier) {
   return Math.min(base * tierMultiplier(tier), V62.eliteCap);
 }
 
-// Range skoru hesaplama (NEUTRAL mod için)
-function calcRangeScore(kl5, price) {
-  if (!kl5 || kl5.length < 100) return {score:0, min:price, max:price, pct:0, squeeze:false, reasons:[]};
-  // Son 48 saat = 48 * 12 = 576 adet 5m mum (yaklaşık)
-  var n = Math.min(576, kl5.length);
-  var slice = kl5.slice(-n);
-  var mn = Infinity, mx = -Infinity;
-  for (var i = 0; i < slice.length; i++) {
-    if (slice[i].l < mn) mn = slice[i].l;
-    if (slice[i].h > mx) mx = slice[i].h;
-  }
-  var range = mx - mn;
-  var pct = range / price * 100;
-  var mid = (mn + mx) / 2;
-  var pos = (price - mn) / range; // 0..1 arası
-
-  // BB squeeze kontrolü
-  var c = slice.map(function(k){ return k.c; });
-  var bb = calcBB(c, 20, 2);
-  var squeeze = bb.squeeze || (bb.upper - bb.lower) / bb.mid < 0.015;
-
-  // ATR düşüklüğü
-  var atr = calcATR(kl5, 14);
-  var atrPct = atr / price * 100;
-
-  // Skor: squeeze, düşük atr, fiyatın range içindeki konumu (uçlara yakın olması iyi)
-  var score = 0;
-  var reasons = [];
-  if (squeeze) { score += 30; reasons.push({t:'BB_SQUEEZE', cls:'range'}); } else reasons.push({t:'BB_NORMAL', cls:'warn'});
-  if (atrPct < 0.12) { score += 25; reasons.push({t:'ATR_LOW:'+atrPct.toFixed(2)+'%', cls:'range'}); } else reasons.push({t:'ATR:'+atrPct.toFixed(2)+'%', cls:'warn'});
-  if (range > 0) {
-    var distToEdge = Math.min(pos, 1 - pos);
-    if (distToEdge < 0.15) { score += 25; reasons.push({t:'NEAR_EDGE:'+ (distToEdge*100).toFixed(0)+'%', cls:'range'}); } else reasons.push({t:'MID_RANGE', cls:'warn'});
-  }
-  if (pct < 4) { score += 20; reasons.push({t:'RANGE_W:'+pct.toFixed(1)+'%', cls:'range'}); } else reasons.push({t:'RANGE_W:'+pct.toFixed(1)+'%', cls:'warn'});
-
-  score = clampNum(Math.round(score), 0, 100);
-  return {score:score, min:mn, max:mx, pct:pct, squeeze:squeeze, reasons:reasons, mid:mid, pos:pos};
-}
-
 function resultBase(ctx) {
   return {
     price: ctx.price, score: ctx.score, reasons: ctx.reasons,
@@ -1173,7 +1121,130 @@ function waitResult(ctx, reason) {
   return out;
 }
 
+/* ═══════════════════════════════════════════════
+   NEUTRAL / RANGE SCANNER
+   Finds coins trading in a tight range (BB squeeze /
+   price hugging the BB bands) and suggests grid setup
+   parameters (min/max/grid count/leverage) for the
+   user to enter manually on the exchange. This mode
+   never opens a position — it only surfaces a setup.
+   ═══════════════════════════════════════════════ */
+function analyzeNeutral(sym) {
+  var pd = pData[sym];
+  if (!pd) return null;
+  var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [];
+  var price = Number(pd.price || (kl5.length ? kl5[kl5.length - 1].c : 0));
+  if (!price || kl5.length < 50 || kl15.length < 30) {
+    return {
+      signal: 'WAIT', score: 0, price: price || 0, mode: 'neutral',
+      failReason: 'DATA_WARMUP 5m:' + kl5.length + ' 15m:' + kl15.length,
+      filters: {atr:'--', vol:'--', trend:'--', rsi:'--', macd:'--', score:'0%'}
+    };
+  }
+
+  var c5 = [], i;
+  for (i = 0; i < kl5.length; i++) c5.push(Number(kl5[i].c));
+
+  var bb5 = calcBB(c5, 20, 2);
+  var atr5 = calcATR(kl5, 14), atrPct = atr5 / price * 100;
+  var rsi5 = calcRSI(c5, 14);
+  var vr = calcVolRatio(kl5);
+
+  // 24-48h range from 5m candles (≈ 288-576 5m candles)
+  var lookback5m = Math.min(kl5.length, 576);
+  var recent = kl5.slice(-lookback5m);
+  var rangeMin = Infinity, rangeMax = -Infinity;
+  for (i = 0; i < recent.length; i++) {
+    if (recent[i].l < rangeMin) rangeMin = recent[i].l;
+    if (recent[i].h > rangeMax) rangeMax = recent[i].h;
+  }
+  if (!isFinite(rangeMin) || !isFinite(rangeMax) || rangeMin <= 0) {
+    return {signal: 'WAIT', score: 0, price: price, mode: 'neutral', failReason: 'INSUFFICIENT_RANGE_DATA',
+      filters:{atr:'--',vol:'--',trend:'--',rsi:'--',macd:'--',score:'0%'}};
+  }
+
+  var rangeWidthPct = (rangeMax - rangeMin) / rangeMin * 100;
+
+  // Distance of current price from each band, as % of band width
+  var bandWidth = bb5.upper - bb5.lower;
+  var distToUpper = bandWidth > 0 ? (bb5.upper - price) / bandWidth : 1;
+  var distToLower = bandWidth > 0 ? (price - bb5.lower) / bandWidth : 1;
+  var nearBand = Math.min(distToUpper, distToLower); // 0 = touching a band, 0.5 = dead center
+
+  // ── Range-quality score (0-100) ──────────────────
+  // Rewards: BB squeeze (low volatility = stable range), price near a band
+  // (mean-reversion edge), low-to-moderate ATR (tradeable but not choppy
+  // garbage), and a range that isn't trending hard in one direction.
+  var score = 0, reasons = [];
+
+  if (bb5.squeeze) { score += 30; reasons.push({t:'BB_SQUEEZE', cls:'long'}); }
+  else if (bandWidth / price < 0.025) { score += 18; reasons.push({t:'TIGHT_BAND', cls:'neut'}); }
+  else reasons.push({t:'BAND_WIDE', cls:'warn'});
+
+  if (nearBand <= 0.12) { score += 30; reasons.push({t:'AT_BAND_EDGE', cls:'long'}); }
+  else if (nearBand <= 0.22) { score += 18; reasons.push({t:'NEAR_BAND', cls:'neut'}); }
+  else reasons.push({t:'MID_RANGE:' + (nearBand * 100).toFixed(0) + '%', cls:'warn'});
+
+  if (atrPct >= 0.06 && atrPct <= 0.6) { score += 20; reasons.push({t:'ATR_OK:' + atrPct.toFixed(2) + '%', cls:'long'}); }
+  else if (atrPct < 0.06) reasons.push({t:'ATR_TOO_FLAT', cls:'warn'});
+  else reasons.push({t:'ATR_TOO_WIDE', cls:'warn'});
+
+  if (rangeWidthPct >= 1.5 && rangeWidthPct <= 12) { score += 15; reasons.push({t:'RANGE_' + rangeWidthPct.toFixed(1) + '%', cls:'long'}); }
+  else reasons.push({t:'RANGE_' + rangeWidthPct.toFixed(1) + '%_OFF', cls:'warn'});
+
+  if (rsi5 >= 35 && rsi5 <= 65) { score += 5; reasons.push({t:'RSI_NEUTRAL:' + rsi5.toFixed(0), cls:'neut'}); }
+
+  score = clampNum(Math.round(score), 0, 100);
+
+  var sideHint = distToUpper < distToLower ? 'NEAR_TOP' : 'NEAR_BOTTOM';
+  var status = score >= 55 ? sideHint : 'WAIT';
+
+  var out = {
+    signal: status === 'WAIT' ? 'WAIT' : sideHint,
+    score: score, mode: 'neutral', price: price, reasons: reasons,
+    atrPct: atrPct, vr: vr,
+    filters: {
+      atr: atrPct.toFixed(3) + '%', vol: vr.toFixed(2) + 'x',
+      trend: rangeWidthPct.toFixed(1) + '%', rsi: rsi5.toFixed(1),
+      macd: bb5.squeeze ? 'SQUEEZE' : 'NORMAL', score: score + '%'
+    },
+    indicators: {
+      rsi5: rsi5, rsi15: rsi5, macd: {hist:0, prev:0, cross:null, aligned:false},
+      vr: vr, atrPct: atrPct, goldenX:false, deathX:false, aboveEMA: sideHint === 'NEAR_TOP',
+      bbSqueeze: bb5.squeeze, sl5: 0, stochRsi5: 50
+    },
+    mtf: {'5m': status, '15m': status, '1h': status}
+  };
+
+  if (score < 40) { out.failReason = 'RANGE_SCORE_LOW:' + score; return out; }
+
+  // ── Grid setup suggestion (informational only) ───
+  // User enters this manually on the exchange (Binance grid bot etc.)
+  var gridMin = rangeMin, gridMax = rangeMax;
+  var midPrice = (gridMin + gridMax) / 2;
+  // Fixed suggestion range 30-50, scaled lightly by how "clean" the range
+  // looks (higher score → more grids, since a stable range benefits more
+  // from finer grid spacing) — but always clamped to 30-50 as requested.
+  var gridCount = Math.round(30 + (score / 100) * 20);
+  gridCount = clampNum(gridCount, 30, 50);
+
+  // Leverage suggestion: tighter range / lower ATR can tolerate more
+  // leverage since price excursions outside the grid are less likely;
+  // still capped conservatively.
+  var levSuggestion = atrPct < 0.15 ? 5 : atrPct < 0.35 ? 3 : 2;
+
+  out.grid = {
+    min: gridMin, max: gridMax, mid: midPrice,
+    widthPct: rangeWidthPct, gridCount: gridCount,
+    leverage: levSuggestion, lookbackCandles: lookback5m,
+    lookbackHours: Math.round(lookback5m * 5 / 60)
+  };
+
+  return out;
+}
+
 function analyze(sym) {
+  if (signalMode === 'neutral') return analyzeNeutral(sym);
   var pd = pData[sym];
   if (!pd) return null;
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
@@ -1187,44 +1258,6 @@ function analyze(sym) {
   }
 
   var cfg = MODE_CFG[signalMode] || MODE_CFG.quality;
-
-  // NEUTRAL mod: range skoru hesapla, sinyal RANGE
-  if (signalMode === 'neutral') {
-    var rs = calcRangeScore(kl5, price);
-    if (rs.score < cfg.scoreMin) {
-      return {
-        signal:'WAIT', score:rs.score, price:price,
-        failReason:'RANGE_SCORE:' + rs.score + '<' + cfg.scoreMin,
-        filters:{atr:'--',vol:'--',trend:'--',rsi:'--',macd:'--',score:rs.score+'%'},
-        rangeData: rs,
-        reasons: rs.reasons
-      };
-    }
-    var out = {
-      signal:'RANGE',
-      score:rs.score,
-      price:price,
-      reasons: rs.reasons,
-      rangeData: rs,
-      filters:{atr:'--',vol:'--',trend:'--',rsi:'--',macd:'--',score:rs.score+'%'},
-      indicators:{rsi5:0, rsi15:0, macd:{hist:0}, vr:1, atrPct:0, goldenX:false, deathX:false, aboveEMA:false, bbSqueeze:rs.squeeze, sl5:0, stochRsi5:50},
-      mtf:{'5m':'WAIT','15m':'WAIT','1h':'WAIT'},
-      tier:'RANGE',
-      precision:false,
-      sl:0, tp:0, slDist:0, tpDist:0,
-      posVal:0, qty:0, comm:0,
-      marginUsed:0,
-      rrActual:0,
-      estProfit:0,
-      estRisk:0,
-      estimatedCosts:0,
-      sizeMult:1,
-      sizing:{}
-    };
-    return out;
-  }
-
-  // --- Diğer modlar (elite, quality, standard, aggressive) ---
   var c5 = [], c15 = [], c1h = [], i;
   for (i = 0; i < kl5.length;  i++) c5.push(Number(kl5[i].c));
   for (i = 0; i < kl15.length; i++) c15.push(Number(kl15[i].c));
@@ -1246,11 +1279,13 @@ function analyze(sym) {
   var deathX = p9_5 >= p21_5 && l9_5 < l21_5;
   var trend5 = aboveEMA && sl5 > 0 ? 'LONG' : belowEMA && sl5 < 0 ? 'SHORT' : 'WAIT';
   var trend15 = l9_15 > l21_15 && sl15 > 0 ? 'LONG' : l9_15 < l21_15 && sl15 < 0 ? 'SHORT' : 'WAIT';
+  // 1h bias: primary = EMA cross + slope; secondary = slope-only for early reversals
+  // This prevents the "1h still showing LONG while market dumps" false block
   var bias1h;
   if (l20h > l50h && sl1h > 0) bias1h = 'LONG';
   else if (l20h < l50h && sl1h < 0) bias1h = 'SHORT';
-  else if (sl1h < -0.0003) bias1h = 'SHORT';
-  else if (sl1h > 0.0003) bias1h = 'LONG';
+  else if (sl1h < -0.0003) bias1h = 'SHORT';   // slope turning hard down = early SHORT bias
+  else if (sl1h > 0.0003) bias1h = 'LONG';      // slope turning hard up = early LONG bias
   else bias1h = 'WAIT';
 
   var macd5 = calcMACD(c5), macd15 = calcMACD(c15);
@@ -1270,11 +1305,13 @@ function analyze(sym) {
   var longVotes = 0, shortVotes = 0;
   if (aboveEMA) longVotes++; else if (belowEMA) shortVotes++;
   if (macd5.hist > 0) longVotes++; else if (macd5.hist < 0) shortVotes++;
+  // Extra weight: MACD expanding in direction (momentum confirmation)
   if (macd5.hist > 0 && macd5.aligned) longVotes++; else if (macd5.hist < 0 && macd5.aligned) shortVotes++;
   if (sl5 > 0.00002) longVotes++; else if (sl5 < -0.00002) shortVotes++;
   if (rsi5 >= 50) longVotes++; else if (rsi5 <= 50) shortVotes++;
   if (rsi5 > prevRsi5) longVotes++; else if (rsi5 < prevRsi5) shortVotes++;
   if (last.c > prev.c) longVotes++; else if (last.c < prev.c) shortVotes++;
+  // Breakout/breakdown vote: adds extra push when price breaks recent range
   if (breakoutLong) longVotes++; else if (breakoutShort) shortVotes++;
 
   var rawSig = 'WAIT';
@@ -1346,6 +1383,7 @@ function analyze(sym) {
   var precisionCandle = twoCandleOK || setupConfirm;
   if (signalMode === 'elite' && !precisionCandle) return waitResult(ctx, 'A+ NEEDS_CANDLE_CONFIRM');
   if (signalMode === 'elite' && !macd15Confirm) return waitResult(ctx, 'A+ NEEDS_15M_MACD');
+  // Quality mode: 15m MACD opposition only reduces score, never hard-blocks
   if (score < cfg.scoreMin) return waitResult(ctx, 'SCORE:' + score + '<' + cfg.scoreMin);
 
   var tier = tierOf(score);
@@ -1572,6 +1610,7 @@ var ApiCompat = {
     if (!payload) return fallback || 'Empty Worker response';
     return String(payload.error || payload.message || payload.label || payload.detail || fallback || 'Worker request failed');
   },
+  // Rate-limited: legacy balance sync should never fire more than ~once per 2.5s
   _lastBalSync: 0,
   syncLegacyBalance: async function (force) {
     var now = Date.now();
@@ -1727,6 +1766,8 @@ var MarketData = {
 
 /* ═══════════════════════════════════════════════
    EXECUTION — single source of truth.
+   open() / close() / trail update all live here;
+   nothing overrides these later.
    ═══════════════════════════════════════════════ */
 var Execution = {
   makePosition: function (sym, side, price, posVal, qty, sl, tp, auto, cOrderId) {
@@ -1802,6 +1843,9 @@ var Execution = {
     }
   },
 
+  // Single close path. Always ends with the position removed from
+  // `positions`, balance correctly updated exactly once, and closingNow
+  // cleared — whether demo, modern-live, or legacy-live.
   close: async function (id, reason) {
     var pos = positions.find(function (p) { return p.id === id; });
     if (!pos || pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.CLOSED) return;
@@ -1846,6 +1890,9 @@ var Execution = {
     }
   },
 
+  // ONE finalize path for demo + live + legacy-live. Computes net once,
+  // updates balance once, removes from positions[] once, clears
+  // closingNow once. No other function may touch balance on close.
   finalizeClose: function (pos, exitPrice, reason, serverTrade) {
     var br = Accounting.closeBreakdown(pos, exitPrice, 0);
     var net = (serverTrade && Number.isFinite(Number(serverTrade.net))) ? Number(serverTrade.net) : br.tradeNet;
@@ -1854,6 +1901,10 @@ var Execution = {
     positions = positions.filter(function (p) { return p.id !== pos.id; });
     delete closingNow[pos.id];
 
+    // posVal was reserved as margin at open time (demo) — return it plus net.
+    // For live trades posVal is informational only (exchange holds the real
+    // margin), but we still track a local "balance" ledger the same way so
+    // the UI/equity curve behaves consistently in both modes.
     balance = Number(balance) + Number(pos.posVal || 0) + net;
     if (!isFinite(balance)) balance = START_BAL;
     dailyPnL += net;
@@ -1932,6 +1983,7 @@ var Execution = {
     Store.save(); updatePosUI(); updateBalUI();
   },
 
+  // Legacy-aware reconcile: never attempts /state once we know it's 404.
   reconcile: async function (force) {
     if (appMode !== 'live' || !WORKER || Runtime.liveReconcileBusy) return;
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
@@ -1955,6 +2007,10 @@ var Execution = {
     } finally { Runtime.liveReconcileBusy = false; }
   },
 
+  // Force-clear a position stuck in PENDING_CLOSE/ERROR for too long.
+  // This is the safety net for the "closed on exchange but UI still shows
+  // it" class of bug: if the close request genuinely failed AND the
+  // exchange has no record of it after a reconcile, remove it locally.
   sweepStuck: function () {
     var now = Date.now();
     positions = positions.filter(function (pos) {
@@ -1972,7 +2028,9 @@ var Execution = {
 };
 
 /* ═══════════════════════════════════════════════
-   TRAIL — single implementation.
+   TRAIL — single implementation. Fee-aware activation,
+   graduated pullback, never moves SL below break-even
+   once active.
    ═══════════════════════════════════════════════ */
 var TrailService = {
   update: function (pos, price) {
@@ -1984,6 +2042,10 @@ var TrailService = {
     var high = pos.highPnl || 0;
 
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
+    // Don't even start trailing until the unrealized gain clears costs
+    // by a comfortable margin — this is what was producing near-zero
+    // net trades before: the trail engaged too early and gave back
+    // almost the entire gain to fees on the very next tick.
     var activation = Math.max(Number(targetUSD) * 0.40, roundTrip * 1.5);
     if (high < activation) return;
 
@@ -1994,6 +2056,8 @@ var TrailService = {
     else if (high >= Number(targetUSD) * 0.50) pullback = 0.45;
     else                                        pullback = 0.55;
 
+    // Locked-in amount is never allowed below round-trip cost, so an
+    // active trail can never resolve to a net loss from fees alone.
     var locked = Math.max(high * (1 - pullback), roundTrip);
     var dist = locked / qty;
     var newSL = pos.side === 'LONG' ? pos.entry + dist : pos.entry - dist;
@@ -2031,6 +2095,8 @@ var TrailService = {
 
 /* ═══════════════════════════════════════════════
    TRACKER — runs every 500ms while a position is open.
+   Cheap price-only tick in demo mode (no full candle
+   reaggregation — that's what caused the freeze/lag).
    ═══════════════════════════════════════════════ */
 function startTracker() {
   if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
@@ -2089,6 +2155,8 @@ function runTracker() {
     Execution.reconcile(false);
   }
 
+  // Periodic safety sweep for stuck positions (covers the case where a
+  // close request silently failed and no error surfaced to the UI).
   if (trackerTick % 10 === 0) Execution.sweepStuck();
 
   if (trackerTick % 2 === 0) { updatePosUI(); updateTicker(); renderRiskStatus(); }
@@ -2120,7 +2188,7 @@ function runEngine() {
   if (!engineOn) return;
   var el = document.getElementById('eLast'); if (el) el.textContent = new Date().toLocaleTimeString('en');
   var eo = document.getElementById('eOpen'); if (eo) eo.textContent = positions.length;
-  if (isDeadHour()) { var es = document.getElementById('eSig'); if (es) es.textContent = 'Dead hour'; return; }
+  if (isDeadHour() && signalMode !== 'neutral') { var es = document.getElementById('eSig'); if (es) es.textContent = 'Dead hour'; return; }
   if (focusModeOn && positions.length > 0) { var es2 = document.getElementById('eSig'); if (es2) es2.textContent = 'Focus: ' + positions[0].pair.replace('_USDT', ''); return; }
   var best = null, bestScore = -1;
   for (var i = 0; i < pairs.length; i++) {
@@ -2130,11 +2198,13 @@ function runEngine() {
     if (an.score > bestScore) { bestScore = an.score; best = {sym: s, an: an}; }
   }
   var sigEl = document.getElementById('eSig');
+  if (signalMode === 'neutral') {
+    if (sigEl) sigEl.textContent = best ? best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' RANGE (' + best.an.score + '%) — manual grid only' : 'Scanning for range setups...';
+    return; // never auto-trades in neutral mode
+  }
   if (!best) { if (sigEl) sigEl.textContent = 'Scanning... no signal'; return; }
   if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' ' + best.an.tier + ' (' + best.an.score + '%)';
-  if (autoTrade && positions.length < MAX_P && best.an.signal !== 'RANGE') {
-    Execution.open(best.sym, best.an.signal, true);
-  }
+  if (autoTrade && positions.length < MAX_P) Execution.open(best.sym, best.an.signal, true);
 }
 
 /* ═══════════════════════════════════════════════
@@ -2306,50 +2376,39 @@ function v62RenderActivePosition(pos) {
     '</div></div>';
 }
 
-function renderPlan(an, price) {
-  var el = document.getElementById('planWrap');
-  var openHere = positions.find(function (p) { return p.pair === currentPair; });
-  if (openHere) { el.innerHTML = v62RenderActivePosition(openHere); return; }
-  if (!an || !an.signal || an.signal === 'WAIT') { el.innerHTML = ''; return; }
-
-  if (an.signal === 'RANGE') {
-    var rs = an.rangeData || {};
-    var minVal = rs.min ? fp(rs.min) : '--';
-    var maxVal = rs.max ? fp(rs.max) : '--';
-    var pctVal = rs.pct ? rs.pct.toFixed(1) : '--';
-    // Grid önerileri
-    var gridCount = 30;
-    var lev = '2-3x';
-    if (pctVal !== '--') {
-      var pct = parseFloat(pctVal);
-      if (pct < 2) { gridCount = 40; lev = '3x'; }
-      else if (pct < 5) { gridCount = 30; lev = '2x'; }
-      else { gridCount = 20; lev = '1x'; }
-    }
-    var symName = currentPair.replace('_USDT','');
-    document.getElementById('gridCoin').textContent = symName;
-    document.getElementById('gridMin').textContent = '$' + minVal;
-    document.getElementById('gridMax').textContent = '$' + maxVal;
-    document.getElementById('gridCount').textContent = gridCount;
-    document.getElementById('gridLev').textContent = lev;
-    document.getElementById('gridWidthPct').textContent = pctVal + '%';
-    var gridWrap = document.getElementById('gridSetupWrap');
-    if (gridWrap) gridWrap.style.display = 'block';
-
-    // RANGE sinyali plan kartı (sadece bilgi)
-    el.innerHTML = '<div class="plan-box">' +
-      '<div class="plan-hd range"><span>RANGE // ' + currentPair.replace('_USDT','') + '</span><span style="font-size:9px">' + an.score + '%</span></div>' +
-      '<div class="plan-body">' +
-        '<div class="plan-row"><span class="pk">Range (min-max)</span><span>$' + minVal + ' - $' + maxVal + '</span></div>' +
-        '<div class="plan-row"><span class="pk">Range genişliği</span><span>' + pctVal + '%</span></div>' +
-        '<div class="plan-row"><span class="pk">Önerilen Grid</span><span style="color:var(--gold)">' + gridCount + ' seviye</span></div>' +
-        '<div class="plan-row"><span class="pk">Önerilen Kaldıraç</span><span style="color:var(--gold)">' + lev + '</span></div>' +
-        '<div class="plan-row" style="border-bottom:none;color:var(--dim2);font-size:9px">📌 Bu sinyal sadece grid kurulumu içindir, bot işlem açmaz.</div>' +
-      '</div></div>';
+function renderGridCard(an) {
+  if (!an || !an.grid) {
+    var el = document.getElementById('planWrap');
+    el.innerHTML = '<div class="grid-box"><div class="grid-hd">RANGE SCAN // ' + currentPair.replace('_USDT','') + '</div>' +
+      '<div class="grid-body"><div class="grid-note" style="margin-top:0">' +
+      (an && an.failReason ? 'No tradeable range detected: ' + an.failReason : 'Scanning for a range setup...') +
+      '</div></div></div>';
     return;
   }
+  var g = an.grid;
+  var el = document.getElementById('planWrap');
+  el.innerHTML = '<div class="grid-box">' +
+    '<div class="grid-hd">GRID SETUP SUGGESTION // ' + currentPair.replace('_USDT','') + ' <span style="float:right;font-size:9px">' + (an.signal === 'NEAR_TOP' ? '▲ NEAR TOP' : '▼ NEAR BOTTOM') + '</span></div>' +
+    '<div class="grid-body">' +
+      '<div class="grid-row"><span class="pk">MIN PRICE</span><span class="pv sl">$' + fp(g.min) + '</span></div>' +
+      '<div class="grid-row"><span class="pk">MAX PRICE</span><span class="pv tp">$' + fp(g.max) + '</span></div>' +
+      '<div class="grid-row"><span class="pk">MID PRICE</span><span>$' + fp(g.mid) + '</span></div>' +
+      '<div class="grid-row"><span class="pk">RANGE WIDTH</span><span style="color:var(--acc)">' + g.widthPct.toFixed(2) + '%</span></div>' +
+      '<div class="grid-row"><span class="pk">SUGGESTED GRIDS</span><span style="color:var(--gold)">' + g.gridCount + '</span></div>' +
+      '<div class="grid-row"><span class="pk">SUGGESTED LEVERAGE</span><span style="color:var(--gold)">' + g.leverage + 'x</span></div>' +
+      '<div class="grid-row"><span class="pk">LOOKBACK</span><span style="color:var(--dim2)">' + g.lookbackHours + 'h (' + g.lookbackCandles + ' candles)</span></div>' +
+      '<div class="grid-row"><span class="pk">RANGE SCORE</span><span style="color:var(--acc)">' + an.score + '%</span></div>' +
+    '</div>' +
+    '<div class="grid-note">Suggestion only — enter these values manually in your exchange grid bot (e.g. Binance Spot/Futures Grid). Not an auto-trade. Re-check before committing capital; range can break at any time.</div>' +
+  '</div>';
+}
 
-  // Diğer sinyaller (LONG/SHORT)
+function renderPlan(an, price) {
+  var el = document.getElementById('planWrap');
+  if (signalMode === 'neutral') { renderGridCard(an); return; }
+  var openHere = positions.find(function (p) { return p.pair === currentPair; });
+  if (openHere) { el.innerHTML = v62RenderActivePosition(openHere); return; }
+  if (!an || !an.sl || an.signal === 'WAIT') { el.innerHTML = ''; return; }
   var s = an.signal, cls = s.toLowerCase();
   var slPct = Math.abs(price - an.sl) / price * 100, tpPct = Math.abs(an.tp - price) / price * 100;
   el.innerHTML = '<div class="plan-box">' +
@@ -2382,23 +2441,27 @@ function sMTF(id, val) { var el = document.getElementById(id); if (el) { el.text
 function updateSignalUI() {
   updateBalUI();
   var pd = pData[currentPair], an = pd && pd.an;
-  var sig = an && an.signal ? an.signal : 'WAIT';
+  var sig = an && an.signal !== 'WAIT' ? an.signal : 'WAIT';
   document.getElementById('sigBadge').textContent = sig;
   document.getElementById('sigBadge').className = 'sig-badge ' + sig;
 
   var ct = document.getElementById('confTier');
   if (ct) {
-    if (sig === 'RANGE') { ct.style.display = 'inline-block'; ct.textContent = 'RANGE'; ct.className = 'conf-tier RANGE'; }
-    else if (an && an.tier) { ct.style.display = 'inline-block'; ct.textContent = (an.precision ? 'A+ PRECISION' : an.tier + '-GRADE'); ct.className = 'conf-tier ' + an.tier; }
+    if (an && an.tier) { ct.style.display = 'inline-block'; ct.textContent = (an.precision ? 'A+ PRECISION' : an.tier + '-GRADE'); ct.className = 'conf-tier ' + an.tier; }
     else ct.style.display = 'none';
   }
 
   var meta = document.getElementById('sigMeta');
   if (meta) {
-    if (sig === 'RANGE') {
-      var rs = an.rangeData || {};
-      meta.textContent = 'RANGE SKOR:' + an.score + '%  MIN:$' + fp(rs.min) + '  MAX:$' + fp(rs.max) + '  W:' + (rs.pct || 0).toFixed(1) + '%';
-    } else if (an && sig !== 'WAIT') {
+    if (an && an.mode === 'neutral') {
+      if (sig !== 'WAIT' && an.grid) {
+        meta.textContent = 'RANGE SCORE:' + an.score + '%  ' + sig.replace('_', ' ') + '  GRID:' + an.grid.gridCount + '  LEV:' + an.grid.leverage + 'x';
+      } else if (an.failReason) {
+        meta.textContent = 'NO RANGE: ' + an.failReason + (an.score > 0 ? ' (' + an.score + '%)' : '');
+      } else {
+        meta.textContent = 'Scanning for range setup...';
+      }
+    } else if (an && sig !== 'WAIT' && an.rrActual != null) {
       meta.textContent = 'SCORE:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  RR:1:' + an.rrActual.toFixed(2) +
         '  TIER:' + an.tier + (an.sizeMult > 1 ? ' x' + an.sizeMult.toFixed(1) : '') +
         '  SIZE:$' + an.posVal.toFixed(2);
@@ -2445,19 +2508,21 @@ function updateSignalUI() {
   if (banPos) banPos.style.display = (focusModeOn && positions.length > 0) ? 'block' : 'none';
   document.getElementById('bannerDead').style.display = isDeadHour() ? 'block' : 'none';
 
-  var canOpen = positions.length < MAX_P && (sig === 'LONG' || sig === 'SHORT');
-  document.getElementById('btnL').disabled = !canOpen || sig !== 'LONG';
-  document.getElementById('btnS').disabled = !canOpen || sig !== 'SHORT';
-  document.getElementById('manNote').textContent = canOpen
+  var canOpen = positions.length < MAX_P && signalMode !== 'neutral';
+  document.getElementById('btnL').disabled = !canOpen;
+  document.getElementById('btnS').disabled = !canOpen;
+  document.getElementById('manNote').textContent = signalMode === 'neutral'
+    ? 'NEUTRAL mode is informational only — no positions opened. Use the grid suggestion above on your exchange.'
+    : canOpen
     ? 'Risk:$' + riskUSD.toFixed(2) + ' Target:$' + targetUSD.toFixed(2) + ' Size:$' + effectiveMaxPos().toFixed(1)
-    : (sig === 'RANGE' ? 'RANGE sinyali — manuel grid kurulumu için bilgi' : 'Max ' + MAX_P + ' positions full');
+    : 'Max ' + MAX_P + ' positions full';
 }
 
 function updatePairRow() {
   var html = '', i;
   for (i = 0; i < pairs.length; i++) {
     var sym = pairs[i], pd = pData[sym] || {}, p = pd.price || DEMO_BASE[sym] || 1, prev = prevPx[sym] || p;
-    var an = pd.an, sig = (an && an.signal) ? an.signal : 'WAIT', sc = an && an.score ? ' ' + an.score + '%' : '';
+    var an = pd.an, sig = (an && an.signal !== 'WAIT') ? an.signal : 'WAIT', sc = an && an.score ? ' ' + an.score + '%' : '';
     html += '<button class="pp ' + (sym === currentPair ? 'active' : '') + '" data-sym="' + sym + '">' +
       '<span>' + sym.replace('_USDT', '') + '</span>' +
       '<span class="pp-price" style="color:' + (p >= prev ? 'var(--long)' : 'var(--short)') + '">$' + fp(p) + '</span>' +
@@ -2539,18 +2604,24 @@ function updateCoinScoreTable() {
     return sb - sa;
   });
   var rows = '';
+  var isNeutral = signalMode === 'neutral';
   for (var i = 0; i < sorted.length; i++) {
     var sym = sorted[i], pd = pData[sym] || {}, an = pd.an || null;
     var sig = an && an.signal ? an.signal : 'WAIT';
     var sc = an ? an.score : 0;
     var price = pd.price || DEMO_BASE[sym] || 0, cd = inCD(sym);
-    var watchFloor = Math.max(50, (MODE_CFG[signalMode] || MODE_CFG.quality).scoreMin - 8);
+    var modeCfg = MODE_CFG[signalMode] || MODE_CFG.quality;
+    var watchFloor = isNeutral ? 40 : Math.max(50, (modeCfg.scoreMin || 56) - 8);
     var status = sig !== 'WAIT' ? sig : sc >= watchFloor ? 'WATCH' : 'WAIT';
-    var col = sig === 'LONG' ? 'var(--long)' : sig === 'SHORT' ? 'var(--short)' : sig === 'RANGE' ? 'var(--gold)' : status === 'WATCH' ? 'var(--warn)' : 'var(--dim2)';
-    var tier = an && an.tier ? '[' + an.tier + ']' : '';
+    var col = sig === 'LONG' || sig === 'NEAR_BOTTOM' ? 'var(--long)' :
+              sig === 'SHORT' || sig === 'NEAR_TOP' ? 'var(--short)' :
+              status === 'WATCH' ? 'var(--warn)' : 'var(--dim2)';
+    if (isNeutral) col = sig === 'NEAR_TOP' ? 'var(--warn)' : sig === 'NEAR_BOTTOM' ? 'var(--acc)' : status === 'WATCH' ? 'var(--warn)' : 'var(--dim2)';
+    var tier = an && an.tier ? '[' + an.tier + ']' : (isNeutral && an && an.grid ? '[GRID]' : '');
+    var rangeTag = isNeutral && an && an.score >= 55 ? '<span style="color:var(--acc);font-size:7px;margin-left:3px">[RANGE]</span>' : '';
     var reason = an && an.failReason ? an.failReason : '';
     rows += '<div class="score-row" style="gap:4px">' +
-      '<span style="color:var(--text2);min-width:50px">' + sym.replace('_USDT', '') + (cd ? '<span style="color:var(--short);font-size:8px">CD</span>' : '') + '</span>' +
+      '<span style="color:var(--text2);min-width:50px">' + sym.replace('_USDT', '') + (cd ? '<span style="color:var(--short);font-size:8px">CD</span>' : '') + rangeTag + '</span>' +
       '<span style="color:var(--dim2);font-size:8px;min-width:56px">$' + fp(price) + '</span>' +
       '<span style="color:' + col + ';font-weight:700;min-width:46px;text-align:center">' + status + ' <span style="font-size:8px;opacity:.7">' + tier + '</span></span>' +
       '<span style="color:var(--acc);min-width:30px;text-align:right">' + (sc > 0 ? sc + '%' : '--') + '</span>' +
@@ -2992,8 +3063,9 @@ window.__apexReady(function () {
     var results = TestSuite.run();
     var failed = results.filter(function (x) { return !x.ok; });
     log('APEX V' + APP_VERSION + ' loaded — ' + (results.length - failed.length) + '/' + results.length + ' self-tests passed', failed.length ? 'err' : 'ok');
-    log('NEUTRAL mod eklendi: BB sıkışıklığı + düşük ATR + range skoru → RANGE sinyali', 'ok');
-    log('Grid Setup kartı: seçili coin için min/max, önerilen grid sayısı ve kaldıraç gösterir.', 'ok');
+    log('Signal engine: trend/momentum voting, tiered scoring (A/B/C), risk-based sizing', 'ok');
+    log('Trail: fee-aware activation, locked profit never below break-even', 'ok');
+    log('Live mode: legacy Worker auto-detected (/price+/klines+/balance), no /state spam', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
