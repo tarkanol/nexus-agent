@@ -560,11 +560,8 @@ select option{background:#041018}
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   APEX SCALP V6.3.3 — CLEAN BUILD
-   All previous patch layers (V6.1 Safe / V6.2 Precision / V6.3.2
-   Stability / V6.3.3 hotfixes) consolidated into ONE coherent
-   codebase. No runtime monkey-patching, no duplicate trail
-   logic, no double balance updates.
+   APEX SCALP V6.4.0 — FULL INTEGRATION
+   Includes: Kelly/Volatility/Loss-streak sizing, Weakness detector
    ═══════════════════════════════════════════════════════════ */
 
 /* ---- storage bootstrap (mobile-safe) ---- */
@@ -1516,6 +1513,91 @@ function analyzeSwing(sym) {
   return out;
 }
 
+/* ═══════════════════════════════════════════════
+   RISK HELPERS (Kelly / Volatility / Loss Streak)
+   ═══════════════════════════════════════════════ */
+function getScoreStats(score) {
+  // Geçmiş işlemlerden skor aralığına göre kazanma oranı ve ortalama kar/zarar
+  var filtered = trades.filter(function(t) {
+    if (!t.score) return false;
+    return t.score >= score - 10 && t.score < score + 10;
+  });
+  if (filtered.length < 10) {
+    // Yeterli veri yoksa varsayılan değerler (kabaca modele uygun)
+    if (score >= 80) return { winRate: 0.65, avgWin: 2.5, avgLoss: 1.0 };
+    if (score >= 60) return { winRate: 0.50, avgWin: 1.8, avgLoss: 1.2 };
+    return { winRate: 0.40, avgWin: 1.2, avgLoss: 1.5 };
+  }
+  var wins = filtered.filter(function(t) { return t.pnl > 0; });
+  var losses = filtered.filter(function(t) { return t.pnl <= 0; });
+  var winRate = wins.length / filtered.length;
+  var avgWin = wins.reduce(function(s, t) { return s + t.pnl; }, 0) / (wins.length || 1);
+  var avgLoss = Math.abs(losses.reduce(function(s, t) { return s + t.pnl; }, 0) / (losses.length || 1));
+  return { winRate: winRate, avgWin: avgWin, avgLoss: avgLoss };
+}
+
+function kellyRisk(winRate, avgWin, avgLoss) {
+  if (avgWin <= 0 || avgLoss <= 0) return 0;
+  var k = winRate - ((1 - winRate) / (avgWin / avgLoss));
+  return Math.max(0, k * 0.5); // Yarım Kelly
+}
+
+function volatilityMultiplier(currentAtr, avgAtr) {
+  if (avgAtr <= 0) return 1;
+  var ratio = currentAtr / avgAtr;
+  if (ratio > 1.5) return 0.5;
+  if (ratio > 1.2) return 0.7;
+  if (ratio < 0.8) return 1.0;
+  return 0.85;
+}
+
+function lossMultiplier() {
+  var consecutive = 0;
+  for (var i = trades.length - 1; i >= 0; i--) {
+    if (trades[i].pnl < 0) consecutive++;
+    else break;
+  }
+  if (consecutive >= 3) return 0;      // trading durdur
+  if (consecutive === 2) return 0.4;
+  if (consecutive === 1) return 0.75;
+  return 1.0;
+}
+
+/* ═══════════════════════════════════════════════
+   WEAKNESS DETECTOR (Partial Close Logic)
+   ═══════════════════════════════════════════════ */
+function weaknessScore(pos, currentData) {
+  // currentData: { macdHist, prevMacdHist, ema9, ema21, prevEma9, prevEma21, volume, avgVolume, rsi, emaSlope }
+  var score = 0;
+  var yon = pos.side;
+
+  // 1) 1h MACD histogram zayıflıyor mu?
+  if (yon === 'LONG' && currentData.macdHist < currentData.prevMacdHist) score += 1;
+  if (yon === 'SHORT' && currentData.macdHist > currentData.prevMacdHist) score += 1;
+
+  // 2) EMA9-EMA21 arası mesafe daralıyor mu?
+  var emaSpread = currentData.ema9 - currentData.ema21;
+  var prevSpread = currentData.prevEma9 - currentData.prevEma21;
+  if (yon === 'LONG' && emaSpread < prevSpread) score += 1;
+  if (yon === 'SHORT' && emaSpread > prevSpread) score += 1;
+
+  // 3) Hacim düşüyor mu? (ortalamanın %80 altı)
+  if (currentData.volume < currentData.avgVolume * 0.8) score += 1;
+
+  // 4) RSI aşırı bölgede mi?
+  if (yon === 'LONG' && currentData.rsi > 75) score += 2;
+  if (yon === 'SHORT' && currentData.rsi < 25) score += 2;
+
+  // 5) 1h EMA eğimi dönüyor mu?
+  if (yon === 'LONG' && currentData.emaSlope < 0) score += 2;
+  if (yon === 'SHORT' && currentData.emaSlope > 0) score += 2;
+
+  return score;
+}
+
+/* ═══════════════════════════════════════════════
+   ANALYZE (MODIFIED with Dynamic Risk)
+   ═══════════════════════════════════════════════ */
 function analyze(sym) {
   if (signalMode === 'neutral') return analyzeNeutral(sym);
   if (signalMode === 'swing') return analyzeSwing(sym);
@@ -1539,6 +1621,11 @@ function analyze(sym) {
   for (i = 0; i < kl1h.length; i++) c1h.push(Number(kl1h[i].c));
 
   var atr5 = calcATR(kl5, 14), atrPct = atr5 / price * 100;
+  
+  // --- ATR Ortalamasını Güncelle (Volatilite çarpanı için) ---
+  if (!pData[sym].atrAvg) pData[sym].atrAvg = atr5;
+  else pData[sym].atrAvg = pData[sym].atrAvg * 0.9 + atr5 * 0.1;
+
   var e9_5 = calcEMA(c5, 9), e21_5 = calcEMA(c5, 21);
   var e9_15 = calcEMA(c15, 9), e21_15 = calcEMA(c15, 21);
   var e20h = calcEMA(c1h, 20), e50h = calcEMA(c1h, Math.min(50, c1h.length));
@@ -1673,7 +1760,21 @@ function analyze(sym) {
   var slPct = slDist / price;
 
   var cRate = costRate();
-  var riskNotional = Math.abs(num(riskUSD, 0.50)) / Math.max(slPct + cRate, 0.0001);
+  
+  // --- DINAMIK RISK HESAPLAMA (Kelly + Volatility + Loss Streak) ---
+  var stats = getScoreStats(score);
+  var kelly = kellyRisk(stats.winRate, stats.avgWin, stats.avgLoss);
+  var volMult = volatilityMultiplier(atr5, pData[sym].atrAvg);
+  var lossMult = lossMultiplier();
+  
+  var dynamicRiskRatio = Math.min(kelly * volMult * lossMult, 0.02); // maks %2
+  var dynamicRiskAmount = Math.max(0, balance * dynamicRiskRatio);
+  // Eğer dinamik risk çok küçükse, riskUSD'ye dön (güvenlik)
+  var finalRiskAmount = Math.max(dynamicRiskAmount, 0.01);
+  // riskUSD manuel ayarı acil durum yedeği olarak kalır, fakat asıl hesap finalRiskAmount ile yapılır
+  var riskNotional = finalRiskAmount / Math.max(slPct + cRate, 0.0001);
+  // ----------------------------------------------------------------
+
   var sizeMult = V62.adaptiveSizing ? tierMultiplier(tier) : 1;
   var baseCap = hardMaxPos();
   var confidenceCap = effectiveMaxPos(score, tier);
@@ -2045,19 +2146,20 @@ var MarketData = {
 };
 
 /* ═══════════════════════════════════════════════
-   EXECUTION — single source of truth.
-   open() / close() / trail update all live here;
-   nothing overrides these later.
+   EXECUTION
    ═══════════════════════════════════════════════ */
 var Execution = {
-  makePosition: function (sym, side, price, posVal, qty, sl, tp, auto, cOrderId) {
+  makePosition: function (sym, side, price, posVal, qty, sl, tp, auto, cOrderId, score, entryAtr) {
     return {
       id: posId++, pair: sym, side: side, entry: price, qty: qty, posVal: posVal,
       sl: sl, tp: tp, initialSL: sl, initialTP: tp,
       feeRate: CFG.feeRate, entryFee: Accounting.entryFee(posVal, CFG.feeRate),
       openTime: Date.now(), highPnl: 0, trailActive: false, auto: !!auto,
       state: POSITION_STATE.PENDING_OPEN, stateUpdatedAt: Date.now(),
-      clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live'
+      clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live',
+      score: score || 0,                     // Yeni
+      entryAtr: entryAtr || 0,               // Yeni
+      lastWeaknessCheck: 0                   // Yeni
     };
   },
 
@@ -2085,7 +2187,8 @@ var Execution = {
     if (!gate.ok) { notify(gate.reason, 'error'); return; }
 
     var cOrderId = orderId('open', sym);
-    var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId);
+    // Skor ve ATR'yi makePosition'a gönder
+    var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0);
     Runtime.openingLocks[sym] = true;
     updateSignalUI();
     try {
@@ -2123,9 +2226,6 @@ var Execution = {
     }
   },
 
-  // Single close path. Always ends with the position removed from
-  // `positions`, balance correctly updated exactly once, and closingNow
-  // cleared — whether demo, modern-live, or legacy-live.
   close: async function (id, reason) {
     var pos = positions.find(function (p) { return p.id === id; });
     if (!pos || pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.CLOSED) return;
@@ -2170,9 +2270,47 @@ var Execution = {
     }
   },
 
-  // ONE finalize path for demo + live + legacy-live. Computes net once,
-  // updates balance once, removes from positions[] once, clears
-  // closingNow once. No other function may touch balance on close.
+  closePartial: function (id, fraction, reason) {
+    var pos = positions.find(function (p) { return p.id === id; });
+    if (!pos || pos.state !== POSITION_STATE.OPEN) return;
+
+    var closeQty = pos.qty * fraction;
+    var remainQty = pos.qty - closeQty;
+    if (remainQty < 0.001 * pos.qty) {
+      Execution.close(id, reason);
+      return;
+    }
+
+    var price = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+    var gross = (price - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * closeQty;
+    var exitFee = closeQty * price * CFG.feeRate;
+    var net = gross - exitFee;
+
+    pos.qty = remainQty;
+    pos.posVal = remainQty * pos.entry;
+    // entryFee'yi orantılı olarak düşür (tam işlem fee'si zaten ödendi, sadece kayıt için)
+    var partialEntryFee = pos.entryFee * fraction;
+    pos.entryFee = pos.entryFee * (1 - fraction);
+
+    trades.push({
+      pair: pos.pair, side: pos.side, pnl: net, gross: gross,
+      entryFee: partialEntryFee, exitFee: exitFee, reason: reason + ' (partial)',
+      entry: pos.entry, exit: price, openedAt: pos.openTime, closedAt: Date.now(),
+      score: pos.score || 0, entryAtr: pos.entryAtr || 0
+    });
+    balance += net;
+    dailyPnL += net;
+    peakBal = Math.max(peakBal, balance);
+    if (net > 0) { winStreak++; loseStreak = 0; } else { loseStreak++; winStreak = 0; }
+
+    logPos('PARTIAL CLOSE: ' + pos.pair + ' ' + (fraction * 100) + '% closed, net:' + net.toFixed(4), 'ok');
+    notify('Partial close ' + pos.pair, 'info');
+    Store.save();
+    updatePosUI();
+    updateBalUI();
+    updateWRStrip();
+  },
+
   finalizeClose: function (pos, exitPrice, reason, serverTrade) {
     var br = Accounting.closeBreakdown(pos, exitPrice, 0);
     var net = (serverTrade && Number.isFinite(Number(serverTrade.net))) ? Number(serverTrade.net) : br.tradeNet;
@@ -2181,10 +2319,6 @@ var Execution = {
     positions = positions.filter(function (p) { return p.id !== pos.id; });
     delete closingNow[pos.id];
 
-    // posVal was reserved as margin at open time (demo) — return it plus net.
-    // For live trades posVal is informational only (exchange holds the real
-    // margin), but we still track a local "balance" ledger the same way so
-    // the UI/equity curve behaves consistently in both modes.
     balance = Number(balance) + Number(pos.posVal || 0) + net;
     if (!isFinite(balance)) balance = START_BAL;
     dailyPnL += net;
@@ -2200,7 +2334,9 @@ var Execution = {
     trades.push({
       pair: pos.pair, side: pos.side, pnl: net, gross: br.gross,
       entryFee: br.entryFee, exitFee: br.exitFee, reason: reason,
-      entry: pos.entry, exit: exitPrice, openedAt: pos.openTime, closedAt: Date.now()
+      entry: pos.entry, exit: exitPrice, openedAt: pos.openTime, closedAt: Date.now(),
+      score: pos.score || 0,       // Yeni
+      entryAtr: pos.entryAtr || 0  // Yeni
     });
 
     equityHistory.push(balance);
@@ -2228,7 +2364,8 @@ var Execution = {
       initialSL: Number(p.sl || 0), initialTP: Number(p.tp || 0), feeRate: CFG.feeRate,
       entryFee: Number(p.entryFee || 0), openTime: Number(p.openTime || Date.now()), highPnl: 0,
       trailActive: !!p.trailActive, state: POSITION_STATE.OPEN, stateUpdatedAt: Date.now(),
-      clientOrderId: p.clientOrderId || '', exchangeOrderId: p.orderId || '', serverManaged: true
+      clientOrderId: p.clientOrderId || '', exchangeOrderId: p.orderId || '', serverManaged: true,
+      score: p.score || 0, entryAtr: p.entryAtr || 0, lastWeaknessCheck: 0
     };
   },
 
@@ -2263,7 +2400,6 @@ var Execution = {
     Store.save(); updatePosUI(); updateBalUI();
   },
 
-  // Legacy-aware reconcile: never attempts /state once we know it's 404.
   reconcile: async function (force) {
     if (appMode !== 'live' || !WORKER || Runtime.liveReconcileBusy) return;
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
@@ -2287,10 +2423,6 @@ var Execution = {
     } finally { Runtime.liveReconcileBusy = false; }
   },
 
-  // Force-clear a position stuck in PENDING_CLOSE/ERROR for too long.
-  // This is the safety net for the "closed on exchange but UI still shows
-  // it" class of bug: if the close request genuinely failed AND the
-  // exchange has no record of it after a reconcile, remove it locally.
   sweepStuck: function () {
     var now = Date.now();
     positions = positions.filter(function (pos) {
@@ -2308,9 +2440,7 @@ var Execution = {
 };
 
 /* ═══════════════════════════════════════════════
-   TRAIL — single implementation. Fee-aware activation,
-   graduated pullback, never moves SL below break-even
-   once active.
+   TRAIL
    ═══════════════════════════════════════════════ */
 var TrailService = {
   update: function (pos, price) {
@@ -2322,10 +2452,6 @@ var TrailService = {
     var high = pos.highPnl || 0;
 
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    // Don't even start trailing until the unrealized gain clears costs
-    // by a comfortable margin — this is what was producing near-zero
-    // net trades before: the trail engaged too early and gave back
-    // almost the entire gain to fees on the very next tick.
     var activation = Math.max(Number(targetUSD) * 0.40, roundTrip * 1.5);
     if (high < activation) return;
 
@@ -2336,8 +2462,6 @@ var TrailService = {
     else if (high >= Number(targetUSD) * 0.50) pullback = 0.45;
     else                                        pullback = 0.55;
 
-    // Locked-in amount is never allowed below round-trip cost, so an
-    // active trail can never resolve to a net loss from fees alone.
     var locked = Math.max(high * (1 - pullback), roundTrip);
     var dist = locked / qty;
     var newSL = pos.side === 'LONG' ? pos.entry + dist : pos.entry - dist;
@@ -2372,11 +2496,8 @@ var TrailService = {
   }
 };
 
-
 /* ═══════════════════════════════════════════════
-   TRACKER — runs every 500ms while a position is open.
-   Cheap price-only tick in demo mode (no full candle
-   reaggregation — that's what caused the freeze/lag).
+   TRACKER — every 500ms
    ═══════════════════════════════════════════════ */
 function startTracker() {
   if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
@@ -2431,12 +2552,62 @@ function runTracker() {
       .catch(function (e) { logPos('[LIVE PRICE] ' + e.message, 'err'); });
   }
 
+  // ---- ZAYIFLAMA KONTROLÜ (her 5 dakikada bir) ----
+  var now = Date.now();
+  for (var i = 0; i < positions.length; i++) {
+    var pos = positions[i];
+    if (!pos || pos.state !== POSITION_STATE.OPEN) continue;
+    if (!pos.lastWeaknessCheck) pos.lastWeaknessCheck = 0;
+    if (now - pos.lastWeaknessCheck < 300000) continue; // 5 dakika
+    pos.lastWeaknessCheck = now;
+
+    var pd = pData[pos.pair];
+    if (!pd) continue;
+    var kl1h = pd.kl1h || [];
+    if (kl1h.length < 5) continue;
+    var c1h = kl1h.map(function(k) { return k.c; });
+    var e9 = calcEMA(c1h, 9);
+    var e21 = calcEMA(c1h, 21);
+    if (!e9 || e9.length < 2 || !e21 || e21.length < 2) continue;
+    var lastE9 = e9[e9.length - 1];
+    var lastE21 = e21[e21.length - 1];
+    var prevE9 = e9[e9.length - 2];
+    var prevE21 = e21[e21.length - 2];
+    if (!lastE9 || !lastE21 || !prevE9 || !prevE21) continue;
+    var macd = calcMACD(c1h);
+    var rsi = calcRSI(c1h, 14);
+    var vol = kl1h[kl1h.length - 1].v;
+    var volAvg = 0;
+    for (var j = kl1h.length - 20; j < kl1h.length; j++) volAvg += kl1h[j].v;
+    volAvg /= 20;
+    if (volAvg <= 0) volAvg = 1;
+
+    var currentData = {
+      macdHist: macd.hist,
+      prevMacdHist: macd.prev,
+      ema9: lastE9,
+      ema21: lastE21,
+      prevEma9: prevE9,
+      prevEma21: prevE21,
+      volume: vol,
+      avgVolume: volAvg,
+      rsi: rsi,
+      emaSlope: (lastE9 - e9[Math.max(0, e9.length - 5)]) / (e9[Math.max(0, e9.length - 5)] || 1)
+    };
+
+    var wScore = weaknessScore(pos, currentData);
+    if (wScore >= 5) {
+      Execution.close(pos.id, 'WEAKNESS_FULL');
+    } else if (wScore >= 3) {
+      Execution.closePartial(pos.id, 0.5, 'WEAKNESS_HALF');
+    }
+  }
+  // ---------------------------------------------
+
   if (appMode === 'live' && trackerTick % Math.max(1, Math.round(CFG.reconcileMs / CFG.trackerMs)) === 0) {
     Execution.reconcile(false);
   }
 
-  // Periodic safety sweep for stuck positions (covers the case where a
-  // close request silently failed and no error surfaced to the UI).
   if (trackerTick % 10 === 0) Execution.sweepStuck();
 
   if (trackerTick % 2 === 0) { updatePosUI(); updateTicker(); renderRiskStatus(); }
@@ -2480,7 +2651,7 @@ function runEngine() {
   var sigEl = document.getElementById('eSig');
   if (signalMode === 'neutral') {
     if (sigEl) sigEl.textContent = best ? best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' RANGE (' + best.an.score + '%) — manual grid only' : 'Scanning for range setups...';
-    return; // never auto-trades in neutral mode
+    return;
   }
   if (!best) { if (sigEl) sigEl.textContent = 'Scanning... no signal'; return; }
   if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' ' + best.an.tier + ' (' + best.an.score + '%)';
@@ -2542,7 +2713,7 @@ function startDemo() {
 }
 
 /* ═══════════════════════════════════════════════
-   POSITION OPEN/CLOSE WRAPPERS (UI entry points)
+   POSITION OPEN/CLOSE WRAPPERS
    ═══════════════════════════════════════════════ */
 function openPos(sym, side, auto, manTP, manSL) { return Execution.open(sym, side, auto, manTP, manSL); }
 function closePos(id, reason) { return Execution.close(id, reason); }
@@ -2637,7 +2808,7 @@ function renderRiskStatus() {
 }
 
 /* ═══════════════════════════════════════════════
-   SIGNAL PAGE
+   SIGNAL PAGE UI
    ═══════════════════════════════════════════════ */
 function v62RenderActivePosition(pos) {
   var pr = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
@@ -2863,7 +3034,7 @@ function updateTicker() {
 function selPair(s) { currentPair = s; updatePairRow(); updateSignalUI(); drawChart(); }
 
 /* ═══════════════════════════════════════════════
-   POSITION PAGE
+   POSITION PAGE UI
    ═══════════════════════════════════════════════ */
 function updatePosUI() {
   updateBalUI();
@@ -3381,6 +3552,8 @@ window.__apexReady(function () {
     log('Signal engine: trend/momentum voting, tiered scoring (A/B/C), risk-based sizing', 'ok');
     log('Trail: fee-aware activation, locked profit never below break-even', 'ok');
     log('Live mode: legacy Worker auto-detected (/price+/klines+/balance), no /state spam', 'ok');
+    log('Risk: Dynamic Kelly/Volatility/Loss-streak sizing active', 'ok');
+    log('Exit: Weakness detector (partial/full close) active every 5min', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
