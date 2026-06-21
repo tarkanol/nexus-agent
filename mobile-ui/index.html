@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.3.5</title>
+<title>APEX SCALP V6.4.0</title>
 <style>
 
 :root {
@@ -118,6 +118,12 @@ canvas{display:block;width:100%;border-radius:4px;background:#010a10;border:1px 
 .mode-btn.active.standard{border-color:var(--warn);color:var(--warn);background:rgba(255,170,0,0.07)}
 .mode-btn.active.aggressive{border-color:var(--short);color:var(--short);background:rgba(255,51,85,0.07)}
 .mode-btn.active.neutral{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,0.07)}
+.mode-btn.active.swing{border-color:var(--gold);color:var(--gold);background:rgba(255,204,68,0.08)}
+.swing-box{border-radius:4px;overflow:hidden;margin-bottom:7px}
+.swing-hd{padding:6px 10px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;display:flex;justify-content:space-between;align-items:center}
+.swing-hd.long{background:rgba(0,255,136,0.08);color:var(--long);border-left:3px solid var(--long)}
+.swing-hd.short{background:rgba(255,51,85,0.08);color:var(--short);border-left:3px solid var(--short)}
+.swing-body{background:rgba(2,10,16,0.9);padding:8px 10px;border:1px solid var(--brd2);border-top:none}
 .sig-badge.NEAR_TOP{background:rgba(255,170,0,0.07);color:var(--warn);border:1px solid rgba(255,170,0,0.5);box-shadow:0 0 24px rgba(255,170,0,0.12)}
 .sig-badge.NEAR_BOTTOM{background:rgba(0,212,255,0.07);color:var(--acc);border:1px solid rgba(0,212,255,0.5);box-shadow:0 0 24px rgba(0,212,255,0.12)}
 .grid-box{border-radius:4px;overflow:hidden;margin-bottom:7px}
@@ -204,7 +210,7 @@ select option{background:#041018}
 <div id="notif"></div>
 
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V6.3.5</span></div>
+  <div class="logo">APEX<span> // SCALP V6.4.0</span></div>
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
     <span class="bdg" id="bdgEng">OFF</span>
@@ -252,6 +258,7 @@ select option{background:#041018}
         <button class="mode-btn standard" id="modeStandard" onclick="setMode('standard')">STANDARD<br><span style="font-size:7px;opacity:.7">BALANCED</span></button>
         <button class="mode-btn aggressive" id="modeAggressive" onclick="setMode('aggressive')">ACTIVE<br><span style="font-size:7px;opacity:.7">MORE</span></button>
         <button class="mode-btn neutral" id="modeNeutral" onclick="setMode('neutral')">NEUTRAL<br><span style="font-size:7px;opacity:.7">RANGE/GRID</span></button>
+        <button class="mode-btn swing" id="modeSwing" onclick="setMode('swing')">SWING<br><span style="font-size:7px;opacity:.7">HOURS/DAYS</span></button>
       </div>
       <div id="modeDesc" style="font-family:var(--mono);font-size:8px;color:var(--dim2);text-align:center;margin-top:4px">--</div>
       <div class="v62-note">Precision means stricter evidence, not guaranteed wins. Size remains stop-risk and margin capped.</div>
@@ -598,7 +605,7 @@ select option{background:#041018}
 /* ═══════════════════════════════════════════════
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
-var APP_VERSION = '6.3.5';
+var APP_VERSION = '6.4.0';
 var START_BAL = 50, MAX_P = 1;
 var DEMO_BASE = {BTC_USDT:74000,ETH_USDT:2050,SOL_USDT:83,BNB_USDT:588,XRP_USDT:0.605,DOGE_USDT:0.12,ADA_USDT:0.45,AVAX_USDT:35,LINK_USDT:14,DOT_USDT:7.2};
 var balance = START_BAL, dailyPnL = 0, peakBal = START_BAL;
@@ -677,13 +684,14 @@ var MODE_CFG = {
                label:'Score≥56 | 2/3 TF | Vol≥0.90x | SHORT RSI 28–58 | MACD momentum vote'},
   aggressive: {scoreMin:50, volMin:0.78, tfMin:2, atrMin:0.012, atrMax:4.0, longRsi:[42,72], shortRsi:[24,58], minRR:1.40,
                label:'Score≥50 | 2/3 TF | Vol≥0.78x | wider RSI, more frequent signals'},
-  neutral:    {label:'Range-bound only | Price near BB band | Grid setup suggestion, no auto trade'}
+  neutral:    {label:'Range-bound only | Price near BB band | Grid setup suggestion, no auto trade'},
+  swing:      {label:'1h+4h+1d structure | Structural stop (swing pivot) | Multi-hour/day hold, trailing TP/SL'}
 };
 
 function setMode(m) {
   if (!MODE_CFG[m]) return;
   signalMode = m;
-  ['elite','quality','standard','aggressive','neutral'].forEach(function (k) {
+  ['elite','quality','standard','aggressive','neutral','swing'].forEach(function (k) {
     var el = document.getElementById('mode' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.className = 'mode-btn ' + k + (k === m ? ' active' : '');
   });
@@ -710,7 +718,7 @@ function validSymbol(s) {
   return s;
 }
 function sameDay(ts) { return new Date(ts).toISOString().slice(0, 10) === CFG.dayKey; }
-function intervalMs(tf) { return ({'1m':60000,'5m':300000,'15m':900000,'1h':3600000})[tf] || 60000; }
+function intervalMs(tf) { return ({'1m':60000,'5m':300000,'15m':900000,'1h':3600000,'4h':14400000,'1d':86400000})[tf] || 60000; }
 function closedCandles(arr, tf, now) {
   if (!Array.isArray(arr)) return [];
   var ms = intervalMs(tf), cutoff = Math.floor((now || Date.now()) / ms) * ms;
@@ -955,6 +963,39 @@ function tickFull(sym) {
   pData[sym].kl5m  = aggregateKlines(mk, 5).slice(-500);
   pData[sym].kl15m = aggregateKlines(mk, 15).slice(-300);
   pData[sym].kl1h  = aggregateKlines(mk, 60).slice(-200);
+  // Swing timeframes (4h/1d) are only built when swing mode is active or
+  // has been visited — building them every tick for every pair would mean
+  // re-aggregating up to 28,800 1m candles per pair per scan, for data
+  // nobody is reading outside swing mode.
+  if (signalMode === 'swing' || pData[sym].swingWarmed) {
+    ensureSwingHistory(sym);
+    pData[sym].kl4h = aggregateKlines(pData[sym].swingKlines || mk, 240).slice(-120);
+    pData[sym].kl1d = aggregateKlines(pData[sym].swingKlines || mk, 1440).slice(-60);
+    pData[sym].swingWarmed = true;
+  }
+}
+
+// Swing mode needs ~20+ days of history to find enough 4h/1d structure
+// (pivots, EMA21 on daily). The regular masterKlines buffer is capped at
+// 10,000 1m candles (~7 days) to keep the 500ms tracker cheap, so swing
+// gets its own, separately-seeded, longer buffer that's built once and
+// then extended tick-by-tick exactly like masterKlines is.
+function ensureSwingHistory(sym) {
+  if (pData[sym].swingKlines && pData[sym].swingKlines.length >= 28000) {
+    // Keep it fed with the latest price the same way masterKlines is
+    var mk = pData[sym].masterKlines, sk = pData[sym].swingKlines;
+    var lastMk = mk[mk.length - 1], lastSk = sk[sk.length - 1];
+    if (lastMk && lastSk && lastMk.t > lastSk.t) {
+      // Append any new 1m candles produced since swing history was seeded
+      for (var i = 0; i < mk.length; i++) if (mk[i].t > lastSk.t) sk.push(mk[i]);
+      if (sk.length > 35000) sk.splice(0, sk.length - 35000);
+    }
+    return;
+  }
+  // One-time seed: 21 days of 1m candles built with the same generator
+  // used for masterKlines, anchored to the same base price so the two
+  // buffers are visually/statistically consistent.
+  pData[sym].swingKlines = seedKlines(sym, 30240); // 21 days * 1440 min
 }
 
 function demoRefresh() {
@@ -1243,11 +1284,245 @@ function analyzeNeutral(sym) {
   return out;
 }
 
+/* ═══════════════════════════════════════════════
+   SWING ENGINE
+   ═══════════════════════════════════════════════
+   Built for multi-hour to multi-day holds, not minute
+   scalps. Uses 1h/4h/1d structure instead of 5m/15m/1h,
+   and replaces ATR-multiple stops with structural
+   swing-pivot stops (the actual support/resistance the
+   price would need to break to invalidate the trade).
+
+   Why this is a separate mode rather than a scalp tweak:
+   a stop placed at 0.25% from entry (typical scalp ATR
+   stop) is well inside normal 1h noise on most majors —
+   it gets clipped by routine chop, not by the trend
+   actually failing. A swing stop needs to sit outside
+   the noise band entirely, which means it has to be
+   anchored to real price structure, not a volatility
+   multiple of a 5-minute candle.
+   ═══════════════════════════════════════════════ */
+
+var SWING_CFG = {
+  scoreMin: 60,
+  rsiLongZone: [45, 70],
+  rsiShortZone: [30, 55],
+  volMin: 0.85,
+  minRR: 1.8,
+  pivotLookback: 5,      // bars each side to confirm a swing pivot
+  stopBufferPct: 0.006,  // extra room below/above the pivot (0.6%)
+  maxHoldDays: 4         // informational — UI hint only, no forced close
+};
+
+// Simple fractal/pivot detector: a bar is a swing high if its high is the
+// max within `lookback` bars on both sides; swing low is the mirror case.
+function findSwingPivots(kl, lookback) {
+  lookback = lookback || SWING_CFG.pivotLookback;
+  var highs = [], lows = [];
+  for (var i = lookback; i < kl.length - lookback; i++) {
+    var isHigh = true, isLow = true;
+    for (var j = i - lookback; j <= i + lookback; j++) {
+      if (j === i) continue;
+      if (kl[j].h >= kl[i].h) isHigh = false;
+      if (kl[j].l <= kl[i].l) isLow = false;
+    }
+    if (isHigh) highs.push({i: i, t: kl[i].t, price: kl[i].h});
+    if (isLow) lows.push({i: i, t: kl[i].t, price: kl[i].l});
+  }
+  return {highs: highs, lows: lows};
+}
+
+// Nearest pivot below price (support) / above price (resistance) from a
+// pivot list, restricted to the most recent N pivots so ancient structure
+// doesn't dominate.
+function nearestSupport(lows, price, maxCount) {
+  var below = lows.filter(function (p) { return p.price < price; });
+  if (!below.length) return null;
+  below.sort(function (a, b) { return b.price - a.price; }); // closest below first
+  return below[0];
+}
+function nearestResistance(highs, price, maxCount) {
+  var above = highs.filter(function (p) { return p.price > price; });
+  if (!above.length) return null;
+  above.sort(function (a, b) { return a.price - b.price; }); // closest above first
+  return above[0];
+}
+
+function analyzeSwing(sym) {
+  var pd = pData[sym];
+  if (!pd) return null;
+  var kl1h = pd.kl1h || [], kl4h = pd.kl4h || [], kl1d = pd.kl1d || [];
+  var price = Number(pd.price || (kl1h.length ? kl1h[kl1h.length - 1].c : 0));
+
+  if (!price || kl1h.length < 60 || kl4h.length < 30 || kl1d.length < 14) {
+    return {
+      signal: 'WAIT', score: 0, price: price || 0, mode: 'swing',
+      failReason: 'DATA_WARMUP 1h:' + kl1h.length + ' 4h:' + kl4h.length + ' 1d:' + kl1d.length,
+      filters: {atr:'--', vol:'--', trend:'--', rsi:'--', macd:'--', score:'0%'}
+    };
+  }
+
+  var c1h = [], c4h = [], c1d = [], i;
+  for (i = 0; i < kl1h.length; i++) c1h.push(Number(kl1h[i].c));
+  for (i = 0; i < kl4h.length; i++) c4h.push(Number(kl4h[i].c));
+  for (i = 0; i < kl1d.length; i++) c1d.push(Number(kl1d[i].c));
+
+  // ── Structure: 1h entry timing, 4h trend confirm, 1d big-picture bias
+  var atr1h = calcATR(kl1h, 14), atrPct = atr1h / price * 100;
+  var e9_1h = calcEMA(c1h, 9), e21_1h = calcEMA(c1h, 21);
+  var e9_4h = calcEMA(c4h, 9), e21_4h = calcEMA(c4h, 21);
+  var e9_1d = calcEMA(c1d, 9), e21_1d = calcEMA(c1d, Math.min(21, c1d.length));
+
+  var l9_1h = e9_1h[e9_1h.length - 1], l21_1h = e21_1h[e21_1h.length - 1];
+  var l9_4h = e9_4h[e9_4h.length - 1], l21_4h = e21_4h[e21_4h.length - 1];
+  var l9_1d = e9_1d[e9_1d.length - 1], l21_1d = e21_1d[e21_1d.length - 1];
+  if (!l9_1h || !l21_1h || !l9_4h || !l21_4h || !l9_1d || !l21_1d) return null;
+
+  var sl1h = emaSlope(e9_1h, 4), sl4h = emaSlope(e9_4h, 4), sl1d = emaSlope(e9_1d, 3);
+
+  var trend1h = l9_1h > l21_1h && sl1h > 0 ? 'LONG' : l9_1h < l21_1h && sl1h < 0 ? 'SHORT' : 'WAIT';
+  var trend4h = l9_4h > l21_4h && sl4h > 0 ? 'LONG' : l9_4h < l21_4h && sl4h < 0 ? 'SHORT' : 'WAIT';
+  var bias1d  = l9_1d > l21_1d && sl1d > 0 ? 'LONG' : l9_1d < l21_1d && sl1d < 0 ? 'SHORT' : 'WAIT';
+
+  var macd1h = calcMACD(c1h), macd4h = calcMACD(c4h);
+  var rsi1h = calcRSI(c1h, 14);
+  var vr = calcVolRatio(kl1h);
+
+  // ── Direction: needs 1h structure + 4h confirmation; 1d may be WAIT
+  // (early-stage trend) but must not actively oppose.
+  var rawSig = 'WAIT';
+  if (trend1h === 'LONG' && trend4h === 'LONG' && macd1h.hist > 0 && bias1d !== 'SHORT') rawSig = 'LONG';
+  if (trend1h === 'SHORT' && trend4h === 'SHORT' && macd1h.hist < 0 && bias1d !== 'LONG') rawSig = 'SHORT';
+
+  var reasons = [], score = 0;
+  if (rawSig !== 'WAIT') {
+    score += 20; reasons.push({t:'1H_STRUCTURE', cls:rawSig.toLowerCase()});
+    score += 25; reasons.push({t:'4H_CONFIRM', cls:rawSig.toLowerCase()});
+    if (bias1d === rawSig) { score += 20; reasons.push({t:'1D_ALIGN', cls:rawSig.toLowerCase()}); }
+    else reasons.push({t:'1D_NEUTRAL', cls:'warn'});
+
+    var macdDir1h = rawSig === 'LONG' ? macd1h.hist > 0 : macd1h.hist < 0;
+    var macdExpand1h = rawSig === 'LONG' ? macd1h.hist > macd1h.prev : macd1h.hist < macd1h.prev;
+    if (macdDir1h) { score += macdExpand1h ? 15 : 9; reasons.push({t: macdExpand1h ? 'MACD_1H_EXP' : 'MACD_1H_DIR', cls:rawSig.toLowerCase()}); }
+
+    var macdDir4h = rawSig === 'LONG' ? macd4h.hist > 0 : macd4h.hist < 0;
+    if (macdDir4h) { score += 10; reasons.push({t:'MACD_4H_CONFIRM', cls:rawSig.toLowerCase()}); }
+    else reasons.push({t:'MACD_4H_OPPOSE', cls:'warn'});
+
+    if (vr >= SWING_CFG.volMin) { score += 10; reasons.push({t:'VOL:' + vr.toFixed(2) + 'x', cls:'neut'}); }
+    else reasons.push({t:'VOL_LOW:' + vr.toFixed(2) + 'x', cls:'warn'});
+
+    var rsiZone = rawSig === 'LONG' ? SWING_CFG.rsiLongZone : SWING_CFG.rsiShortZone;
+    if (rsi1h >= rsiZone[0] && rsi1h <= rsiZone[1]) { score += 10; reasons.push({t:'RSI:' + rsi1h.toFixed(0), cls:rawSig.toLowerCase()}); }
+    else reasons.push({t:'RSI_OFF:' + rsi1h.toFixed(0), cls:'warn'});
+  }
+  score = clampNum(Math.round(score), 0, 100);
+
+  var ctx = {
+    price: price, score: score, reasons: reasons, atrPct: atrPct, vr: vr,
+    tfCount: (trend1h === rawSig ? 1 : 0) + (trend4h === rawSig ? 1 : 0) + (bias1d === rawSig ? 1 : 0),
+    rsi5: rsi1h, rsi15: rsi1h, macd5: macd1h,
+    macdLabel: (macd1h.hist >= 0 ? '+' : '') + macd1h.hist.toFixed(5),
+    goldenX: false, deathX: false, aboveEMA: l9_1h > l21_1h,
+    bbSqueeze: false, sl5: sl1h, stochRsi5: 50,
+    trend5: trend1h, trend15: trend4h, bias1h: bias1d
+  };
+
+  var out = resultBase(ctx);
+  out.mode = 'swing';
+
+  if (rawSig === 'WAIT') { out.signal = 'WAIT'; out.failReason = 'NO_STRUCTURE 1h:' + trend1h + ' 4h:' + trend4h; return out; }
+  if (score < SWING_CFG.scoreMin) { out.signal = 'WAIT'; out.failReason = 'SCORE:' + score + '<' + SWING_CFG.scoreMin; return out; }
+
+  // ── Structural stop: nearest swing pivot beyond price, not an ATR
+  // multiple. This is the entire point of the swing mode — the stop sits
+  // outside real chart structure instead of inside normal candle noise.
+  var pivots4h = findSwingPivots(kl4h, SWING_CFG.pivotLookback);
+  var pivots1h = findSwingPivots(kl1h, SWING_CFG.pivotLookback);
+
+  var sl, tp, stopSource;
+  if (rawSig === 'LONG') {
+    var support = nearestSupport(pivots4h.lows, price) || nearestSupport(pivots1h.lows, price);
+    if (support) {
+      sl = support.price * (1 - SWING_CFG.stopBufferPct);
+      stopSource = '4H_SWING_LOW';
+    } else {
+      // No structural pivot found yet (e.g. straight-line trend) — fall
+      // back to a wide ATR multiple so the bot never trades without a stop.
+      sl = price - atr1h * 3.5;
+      stopSource = 'ATR_FALLBACK';
+    }
+    var resistance = nearestResistance(pivots4h.highs, price) || nearestResistance(pivots1h.highs, price);
+    var slDist = price - sl;
+    tp = resistance && (resistance.price - price) > slDist * SWING_CFG.minRR
+      ? resistance.price
+      : price + slDist * SWING_CFG.minRR;
+  } else {
+    var resistanceS = nearestResistance(pivots4h.highs, price) || nearestResistance(pivots1h.highs, price);
+    if (resistanceS) {
+      sl = resistanceS.price * (1 + SWING_CFG.stopBufferPct);
+      stopSource = '4H_SWING_HIGH';
+    } else {
+      sl = price + atr1h * 3.5;
+      stopSource = 'ATR_FALLBACK';
+    }
+    var supportS = nearestSupport(pivots4h.lows, price) || nearestSupport(pivots1h.lows, price);
+    var slDistS = sl - price;
+    tp = supportS && (price - supportS.price) > slDistS * SWING_CFG.minRR
+      ? supportS.price
+      : price - slDistS * SWING_CFG.minRR;
+  }
+
+  var slDistFinal = Math.abs(price - sl);
+  var tpDistFinal = Math.abs(tp - price);
+  var slPctFinal = slDistFinal / price * 100;
+
+  // Sanity clamp: structural stops on illiquid pivots can occasionally
+  // come out absurdly tight or absurdly wide — keep them in a sane band
+  // for a multi-day hold (0.8%–6%).
+  if (slPctFinal < 0.8 || slPctFinal > 6) {
+    slDistFinal = clampNum(slDistFinal, price * 0.008, price * 0.06);
+    sl = rawSig === 'LONG' ? price - slDistFinal : price + slDistFinal;
+    tpDistFinal = slDistFinal * SWING_CFG.minRR;
+    tp = rawSig === 'LONG' ? price + tpDistFinal : price - tpDistFinal;
+    stopSource += '_CLAMPED';
+  }
+
+  var cRate = costRate();
+  var riskNotional = Math.abs(num(riskUSD, 0.50)) / Math.max(slDistFinal / price + cRate, 0.0001);
+  var confidenceCap = effectiveMaxPos(score, tierOf(score));
+  var marginCap = Math.max(0, num(balance, START_BAL)) * V62.maxMarginPct * Math.max(1, num(leverage, 1));
+  var posVal = Math.max(0, Math.min(riskNotional, confidenceCap, marginCap));
+  var qty = posVal / price;
+  var estimatedCosts = posVal * cRate;
+
+  out.signal = rawSig;
+  out.tier = tierOf(score);
+  out.sl = sl; out.tp = tp; out.slDist = slDistFinal; out.tpDist = tpDistFinal;
+  out.stopSource = stopSource;
+  out.posVal = posVal; out.qty = qty; out.comm = posVal * CFG.feeRate * 2;
+  out.marginUsed = posVal / Math.max(1, leverage);
+  out.rrActual = tpDistFinal / slDistFinal;
+  out.estProfit = tpDistFinal * qty - estimatedCosts;
+  out.estRisk = slDistFinal * qty + estimatedCosts;
+  out.estimatedCosts = estimatedCosts;
+  out.sizeMult = 1;
+  out.maxHoldDays = SWING_CFG.maxHoldDays;
+  out.filters = {
+    atr: atrPct.toFixed(3) + '%', vol: vr.toFixed(2) + 'x',
+    trend: ctx.tfCount + '/3', rsi: rsi1h.toFixed(1),
+    macd: stopSource, score: score + '%'
+  };
+  return out;
+}
+
 function analyze(sym) {
   if (signalMode === 'neutral') return analyzeNeutral(sym);
+  if (signalMode === 'swing') return analyzeSwing(sym);
   var pd = pData[sym];
   if (!pd) return null;
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
+
   var price = Number(pd.price || (kl5.length ? kl5[kl5.length - 1].c : 0));
   if (!price || kl5.length < 50 || kl15.length < 30 || kl1h.length < 30) {
     return {
@@ -1543,6 +1818,9 @@ var ApiCompat = {
       } catch (e) { log('[PRICE] ' + sym + ' ' + e.message, 'err'); }
 
       var specs = [{tf:'5m',limit:200,key:'kl5m'}, {tf:'15m',limit:120,key:'kl15m'}, {tf:'1h',limit:80,key:'kl1h'}];
+      if (signalMode === 'swing') {
+        specs.push({tf:'4h',limit:120,key:'kl4h'}, {tf:'1d',limit:60,key:'kl1d'});
+      }
       await Promise.all(specs.map(async function (s) {
         try {
           var d = await Http.get('/klines?symbol=' + encodeURIComponent(sym) + '&interval=' + s.tf + '&limit=' + s.limit);
@@ -1684,8 +1962,10 @@ var MarketData = {
       pData[sym].price = Number(m.price);
       if (!pxState[sym]) pxState[sym] = {price: Number(m.price), vel: 0};
       pxState[sym].price = Number(m.price);
-      ['1m','5m','15m','1h'].forEach(function (tf) {
-        var key = tf === '1m' ? 'kl1m' : tf === '5m' ? 'kl5m' : tf === '15m' ? 'kl15m' : 'kl1h';
+      var tfList = ['1m','5m','15m','1h'];
+      if (signalMode === 'swing') tfList.push('4h','1d');
+      tfList.forEach(function (tf) {
+        var key = tf === '1m' ? 'kl1m' : tf === '5m' ? 'kl5m' : tf === '15m' ? 'kl15m' : tf === '1h' ? 'kl1h' : tf === '4h' ? 'kl4h' : 'kl1d';
         var raw = Array.isArray(m[tf]) ? m[tf] : [];
         pData[sym][key] = closedCandles(raw.map(function (k) { return {t:+k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v}; }), tf, now);
       });
@@ -2403,9 +2683,44 @@ function renderGridCard(an) {
   '</div>';
 }
 
+function renderSwingCard(an, price) {
+  var el = document.getElementById('planWrap');
+  if (!an || !an.sl || an.signal === 'WAIT') {
+    el.innerHTML = '<div class="swing-box"><div class="swing-hd long" style="background:rgba(255,204,68,0.08);color:var(--gold);border-left-color:var(--gold)">SWING SCAN // ' + currentPair.replace('_USDT','') + '</div>' +
+      '<div class="swing-body"><div class="grid-note" style="margin-top:0">' +
+      (an && an.failReason ? 'No swing setup: ' + an.failReason : 'Scanning 1h/4h/1d structure...') +
+      '</div></div></div>';
+    return;
+  }
+  var cls = an.signal.toLowerCase();
+  var slPct = Math.abs(price - an.sl) / price * 100, tpPct = Math.abs(an.tp - price) / price * 100;
+  el.innerHTML = '<div class="swing-box">' +
+    '<div class="swing-hd ' + cls + '"><span>' + an.signal + ' // ' + currentPair.replace('_USDT','') + '</span><span style="font-size:9px">' + an.tier + '-GRADE SWING</span></div>' +
+    '<div class="swing-body">' +
+      '<div class="plan-row"><span class="pk">ENTRY</span><span>$' + fp(price) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">TP (' + (an.signal === 'LONG' ? '+' : '-') + tpPct.toFixed(2) + '%)</span><span class="pv tp">$' + fp(an.tp) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">SL (' + (an.signal === 'LONG' ? '-' : '+') + slPct.toFixed(2) + '%)</span><span class="pv sl">$' + fp(an.sl) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">STOP BASIS</span><span style="color:var(--dim2)">' + (an.stopSource || '--') + '</span></div>' +
+      '<div class="plan-row"><span class="pk">R:R</span><span class="pv rr">1:' + (an.rrActual || 0).toFixed(2) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">SIZE</span><span style="color:var(--acc)">$' + an.posVal.toFixed(2) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">MARGIN @' + leverage + 'x</span><span style="color:var(--gold)">$' + an.marginUsed.toFixed(2) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">EST NET PROFIT</span><span style="color:var(--long)">$' + an.estProfit.toFixed(4) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">EST NET RISK</span><span class="pv sl">$' + an.estRisk.toFixed(4) + '</span></div>' +
+      '<div class="plan-row"><span class="pk">EXPECTED HOLD</span><span style="color:var(--dim2)">hours to ~' + an.maxHoldDays + ' days</span></div>' +
+    '</div>' +
+    '<div class="grid-note">Stop is anchored to actual 4h/1h swing structure, not a tight scalp ATR — designed to survive normal multi-hour noise. No forced time-based close: trailing stop manages the exit as the trade develops.</div>' +
+  '</div>';
+}
+
 function renderPlan(an, price) {
   var el = document.getElementById('planWrap');
   if (signalMode === 'neutral') { renderGridCard(an); return; }
+  if (signalMode === 'swing') {
+    var openHereSwing = positions.find(function (p) { return p.pair === currentPair; });
+    if (openHereSwing) { el.innerHTML = v62RenderActivePosition(openHereSwing); return; }
+    renderSwingCard(an, price);
+    return;
+  }
   var openHere = positions.find(function (p) { return p.pair === currentPair; });
   if (openHere) { el.innerHTML = v62RenderActivePosition(openHere); return; }
   if (!an || !an.sl || an.signal === 'WAIT') { el.innerHTML = ''; return; }
