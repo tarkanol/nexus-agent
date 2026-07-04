@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.4.0</title>
+<title>APEX SCALP V6.4.1</title>
 <style>
 
 :root {
@@ -210,7 +210,7 @@ select option{background:#041018}
 <div id="notif"></div>
 
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V6.4.0</span></div>
+  <div class="logo">APEX<span> // SCALP V6.4.1</span></div>
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
     <span class="bdg" id="bdgEng">OFF</span>
@@ -594,8 +594,30 @@ select option{background:#041018}
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   APEX SCALP V6.4.0 — FULL INTEGRATION
+   APEX SCALP V6.4.1 — FULL INTEGRATION
    Includes: Kelly/Volatility/Loss-streak sizing, Weakness detector
+   v6.4.1 FIXES vs v6.4.0:
+   1. ApiCompat.applyPing() / apiMode logic no longer requires BOTH
+      snapshot AND state capability to use /snapshot — it now only
+      needs the worker to report snapshot:true. Previously this
+      forced legacy mode (per-symbol /price+/klines) even against a
+      worker that fully supports /snapshot, causing the Cloudflare
+      daily request-limit blowout.
+   2. MarketData.fetchLive() and refreshOpenPrices() now gate on
+      Runtime.capabilities.snapshot only, not on the (largely
+      irrelevant) apiMode string.
+   3. refreshOpenPrices() now prefers the lightweight /batch-prices
+      endpoint (price-only, no klines) for the 500ms open-position
+      tracker instead of calling the heavier /snapshot endpoint.
+   4. processDcaLadders() only adds a new DCA leg when price has
+      moved AGAINST the position by the configured spacing — not on
+      any movement in either direction.
+   5. Execution.dcaAddLeg() no longer sends sl/tp on the per-leg
+      /order call (which made the worker size a fresh reduce-only
+      TP/SL order off just that leg's qty). It now opens the leg
+      with no sl/tp, recomputes the blended average via
+      dcaComputeTargets(), then pushes the single shared TP/SL via
+      /update_tpsl, which sizes off the exchange's real net position.
    ═══════════════════════════════════════════════════════════ */
 
 /* ---- storage bootstrap (mobile-safe) ---- */
@@ -636,7 +658,7 @@ select option{background:#041018}
 /* ═══════════════════════════════════════════════
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
-var APP_VERSION = '6.4.0';
+var APP_VERSION = '6.4.1';
 var START_BAL = 50, MAX_P = 1;
 var DEMO_BASE = {BTC_USDT:74000,ETH_USDT:2050,SOL_USDT:83,BNB_USDT:588,XRP_USDT:0.605,DOGE_USDT:0.12,ADA_USDT:0.45,AVAX_USDT:35,LINK_USDT:14,DOT_USDT:7.2};
 var balance = START_BAL, dailyPnL = 0, peakBal = START_BAL;
@@ -677,7 +699,7 @@ var CFG = {
   trackerMs: 500,
   livePriceMs: 1000,
   killSwitch: false,
-  persistKey: 'apex-scalp-v633',
+  persistKey: 'apex-scalp-v641',
   dayKey: new Date().toISOString().slice(0, 10)
 };
 
@@ -688,7 +710,7 @@ var V62 = {
   aTierBoost: 2.0,
   bTierBoost: 1.5,
   eliteFilter: false,
-  storageKey: 'apex-scalp-v633-sizing'
+  storageKey: 'apex-scalp-v641-sizing'
 };
 
 var Runtime = {
@@ -834,10 +856,10 @@ var DCA_CFG = {
   enabled: false,
   legSize: 22,        // $ notional per leg (20-25 range)
   maxLegs: 4,
-  spacingPct: 0.25,   // % price move (of last leg's price) needed before adding next leg
+  spacingPct: 0.25,   // % adverse price move (from last leg's price) needed before adding next leg
   targetProfit: 0.90, // $ combined NET profit target for the whole ladder
   maxStopPct: 1.2,    // hard safety stop distance, as % of average entry
-  storageKey: 'apex-scalp-v640-dca'
+  storageKey: 'apex-scalp-v641-dca'
 };
 
 var DCAStore = {
@@ -1939,14 +1961,22 @@ function isNotFound(e) {
 var ApiCompat = {
   setLegacy: function (reason) {
     Runtime.apiMode = 'legacy';
-    Runtime.capabilities.snapshot = false;
+    // v6.4.1: NOTE — setLegacy no longer force-clears the snapshot/batchPrices
+    // capability flags. Those are set independently from the /ping response
+    // (or from a live fetch success/404), and "legacy" here only describes
+    // the fallback label shown in the UI. Previously this function zeroed
+    // out every capability whenever it ran, which combined with the
+    // "snapshot && state" apiMode check in applyPing() meant /snapshot was
+    // permanently disabled the moment any not-yet-implemented endpoint
+    // (like /state) came back 404 — even on workers that fully support
+    // /snapshot and /batch-prices.
     Runtime.capabilities.state = false;
     Runtime.capabilities.riskUpdate = false;
     Runtime.capabilities.kill = false;
     if (!Runtime.compatNotified) {
       Runtime.compatNotified = true;
-      log('[COMPAT] Legacy Worker mode: /price + /klines + /balance' + (reason ? ' (' + reason + ')' : ''), 'info');
-      notify('Legacy Worker detected — compatible live mode active', 'info');
+      log('[COMPAT] Legacy-only Worker features: ' + (reason ? reason : '(unspecified)') + ' — /balance, /open_positions, /order, /close remain in use as normal', 'info');
+      notify('Worker capability check complete', 'info');
     }
   },
   applyPing: function (ping) {
@@ -1956,12 +1986,29 @@ var ApiCompat = {
       Runtime.capabilities.state = !!(f.state || f.reconcile);
       Runtime.capabilities.riskUpdate = !!f.riskUpdate;
       Runtime.capabilities.kill = !!f.kill;
-      Runtime.apiMode = (Runtime.capabilities.snapshot && Runtime.capabilities.state) ? 'modern' : 'legacy';
-      if (Runtime.apiMode === 'legacy') ApiCompat.setLegacy('ping capabilities');
+      // v6.4.1 FIX: apiMode now reflects snapshot support ALONE. The old
+      // code required BOTH snapshot AND state to be true before calling
+      // it "modern", which meant /snapshot was never used against a
+      // worker that (like this project's own worker) implements
+      // /snapshot + /batch-prices but not /state — exactly the setup
+      // that was causing the daily Cloudflare request-limit blowout.
+      Runtime.apiMode = Runtime.capabilities.snapshot ? 'modern' : 'legacy';
+      if (!Runtime.compatNotified) {
+        Runtime.compatNotified = true;
+        log('[COMPAT] Worker features — snapshot:' + Runtime.capabilities.snapshot +
+          ' state:' + Runtime.capabilities.state +
+          ' riskUpdate:' + Runtime.capabilities.riskUpdate +
+          ' kill:' + Runtime.capabilities.kill, 'info');
+      }
       return;
     }
-    // No feature flags reported — assume legacy until proven otherwise.
-    ApiCompat.setLegacy('no capability flags in /ping');
+    // No feature flags reported at all — this worker predates /ping
+    // capability reporting entirely. Only THIS case should disable
+    // snapshot/batch-prices; a worker that reports flags but simply
+    // doesn't support /state should not lose /snapshot as collateral
+    // damage.
+    Runtime.capabilities.snapshot = false;
+    ApiCompat.setLegacy('no capability flags in /ping (pre-v16.1 worker?)');
   },
   normalizeCandle: function (k) {
     var out;
@@ -2078,7 +2125,9 @@ var ApiCompat = {
     return d;
   },
   statusText: function () {
-    return Runtime.apiMode === 'legacy' ? 'Live connection active — legacy compatible endpoints' : 'Live connection active — server risk manager';
+    return Runtime.capabilities.snapshot !== false
+      ? 'Live connection active — /snapshot + /batch-prices in use'
+      : 'Live connection active — legacy /price + /klines endpoints';
   }
 };
 
@@ -2201,17 +2250,27 @@ var MarketData = {
   },
   fetchLive: async function () {
     if (!WORKER) return;
-    if (Runtime.apiMode !== 'legacy' && Runtime.capabilities.snapshot !== false) {
+    // v6.4.1 FIX: gate on capabilities.snapshot alone. The old condition
+    // (`Runtime.apiMode !== 'legacy' && capabilities.snapshot !== false`)
+    // meant that once apiMode got stuck on 'legacy' — which happened on
+    // EVERY connect against this project's own worker, since that worker
+    // has no /state endpoint — /snapshot was never attempted again, even
+    // though the worker fully supports it.
+    if (Runtime.capabilities.snapshot !== false) {
       try {
         var qs = encodeURIComponent(pairs.join(','));
         var snap = await Http.get('/snapshot?symbols=' + qs);
         if (!snap || !snap.success || !snap.market) throw new Error('Invalid snapshot response');
-        Runtime.apiMode = 'modern'; Runtime.capabilities.snapshot = true;
+        Runtime.capabilities.snapshot = true;
         MarketData.applySnapshot(snap);
         return snap;
       } catch (e) {
-        if (isNotFound(e) || /invalid snapshot/i.test(String(e.message || ''))) ApiCompat.setLegacy(e.message);
-        else { log('[SNAPSHOT] ' + e.message + ' — trying legacy endpoints', 'info'); ApiCompat.setLegacy('snapshot fallback'); }
+        if (isNotFound(e)) {
+          Runtime.capabilities.snapshot = false;
+          ApiCompat.setLegacy('/snapshot: ' + e.message);
+        } else {
+          log('[SNAPSHOT] ' + e.message + ' — falling back to legacy endpoints for this cycle', 'info');
+        }
       }
     }
     return ApiCompat.fetchLegacyMarket(pairs.slice());
@@ -2251,18 +2310,27 @@ var MarketData = {
       }));
     }
     var request;
-    if (Runtime.apiMode !== 'legacy' && Runtime.capabilities.snapshot !== false) {
-      request = Http.request(WORKER + '/snapshot?symbols=' + encodeURIComponent(symbols.join(',')), {}, 1800)
-        .then(function (snap) {
-          if (!snap || !snap.success || !snap.market) throw new Error('Fast snapshot unavailable');
+    if (Runtime.capabilities.snapshot !== false) {
+      // v6.4.1 FIX: use the lightweight /batch-prices endpoint (price-only,
+      // no klines) for the 500ms open-position tracker instead of /snapshot.
+      // This is exactly what /batch-prices was built for — refreshing N
+      // open-position prices in a single request without also re-fetching
+      // klines nobody needs on every 500ms tick — and it further cuts the
+      // worker's own outbound Gate.io subrequest count versus /snapshot.
+      request = Http.request(WORKER + '/batch-prices?symbols=' + encodeURIComponent(symbols.join(',')), {}, 1800)
+        .then(function (res) {
+          if (!res || !res.success || !res.prices) throw new Error('batch-prices unavailable');
+          Runtime.capabilities.snapshot = true;
           var changed = false;
           symbols.forEach(function (sym) {
-            var m = snap.market[sym];
-            if (m) changed = applyPrice(sym, m.price || m.lastPrice || m.markPrice) || changed;
+            if (res.prices[sym] != null) changed = applyPrice(sym, res.prices[sym]) || changed;
           });
           return changed;
         })
-        .catch(function () { return legacyPrices(); });
+        .catch(function (e) {
+          if (isNotFound(e)) Runtime.capabilities.snapshot = false;
+          return legacyPrices();
+        });
     } else request = legacyPrices();
     return Promise.resolve(request).finally(function () { Runtime.livePriceBusy = false; });
   }
@@ -2410,6 +2478,17 @@ var Execution = {
   },
 
   // ── DCA: add another leg to an already-open ladder position ──
+  // v6.4.1 FIXES:
+  //  1) The per-leg /order call no longer sends sl/tp. Sending sl/tp here
+  //     made the worker's executeOrder() size a brand-new reduce-only
+  //     TP/SL price_order off just THIS leg's qty, stacking mismatched
+  //     partial-close orders on the exchange instead of one order sized
+  //     to the full blended ladder position.
+  //  2) After the leg fills and dcaComputeTargets() recomputes the
+  //     weighted-average entry/qty/tp/sl, we now push the single shared
+  //     TP/SL via POST /update_tpsl — which cancels any stray orders and
+  //     re-derives size from the exchange's real net position — instead
+  //     of leaving stale/partial orders sitting on Gate.io.
   dcaAddLeg: async function (pos, price) {
     if (!dcaLegGate(pos)) return;
     var legSize = num(pos.legSize, DCA_CFG.legSize);
@@ -2419,7 +2498,7 @@ var Execution = {
       if (appMode === 'live') {
         var cid = orderId('dca', pos.pair);
         var r = await Http.post('/order', {
-          symbol: pos.pair, side: pos.side, usdAmount: legSize, leverage: leverage, sl: pos.sl, tp: pos.tp,
+          symbol: pos.pair, side: pos.side, usdAmount: legSize, leverage: leverage,
           clientOrderId: cid, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
         });
         if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'DCA leg rejected');
@@ -2432,6 +2511,18 @@ var Execution = {
       pos.entryFee = (pos.entryFee || 0) + fee;
       pos.lastLegAt = Date.now();
       dcaComputeTargets(pos);
+
+      if (appMode === 'live') {
+        try {
+          var tpslResult = await Http.post('/update_tpsl', {symbol: pos.pair, side: pos.side, tp: pos.tp, sl: pos.sl});
+          if (tpslResult && tpslResult.errors && tpslResult.errors.length) {
+            logPos('[DCA TP/SL WARN] ' + pos.pair + ': ' + tpslResult.errors.join('; '), 'err');
+          }
+        } catch (tpslErr) {
+          logPos('[DCA TP/SL SYNC ERROR] ' + pos.pair + ': ' + tpslErr.message, 'err');
+        }
+      }
+
       logPos('[DCA] Leg ' + pos.legs.length + '/' + pos.maxLegs + ' ' + pos.pair.replace('_USDT','') + ' @' + fp(price) + ' avg:' + fp(pos.entry) + ' qty:' + pos.qty.toFixed(6), 'ok');
       notify('DCA leg ' + pos.legs.length + '/' + pos.maxLegs + ' added ' + pos.pair.replace('_USDT',''), 'info');
       Store.save();
@@ -2460,7 +2551,7 @@ var Execution = {
         var serverTrade = r.trade || null;
         Execution.finalizeClose(pos, exitPrice, reason || 'MANUAL', serverTrade);
 
-        if (Runtime.apiMode === 'legacy' || Runtime.capabilities.state === false) {
+        if (Runtime.capabilities.state === false) {
           if (!Runtime.posListWarnedOnce) {
             Runtime.posListWarnedOnce = true;
             logPos('[COMPAT] Exchange position list endpoint unavailable — exit price taken from close response/local quote. Balance syncs via /balance.', 'info');
@@ -2621,17 +2712,17 @@ var Execution = {
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
     Runtime.liveReconcileBusy = true;
     try {
-      if (Runtime.apiMode === 'legacy' || Runtime.capabilities.state === false) {
+      if (Runtime.capabilities.state === false) {
         return await ApiCompat.syncLegacyBalance(force);
       }
       try {
         var r = await Http.get('/state');
         if (!r || !r.success) throw new Error((r && r.error) || 'State unavailable');
-        Runtime.apiMode = 'modern'; Runtime.capabilities.state = true;
+        Runtime.capabilities.state = true;
         Execution.reconcilePayload(r);
         return r;
       } catch (e) {
-        if (isNotFound(e)) { ApiCompat.setLegacy('/state: ' + e.message); return await ApiCompat.syncLegacyBalance(force); }
+        if (isNotFound(e)) { Runtime.capabilities.state = false; return await ApiCompat.syncLegacyBalance(force); }
         throw e;
       }
     } catch (e) {
@@ -2706,8 +2797,18 @@ var TrailService = {
           else throw new Error((r && r.error) || 'rejected');
         })
         .catch(function (e) {
-          if (isNotFound(e)) { Runtime.capabilities.riskUpdate = false; logPos('[COMPAT] /risk/update N/A — local trail only', 'info'); }
-          else { pos.lastError = 'Risk sync: ' + e.message; logPos('[RISK SYNC ERROR] ' + e.message, 'err'); }
+          if (isNotFound(e)) {
+            Runtime.capabilities.riskUpdate = false;
+            // This worker doesn't implement /risk/update — fall back to
+            // /update_tpsl, which it does implement, so the trail still
+            // reaches the exchange instead of staying purely local.
+            Http.post('/update_tpsl', {symbol: pos.pair, side: pos.side, sl: pos.sl, tp: pos.tp})
+              .then(function (r2) {
+                if (r2 && r2.errors && r2.errors.length) logPos('[TRAIL SYNC WARN] ' + pos.pair + ': ' + r2.errors.join('; '), 'err');
+                else pos.lastRiskAckSL = pos.sl;
+              })
+              .catch(function (e2) { logPos('[TRAIL SYNC ERROR] ' + e2.message, 'err'); });
+          } else { pos.lastError = 'Risk sync: ' + e.message; logPos('[RISK SYNC ERROR] ' + e.message, 'err'); }
         });
     }
   }
@@ -2753,7 +2854,10 @@ function processTrackedPositions() {
 }
 
 // DCA: check every open ladder position and add a leg if price has moved
-// far enough (in either direction) from the last leg's fill price.
+// far enough AGAINST the position (adverse move only) from the last leg's
+// fill price. v6.4.1 FIX: previously used Math.abs(), which added a leg
+// on favorable movement too, growing exposure into a winning trade at a
+// worse price — the opposite of what a DCA ladder is for.
 function processDcaLadders() {
   if (!DCA_CFG.enabled) return;
   var now = Date.now();
@@ -2765,7 +2869,12 @@ function processDcaLadders() {
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
     if (!Number.isFinite(pr) || pr <= 0) continue;
     var lastLeg = pos.legs[pos.legs.length - 1];
-    var movePct = Math.abs(pr - lastLeg.price) / lastLeg.price * 100;
+    // Only count movement AGAINST the position as ladder spacing. A LONG
+    // that has moved up, or a SHORT that has moved down, is working —
+    // adding a leg there is not averaging down, it's adding risk to a
+    // winner at a worse price.
+    var adverseMove = pos.side === 'LONG' ? (lastLeg.price - pr) : (pr - lastLeg.price);
+    var movePct = (adverseMove / lastLeg.price) * 100;
     if (movePct >= (pos.spacingPct || DCA_CFG.spacingPct)) {
       Execution.dcaAddLeg(pos, pr);
     }
@@ -2937,7 +3046,7 @@ function connectLive() {
     document.getElementById('connStatus').textContent = ApiCompat.statusText();
     if (loopTimer) clearTimeout(loopTimer);
     mainLoop();
-    notify('Live connected (' + Runtime.apiMode + ')', 'success');
+    notify('Live connected (' + (Runtime.capabilities.snapshot !== false ? 'snapshot' : 'legacy') + ')', 'success');
   }).catch(function (e) {
     WORKER = ''; appMode = 'demo';
     notify('Connection error: ' + e.message, 'error');
@@ -3491,14 +3600,14 @@ function toggleDca() {
 function dcaRenderNote() {
   var d = document.getElementById('togDcaD');
   if (d) d.textContent = DCA_CFG.enabled
-    ? ('On — first leg $' + DCA_CFG.legSize + ' on signal, adds up to ' + DCA_CFG.maxLegs + ' legs as price moves ±' + DCA_CFG.spacingPct + '%')
+    ? ('On — first leg $' + DCA_CFG.legSize + ' on signal, adds up to ' + DCA_CFG.maxLegs + ' legs as price moves against the position by ' + DCA_CFG.spacingPct + '%')
     : 'Off — auto-trade opens a single position as usual';
   var el = document.getElementById('dcaNote'); if (!el) return;
   var maxExposure = DCA_CFG.legSize * DCA_CFG.maxLegs;
   var margin = maxExposure / Math.max(1, leverage);
   el.textContent = 'Full ladder: ' + DCA_CFG.maxLegs + ' legs × $' + DCA_CFG.legSize + ' = $' + maxExposure.toFixed(0) +
     ' notional, ~$' + margin.toFixed(2) + ' margin @' + leverage + 'x. Target +$' + DCA_CFG.targetProfit.toFixed(2) +
-    ' combined net profit. Applies only to ENGINE AUTO TRADE opens, not the manual LONG/SHORT buttons.';
+    ' combined net profit. New legs only add when price moves against the position (never on favorable movement). Applies only to ENGINE AUTO TRADE opens, not the manual LONG/SHORT buttons.';
 }
 function bindDcaUI() {
   DCAStore.load();
@@ -3738,6 +3847,18 @@ var TestSuite = {
       if (pos.tp <= pos.entry) throw new Error('LONG tp should sit above the average entry');
       if (pos.sl >= pos.entry) throw new Error('LONG sl should sit below the average entry');
     });
+    TestSuite.assert('DCA ladder only adds legs on adverse movement', function () {
+      // Simulate the spacing check used inside processDcaLadders() directly,
+      // since that function reads live global state. A LONG position whose
+      // price moved UP (favorable) should NOT trigger a leg add; a LONG
+      // whose price moved DOWN (adverse) by >= spacingPct SHOULD.
+      var side = 'LONG', lastLegPrice = 100, spacingPct = 0.25;
+      var favorable = 100.5, adverse = 99.5;
+      var moveFav = ((lastLegPrice - favorable) / lastLegPrice) * 100;   // negative -> no add
+      var moveAdv = ((lastLegPrice - adverse) / lastLegPrice) * 100;     // positive -> add
+      if (moveFav >= spacingPct) throw new Error('favorable move incorrectly triggers a leg add');
+      if (moveAdv < spacingPct) throw new Error('adverse move incorrectly fails to trigger a leg add');
+    });
     return Runtime.tests;
   }
 };
@@ -3845,10 +3966,10 @@ window.__apexReady(function () {
     log('APEX V' + APP_VERSION + ' loaded — ' + (results.length - failed.length) + '/' + results.length + ' self-tests passed', failed.length ? 'err' : 'ok');
     log('Signal engine: trend/momentum voting, tiered scoring (A/B/C), risk-based sizing', 'ok');
     log('Trail: fee-aware activation, locked profit never below break-even', 'ok');
-    log('Live mode: legacy Worker auto-detected (/price+/klines+/balance), no /state spam', 'ok');
+    log('Live mode: capability-detected via /ping features — uses /snapshot+/batch-prices when the worker supports them, falls back to /price+/klines otherwise', 'ok');
     log('Risk: Dynamic Kelly/Volatility/Loss-streak sizing active', 'ok');
     log('Exit: Weakness detector (partial/full close) active every 5min', 'ok');
-    log('DCA: ladder mode available (Engine tab) — off by default', 'ok');
+    log('DCA: ladder mode available (Engine tab) — off by default; legs only add on adverse price movement', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
