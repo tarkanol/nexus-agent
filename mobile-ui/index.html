@@ -457,6 +457,40 @@ select option{background:#041018}
     </div>
 
     <div class="card">
+      <div class="sec-title">DCA LADDER (BETA)</div>
+      <div class="tog-row">
+        <div class="tog off" id="togDca" onclick="toggleDca()"></div>
+        <div><div class="tog-title">DCA Ladder Mode</div><div class="tog-desc" id="togDcaD">Off — auto-trade opens a single position as usual</div></div>
+      </div>
+      <div class="manual-row">
+        <div class="inp-wrap"><span class="inp-label">Leg size ($)</span><select id="dcaLegSize">
+          <option value="20">$20</option>
+          <option value="22" selected>$22</option>
+          <option value="25">$25</option>
+        </select></div>
+        <div class="inp-wrap"><span class="inp-label">Max legs</span><select id="dcaMaxLegs">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select></div>
+      </div>
+      <div class="manual-row">
+        <div class="inp-wrap"><span class="inp-label">Leg spacing (%)</span><select id="dcaSpacing">
+          <option value="0.15">0.15%</option>
+          <option value="0.25" selected>0.25%</option>
+          <option value="0.35">0.35%</option>
+          <option value="0.50">0.50%</option>
+        </select></div>
+        <div class="inp-wrap"><span class="inp-label">Target profit ($)</span><select id="dcaTarget">
+          <option value="0.80">$0.80</option>
+          <option value="0.90" selected>$0.90</option>
+          <option value="1.00">$1.00</option>
+        </select></div>
+      </div>
+      <div class="v62-note" id="dcaNote"></div>
+    </div>
+
+    <div class="card">
       <div class="sec-title">RISK / TARGET</div>
       <div class="fr">
         <span class="inp-label">Target per trade ($)</span>
@@ -788,6 +822,42 @@ var V62Store = {
         adaptiveSizing: V62.adaptiveSizing, maxMarginPct: V62.maxMarginPct,
         eliteCap: V62.eliteCap, aTierBoost: V62.aTierBoost,
         bTierBoost: V62.bTierBoost, eliteFilter: V62.eliteFilter
+      }));
+    } catch (e) {}
+  }
+};
+
+/* ═══════════════════════════════════════════════
+   DCA LADDER CONFIG + PERSISTENCE
+   ═══════════════════════════════════════════════ */
+var DCA_CFG = {
+  enabled: false,
+  legSize: 22,        // $ notional per leg (20-25 range)
+  maxLegs: 4,
+  spacingPct: 0.25,   // % price move (of last leg's price) needed before adding next leg
+  targetProfit: 0.90, // $ combined NET profit target for the whole ladder
+  maxStopPct: 1.2,    // hard safety stop distance, as % of average entry
+  storageKey: 'apex-scalp-v640-dca'
+};
+
+var DCAStore = {
+  load: function () {
+    try {
+      var raw = window.__apexStorage.getItem(DCA_CFG.storageKey);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (typeof s.enabled === 'boolean') DCA_CFG.enabled = s.enabled;
+      if (isFinite(Number(s.legSize))) DCA_CFG.legSize = clampNum(Number(s.legSize), 5, 100);
+      if (isFinite(Number(s.maxLegs))) DCA_CFG.maxLegs = clampNum(Math.round(Number(s.maxLegs)), 1, 10);
+      if (isFinite(Number(s.spacingPct))) DCA_CFG.spacingPct = clampNum(Number(s.spacingPct), 0.05, 5);
+      if (isFinite(Number(s.targetProfit))) DCA_CFG.targetProfit = clampNum(Number(s.targetProfit), 0.05, 100);
+    } catch (e) {}
+  },
+  save: function () {
+    try {
+      window.__apexStorage.setItem(DCA_CFG.storageKey, JSON.stringify({
+        enabled: DCA_CFG.enabled, legSize: DCA_CFG.legSize, maxLegs: DCA_CFG.maxLegs,
+        spacingPct: DCA_CFG.spacingPct, targetProfit: DCA_CFG.targetProfit
       }));
     } catch (e) {}
   }
@@ -2051,6 +2121,59 @@ var RiskManager = {
 };
 
 /* ═══════════════════════════════════════════════
+   DCA LADDER HELPERS
+   Recomputes weighted-average entry / qty / notional
+   from pos.legs, then derives a shared TP (distance
+   such that the whole blended position nets the
+   ladder's target profit) and a shared safety SL
+   (fixed % distance from the average entry). Never
+   loosens an already-improved trailing stop.
+   ═══════════════════════════════════════════════ */
+function dcaComputeTargets(pos) {
+  var totalQty = 0, totalCost = 0, totalVal = 0, i;
+  for (i = 0; i < pos.legs.length; i++) {
+    var l = pos.legs[i];
+    totalQty += l.qty; totalCost += l.qty * l.price; totalVal += l.notional;
+  }
+  if (totalQty <= 0) return;
+  pos.entry = totalCost / totalQty;
+  pos.qty = totalQty;
+  pos.posVal = totalVal;
+
+  var cRate = costRate();
+  var estCosts = pos.posVal * cRate;
+  var target = Math.abs(num(pos.targetProfit, DCA_CFG.targetProfit));
+  var distForTarget = (target + estCosts) / pos.qty;
+  var newTp = pos.side === 'LONG' ? pos.entry + distForTarget : pos.entry - distForTarget;
+
+  var stopPct = num(pos.maxStopPct, DCA_CFG.maxStopPct) / 100;
+  var maxStopDist = pos.entry * stopPct;
+  var newSl = pos.side === 'LONG' ? pos.entry - maxStopDist : pos.entry + maxStopDist;
+
+  pos.tp = newTp;
+  if (pos.trailActive) {
+    pos.sl = pos.side === 'LONG' ? Math.max(pos.sl, newSl) : Math.min(pos.sl, newSl);
+  } else {
+    pos.sl = newSl;
+  }
+}
+
+// Lightweight safety gate for adding a DCA leg to an already-open ladder
+// position (separate from RiskManager.gate, which is for brand-new
+// positions and would reject this on the "PAIR ALREADY OPEN" check).
+function dcaLegGate(pos) {
+  if (CFG.killSwitch) return false;
+  if (dailyPnL <= -Math.abs(CFG.maxDailyLoss)) return false;
+  if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) return false;
+  if (RiskManager.stale(pos.pair)) return false;
+  var legSize = num(pos.legSize, DCA_CFG.legSize);
+  var projected = pos.posVal + legSize;
+  var margin = Accounting.marginRequired(projected, leverage);
+  if (appMode === 'demo' && margin > balance * 0.95) return false;
+  return true;
+}
+
+/* ═══════════════════════════════════════════════
    MARKET DATA
    ═══════════════════════════════════════════════ */
 var MarketData = {
@@ -2159,7 +2282,8 @@ var Execution = {
       clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live',
       score: score || 0,                     // Yeni
       entryAtr: entryAtr || 0,               // Yeni
-      lastWeaknessCheck: 0                   // Yeni
+      lastWeaknessCheck: 0,                   // Yeni
+      dcaMode: false, legs: null, maxLegs: 0, legSize: 0, spacingPct: 0, targetProfit: 0, maxStopPct: 0, lastLegAt: 0
     };
   },
 
@@ -2223,6 +2347,97 @@ var Execution = {
     } finally {
       delete Runtime.openingLocks[sym];
       updatePosUI(); updateSignalUI();
+    }
+  },
+
+  // ── DCA: open the first leg of a new ladder position ──
+  openDcaFirst: async function (sym, side, auto) {
+    try { sym = validSymbol(sym); } catch (e) { return; }
+    if (Runtime.openingLocks[sym]) return;
+    var pd = pData[sym];
+    var price = Number(pd && pd.price);
+    if (!price) return;
+
+    var gate = RiskManager.gate(sym, DCA_CFG.legSize);
+    if (!gate.ok) { if (!auto) notify(gate.reason, 'error'); return; }
+
+    var an = pd.an;
+    var cOrderId = orderId('dca', sym);
+    var qty = DCA_CFG.legSize / price;
+    var pos = Execution.makePosition(sym, side, price, DCA_CFG.legSize, qty, price, price, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0);
+    pos.dcaMode = true;
+    pos.legs = [{price: price, qty: qty, notional: DCA_CFG.legSize, time: Date.now()}];
+    pos.maxLegs = DCA_CFG.maxLegs;
+    pos.legSize = DCA_CFG.legSize;
+    pos.spacingPct = DCA_CFG.spacingPct;
+    pos.targetProfit = DCA_CFG.targetProfit;
+    pos.maxStopPct = DCA_CFG.maxStopPct;
+    pos.lastLegAt = Date.now();
+    dcaComputeTargets(pos);
+
+    Runtime.openingLocks[sym] = true;
+    try {
+      if (appMode === 'live') {
+        var r = await Http.post('/order', {
+          symbol: sym, side: side, usdAmount: DCA_CFG.legSize, leverage: leverage, sl: pos.sl, tp: pos.tp,
+          clientOrderId: cOrderId, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
+        });
+        if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Order rejected');
+        pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
+        if (r.fillPrice) { pos.entry = Number(r.fillPrice); pos.legs[0].price = pos.entry; dcaComputeTargets(pos); }
+        StateMachine.transition(pos, POSITION_STATE.OPEN);
+        positions.push(pos);
+        Store.save();
+        await Execution.reconcile(true);
+      } else {
+        balance -= pos.entryFee;
+        dailyPnL -= pos.entryFee;
+        StateMachine.transition(pos, POSITION_STATE.OPEN);
+        positions.push(pos);
+        peakBal = Math.max(peakBal, balance);
+        Store.save();
+        logPos('DCA OPEN ' + pos.side + ' ' + pos.pair.replace('_USDT','') + ' leg 1/' + pos.maxLegs + ' @' + fp(pos.entry) + ' target:$' + pos.targetProfit.toFixed(2), 'ok');
+      }
+      notify((auto ? 'AUTO ' : '') + 'DCA ' + side + ' ' + sym.replace('_USDT', '') + ' leg 1/' + pos.maxLegs, 'success');
+      startTracker();
+    } catch (e) {
+      try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch (_) {}
+      logPos('[DCA OPEN ERROR] ' + e.message, 'err');
+    } finally {
+      delete Runtime.openingLocks[sym];
+      updatePosUI(); updateSignalUI();
+    }
+  },
+
+  // ── DCA: add another leg to an already-open ladder position ──
+  dcaAddLeg: async function (pos, price) {
+    if (!dcaLegGate(pos)) return;
+    var legSize = num(pos.legSize, DCA_CFG.legSize);
+    var qty = legSize / price;
+    var fee = Accounting.entryFee(legSize, CFG.feeRate);
+    try {
+      if (appMode === 'live') {
+        var cid = orderId('dca', pos.pair);
+        var r = await Http.post('/order', {
+          symbol: pos.pair, side: pos.side, usdAmount: legSize, leverage: leverage, sl: pos.sl, tp: pos.tp,
+          clientOrderId: cid, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
+        });
+        if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'DCA leg rejected');
+        if (r.fillPrice) price = Number(r.fillPrice);
+      } else {
+        balance -= fee;
+        dailyPnL -= fee;
+      }
+      pos.legs.push({price: price, qty: qty, notional: legSize, time: Date.now()});
+      pos.entryFee = (pos.entryFee || 0) + fee;
+      pos.lastLegAt = Date.now();
+      dcaComputeTargets(pos);
+      logPos('[DCA] Leg ' + pos.legs.length + '/' + pos.maxLegs + ' ' + pos.pair.replace('_USDT','') + ' @' + fp(price) + ' avg:' + fp(pos.entry) + ' qty:' + pos.qty.toFixed(6), 'ok');
+      notify('DCA leg ' + pos.legs.length + '/' + pos.maxLegs + ' added ' + pos.pair.replace('_USDT',''), 'info');
+      Store.save();
+      updatePosUI(); updateSignalUI();
+    } catch (e) {
+      logPos('[DCA ADD ERROR] ' + e.message, 'err');
     }
   },
 
@@ -2333,7 +2548,7 @@ var Execution = {
 
     trades.push({
       pair: pos.pair, side: pos.side, pnl: net, gross: br.gross,
-      entryFee: br.entryFee, exitFee: br.exitFee, reason: reason,
+      entryFee: br.entryFee, exitFee: br.exitFee, reason: reason + (pos.dcaMode ? (' (DCA ' + pos.legs.length + 'legs)') : ''),
       entry: pos.entry, exit: exitPrice, openedAt: pos.openTime, closedAt: Date.now(),
       score: pos.score || 0,       // Yeni
       entryAtr: pos.entryAtr || 0  // Yeni
@@ -2365,7 +2580,8 @@ var Execution = {
       entryFee: Number(p.entryFee || 0), openTime: Number(p.openTime || Date.now()), highPnl: 0,
       trailActive: !!p.trailActive, state: POSITION_STATE.OPEN, stateUpdatedAt: Date.now(),
       clientOrderId: p.clientOrderId || '', exchangeOrderId: p.orderId || '', serverManaged: true,
-      score: p.score || 0, entryAtr: p.entryAtr || 0, lastWeaknessCheck: 0
+      score: p.score || 0, entryAtr: p.entryAtr || 0, lastWeaknessCheck: 0,
+      dcaMode: false, legs: null, maxLegs: 0, legSize: 0, spacingPct: 0, targetProfit: 0, maxStopPct: 0, lastLegAt: 0
     };
   },
 
@@ -2379,17 +2595,17 @@ var Execution = {
         var sym = sp.symbol || sp.contract;
         var old = positions.find(function (x) { return x.pair === sym && x.state !== POSITION_STATE.CLOSED; });
         if (old) {
-          old.entry = Number(sp.entryPrice || sp.entry_price || old.entry);
-          old.qty = Math.abs(Number(sp.qty || sp.baseQty || old.qty));
-          old.posVal = Math.abs(Number(sp.notional || sp.value || old.posVal));
+          if (!old.dcaMode) old.entry = Number(sp.entryPrice || sp.entry_price || old.entry);
+          if (!old.dcaMode) old.qty = Math.abs(Number(sp.qty || sp.baseQty || old.qty));
+          if (!old.dcaMode) old.posVal = Math.abs(Number(sp.notional || sp.value || old.posVal));
           var serverSL = Number(sp.sl), localSL = Number(old.sl);
           if (Number.isFinite(serverSL) && serverSL > 0) {
             if (old.trailActive && Number.isFinite(localSL) && localSL > 0) {
               old.sl = old.side === 'LONG' ? Math.max(localSL, serverSL) : Math.min(localSL, serverSL);
-            } else old.sl = serverSL;
+            } else if (!old.dcaMode) old.sl = serverSL;
           }
           var serverTP = Number(sp.tp);
-          if (Number.isFinite(serverTP) && serverTP > 0) old.tp = serverTP;
+          if (Number.isFinite(serverTP) && serverTP > 0 && !old.dcaMode) old.tp = serverTP;
           old.state = POSITION_STATE.OPEN; old.lastError = '';
           next.push(old);
         } else next.push(Execution.normalizeServerPosition(sp));
@@ -2452,14 +2668,15 @@ var TrailService = {
     var high = pos.highPnl || 0;
 
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    var activation = Math.max(Number(targetUSD) * 0.40, roundTrip * 1.5);
+    var refTarget = pos.dcaMode ? num(pos.targetProfit, DCA_CFG.targetProfit) : Number(targetUSD);
+    var activation = Math.max(refTarget * 0.40, roundTrip * 1.5);
     if (high < activation) return;
 
     var pullback;
-    if      (high >= Number(targetUSD) * 1.5)  pullback = 0.18;
-    else if (high >= Number(targetUSD) * 1.0)  pullback = 0.28;
-    else if (high >= Number(targetUSD) * 0.75) pullback = 0.36;
-    else if (high >= Number(targetUSD) * 0.50) pullback = 0.45;
+    if      (high >= refTarget * 1.5)  pullback = 0.18;
+    else if (high >= refTarget * 1.0)  pullback = 0.28;
+    else if (high >= refTarget * 0.75) pullback = 0.36;
+    else if (high >= refTarget * 0.50) pullback = 0.45;
     else                                        pullback = 0.55;
 
     var locked = Math.max(high * (1 - pullback), roundTrip);
@@ -2474,7 +2691,7 @@ var TrailService = {
     pos.trailActive = true;
     logPos('[TRAIL] ' + pos.pair.replace('_USDT', '') + ' SL ' + fp(old) + ' → ' + fp(newSL) + ' locked≥$' + locked.toFixed(4), 'ok');
 
-    if (high >= Number(targetUSD) * 1.0) {
+    if (high >= refTarget * 1.0) {
       var ext;
       if (pos.side === 'LONG') { ext = price + (price - pos.entry) * 0.4; if (ext > pos.tp) pos.tp = ext; }
       else { ext = price - (pos.entry - price) * 0.4; if (ext < pos.tp) pos.tp = ext; }
@@ -2535,6 +2752,26 @@ function processTrackedPositions() {
   }
 }
 
+// DCA: check every open ladder position and add a leg if price has moved
+// far enough (in either direction) from the last leg's fill price.
+function processDcaLadders() {
+  if (!DCA_CFG.enabled) return;
+  var now = Date.now();
+  for (var i = 0; i < positions.length; i++) {
+    var pos = positions[i];
+    if (!pos || pos.state !== POSITION_STATE.OPEN || !pos.dcaMode) continue;
+    if (!pos.legs || pos.legs.length >= (pos.maxLegs || DCA_CFG.maxLegs)) continue;
+    if (now - (pos.lastLegAt || 0) < 4000) continue; // min 4s between legs, avoid flash-adds
+    var pr = Number(pData[pos.pair] && pData[pos.pair].price);
+    if (!Number.isFinite(pr) || pr <= 0) continue;
+    var lastLeg = pos.legs[pos.legs.length - 1];
+    var movePct = Math.abs(pr - lastLeg.price) / lastLeg.price * 100;
+    if (movePct >= (pos.spacingPct || DCA_CFG.spacingPct)) {
+      Execution.dcaAddLeg(pos, pr);
+    }
+  }
+}
+
 function runTracker() {
   if (!positions.length) { stopTracker(); return; }
   trackerTick++;
@@ -2551,6 +2788,8 @@ function runTracker() {
       .then(function () { processTrackedPositions(); updateTicker(); })
       .catch(function (e) { logPos('[LIVE PRICE] ' + e.message, 'err'); });
   }
+
+  processDcaLadders();
 
   // ---- ZAYIFLAMA KONTROLÜ (her 5 dakikada bir) ----
   var now = Date.now();
@@ -2655,7 +2894,10 @@ function runEngine() {
   }
   if (!best) { if (sigEl) sigEl.textContent = 'Scanning... no signal'; return; }
   if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' ' + best.an.tier + ' (' + best.an.score + '%)';
-  if (autoTrade && positions.length < MAX_P) Execution.open(best.sym, best.an.signal, true);
+  if (autoTrade && positions.length < MAX_P) {
+    if (DCA_CFG.enabled) Execution.openDcaFirst(best.sym, best.an.signal, true);
+    else Execution.open(best.sym, best.an.signal, true);
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -2815,10 +3057,12 @@ function v62RenderActivePosition(pos) {
   var pnl = (pr - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
   var cls = pos.side.toLowerCase();
   var trailTxt = pos.trailActive ? ' (TRAILING)' : '';
+  var dcaRow = pos.dcaMode ? '<div class="plan-row"><span class="pk">DCA LEGS</span><span style="color:var(--gold)">' + pos.legs.length + '/' + pos.maxLegs + '</span></div>' : '';
   return '<div class="plan-box">' +
-    '<div class="plan-hd ' + cls + '"><span>ACTIVE POSITION // ' + pos.pair.replace('_USDT','') + '</span><span style="font-size:9px">' + pos.side + '</span></div>' +
+    '<div class="plan-hd ' + cls + '"><span>ACTIVE POSITION // ' + pos.pair.replace('_USDT','') + (pos.dcaMode ? ' [DCA]' : '') + '</span><span style="font-size:9px">' + pos.side + '</span></div>' +
     '<div class="plan-body">' +
-      '<div class="plan-row"><span class="pk">ENTRY</span><span>$' + fp(pos.entry) + '</span></div>' +
+      dcaRow +
+      '<div class="plan-row"><span class="pk">ENTRY' + (pos.dcaMode ? ' (AVG)' : '') + '</span><span>$' + fp(pos.entry) + '</span></div>' +
       '<div class="plan-row"><span class="pk">NOW</span><span>$' + fp(pr) + '</span></div>' +
       '<div class="plan-row"><span class="pk">TP</span><span class="pv tp">$' + fp(pos.tp) + '</span></div>' +
       '<div class="plan-row"><span class="pk">SL' + trailTxt + '</span><span class="pv sl">$' + fp(pos.sl) + '</span></div>' +
@@ -3049,15 +3293,16 @@ function updatePosUI() {
       var prog = targetUSD > 0 ? Math.max(0, Math.min(100, pnl / targetUSD * 100)) : 0;
       var pc = pnl >= 0 ? 'var(--long)' : 'var(--short)';
       var tTag = pos.trailActive ? '<span style="font-size:8px;color:var(--acc);margin-left:4px">▲TRAIL</span>' : '';
+      var dcaTag = pos.dcaMode ? '<span style="font-size:8px;color:var(--gold);margin-left:4px">DCA ' + pos.legs.length + '/' + pos.maxLegs + '</span>' : '';
       var stTag = '<span class="pos-state">' + (pos.state || 'OPEN') + '</span>';
       var closing = pos.state === POSITION_STATE.PENDING_CLOSE;
       var btnLabel = closing ? 'CLOSING...' : pos.state === POSITION_STATE.ERROR ? 'RETRY CLOSE' : 'CLOSE';
       html += '<div class="pos-card ' + pos.side.toLowerCase() + '">' +
-        '<div class="pos-hd"><span class="pos-sym">' + pos.pair.replace('_USDT', '') + tTag + stTag + '</span>' +
+        '<div class="pos-hd"><span class="pos-sym">' + pos.pair.replace('_USDT', '') + tTag + dcaTag + stTag + '</span>' +
         '<span class="pos-side ' + pos.side + '">' + pos.side + '</span>' +
         '<span class="pos-pnl ' + (pnl >= 0 ? 'up' : 'dn') + '">' + (pnl >= 0 ? '+' : '') + ' $' + pnl.toFixed(4) + '</span></div>' +
         '<div class="pos-grid">' +
-          '<div class="pgc"><div class="pgc-l">ENTRY</div><div class="pgc-v">' + fp(pos.entry) + '</div></div>' +
+          '<div class="pgc"><div class="pgc-l">ENTRY' + (pos.dcaMode ? ' (AVG)' : '') + '</div><div class="pgc-v">' + fp(pos.entry) + '</div></div>' +
           '<div class="pgc"><div class="pgc-l">NOW</div><div class="pgc-v" style="color:' + pc + '">' + fp(pr) + '</div></div>' +
           '<div class="pgc"><div class="pgc-l">SL</div><div class="pgc-v" style="color:var(--short)">' + fp(pos.sl) + '</div></div>' +
           '<div class="pgc"><div class="pgc-l">TP</div><div class="pgc-v" style="color:var(--long)">' + fp(pos.tp) + '</div></div>' +
@@ -3234,6 +3479,43 @@ function v62RenderSizing() {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   DCA PANEL (Engine tab)
+   ═══════════════════════════════════════════════ */
+function toggleDca() {
+  DCA_CFG.enabled = !DCA_CFG.enabled;
+  var t = document.getElementById('togDca'); if (t) t.className = 'tog ' + (DCA_CFG.enabled ? 'on' : 'off');
+  DCAStore.save();
+  dcaRenderNote();
+}
+function dcaRenderNote() {
+  var d = document.getElementById('togDcaD');
+  if (d) d.textContent = DCA_CFG.enabled
+    ? ('On — first leg $' + DCA_CFG.legSize + ' on signal, adds up to ' + DCA_CFG.maxLegs + ' legs as price moves ±' + DCA_CFG.spacingPct + '%')
+    : 'Off — auto-trade opens a single position as usual';
+  var el = document.getElementById('dcaNote'); if (!el) return;
+  var maxExposure = DCA_CFG.legSize * DCA_CFG.maxLegs;
+  var margin = maxExposure / Math.max(1, leverage);
+  el.textContent = 'Full ladder: ' + DCA_CFG.maxLegs + ' legs × $' + DCA_CFG.legSize + ' = $' + maxExposure.toFixed(0) +
+    ' notional, ~$' + margin.toFixed(2) + ' margin @' + leverage + 'x. Target +$' + DCA_CFG.targetProfit.toFixed(2) +
+    ' combined net profit. Applies only to ENGINE AUTO TRADE opens, not the manual LONG/SHORT buttons.';
+}
+function bindDcaUI() {
+  DCAStore.load();
+  document.getElementById('dcaLegSize').value = String(DCA_CFG.legSize);
+  document.getElementById('dcaMaxLegs').value = String(DCA_CFG.maxLegs);
+  document.getElementById('dcaSpacing').value = String(DCA_CFG.spacingPct);
+  document.getElementById('dcaTarget').value = DCA_CFG.targetProfit.toFixed(2);
+  var t = document.getElementById('togDca'); if (t) t.className = 'tog ' + (DCA_CFG.enabled ? 'on' : 'off');
+
+  document.getElementById('dcaLegSize').onchange = function () { DCA_CFG.legSize = clampNum(num(this.value, 22), 5, 100); DCAStore.save(); dcaRenderNote(); };
+  document.getElementById('dcaMaxLegs').onchange = function () { DCA_CFG.maxLegs = clampNum(Math.round(num(this.value, 4)), 1, 10); DCAStore.save(); dcaRenderNote(); };
+  document.getElementById('dcaSpacing').onchange = function () { DCA_CFG.spacingPct = clampNum(num(this.value, 0.25), 0.05, 5); DCAStore.save(); dcaRenderNote(); };
+  document.getElementById('dcaTarget').onchange = function () { DCA_CFG.targetProfit = clampNum(num(this.value, 0.90), 0.05, 100); DCAStore.save(); dcaRenderNote(); };
+
+  dcaRenderNote();
+}
+
 
 /* ═══════════════════════════════════════════════
    SETTINGS / COINS / RESET
@@ -3247,6 +3529,7 @@ function readSettings() {
   MAX_P = parseInt(document.getElementById('selMaxCount').value);
   updateBalUI();
   v62RenderSizing();
+  dcaRenderNote();
   analyzeAll();
 }
 
@@ -3432,7 +3715,7 @@ var TestSuite = {
     });
     TestSuite.assert('finalizeClose updates balance exactly once', function () {
       var balBefore = balance, posValTest = 10;
-      var pos = {id: 999999, pair: 'TEST_USDT', side: 'LONG', entry: 100, qty: 0.1, posVal: posValTest, feeRate: 0.0004, entryFee: 0.004, state: POSITION_STATE.PENDING_CLOSE, stateUpdatedAt: Date.now(), highPnl: 0};
+      var pos = {id: 999999, pair: 'TEST_USDT', side: 'LONG', entry: 100, qty: 0.1, posVal: posValTest, feeRate: 0.0004, entryFee: 0.004, state: POSITION_STATE.PENDING_CLOSE, stateUpdatedAt: Date.now(), highPnl: 0, dcaMode: false, legs: null};
       positions.push(pos);
       Execution.finalizeClose(pos, 101, 'TEST', null);
       var stillThere = positions.some(function (p) { return p.id === 999999; });
@@ -3444,6 +3727,16 @@ var TestSuite = {
       }
       balance = balBefore; // restore for subsequent UI calcs
       trades.pop();
+    });
+    TestSuite.assert('DCA weighted average entry and target/stop direction', function () {
+      var pos = {side: 'LONG', legs: [{price: 100, qty: 0.10, notional: 10}, {price: 98, qty: 0.10204, notional: 10}], targetProfit: 0.5, maxStopPct: 1.2, trailActive: false};
+      dcaComputeTargets(pos);
+      var expectedQty = 0.10 + 0.10204;
+      TestSuite.near(pos.qty, expectedQty, 1e-6);
+      var expectedEntry = (100 * 0.10 + 98 * 0.10204) / expectedQty;
+      TestSuite.near(pos.entry, expectedEntry, 1e-4);
+      if (pos.tp <= pos.entry) throw new Error('LONG tp should sit above the average entry');
+      if (pos.sl >= pos.entry) throw new Error('LONG sl should sit below the average entry');
     });
     return Runtime.tests;
   }
@@ -3533,6 +3826,7 @@ window.__apexReady(function () {
   readSettings();
   bindSafeUI();
   bindV62UI();
+  bindDcaUI();
 
   document.querySelectorAll('.nb').forEach(function (b) { b.onclick = function () { swPage(b.getAttribute('data-page')); }; });
   document.querySelectorAll('.tf-btn').forEach(function (b) { b.onclick = function () { setTF(b.getAttribute('data-tf')); }; });
@@ -3554,6 +3848,7 @@ window.__apexReady(function () {
     log('Live mode: legacy Worker auto-detected (/price+/klines+/balance), no /state spam', 'ok');
     log('Risk: Dynamic Kelly/Volatility/Loss-streak sizing active', 'ok');
     log('Exit: Weakness detector (partial/full close) active every 5min', 'ok');
+    log('DCA: ladder mode available (Engine tab) — off by default', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
