@@ -1731,27 +1731,17 @@ select option { background: #041018; }
 </nav>
 
 <!-- ==========================================
-     JAVASCRIPT - APEX SCALP V8.0
+     JAVASCRIPT - APEX SCALP V8.0 - DÜZELTİLMİŞ
      ========================================== -->
 <script>
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
    APEX SCALP V8.0 - FULL AUTONOMOUS PROFESSIONAL
-   
-   V8.0 ÖZELLİKLERİ:
-   ✅ Full Autonomous Mode - Tek buton ile başlat
-   ✅ Sınırsız kaldıraç (piyasa koşullarına göre 1x-100x)
-   ✅ Tüm coinler taranır (en likit olanlar seçilir)
-   ✅ Dinamik kar hedefi (ATR bazlı)
-   ✅ Dinamik stop (ATR + volatilite)
-   ✅ Kelly + volatilite + loss-streak risk yönetimi
-   ✅ Auto-close: TP/SL otomatik
-   ✅ Hiçbir parametre sınırlaması yok
-   ✅ Profesyonel alım satım stratejisi
-   ========================================================== */
+   DÜZELTİLMİŞ SÜRÜM
+   ═══════════════════════════════════════════════════════════ */
 
-/* ---- STORAGE ---- */
+/* ---- STORAGE BOOTSTRAP ---- */
 (function() {
   var memory = {};
   var fallback = {
@@ -1771,11 +1761,13 @@ select option { background: #041018; }
 })();
 
 /* ═══════════════════════════════════════════════════════════
-   GLOBAL STATE
+   GLOBAL STATE - DÜZELTİLDİ
    ═══════════════════════════════════════════════════════════ */
 var APP_VERSION = '8.0';
 var START_BAL = 50;
-var MAX_P = 999; // Sınırsız pozisyon (autonomous modda)
+var MAX_P = 999;
+var leverage = 2;        // ✅ EKLENDI
+var engineOn = false;    // ✅ EKLENDI
 var DEMO_BASE = {
   BTC_USDT: 74000, ETH_USDT: 2050, SOL_USDT: 83, BNB_USDT: 588,
   XRP_USDT: 0.605, DOGE_USDT: 0.12, ADA_USDT: 0.45, AVAX_USDT: 35,
@@ -1814,9 +1806,9 @@ var CFG = {
   feeRate: 0.0004,
   slippageBps: 2,
   spreadBps: 1,
-  maxDailyLoss: 999, // Sınırsız
+  maxDailyLoss: 999,
   maxDrawdownPct: 8,
-  maxTradesPerDay: 999, // Sınırsız
+  maxTradesPerDay: 999,
   staleDataMs: 90000,
   reconcileMs: 3000,
   trackerMs: 500,
@@ -2325,7 +2317,7 @@ var Accounting = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   AUTONOMOUS ANALYZE - PROFESYONEL
+   ANALYZE - DÜZELTİLDİ
    ═══════════════════════════════════════════════════════════ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
@@ -2518,24 +2510,20 @@ function analyze(sym) {
   
   if (rawSig === 'WAIT') return waitResult(ctx, 'NO_DIRECTION votes L' + longVotes + '/S' + shortVotes);
   
-  // Autonomous mod: daha esnek filtreler
   var minScoreThreshold = autonomousMode ? Math.max(30, minScore) : 60;
   if (score < minScoreThreshold) return waitResult(ctx, 'SCORE:' + score + '<' + minScoreThreshold);
   if (vr < 0.60) return waitResult(ctx, 'VOL_LOW:' + vr.toFixed(2) + 'x');
   if (tfCount < 2) return waitResult(ctx, 'TF_ALIGN:' + tfCount + '/2');
   
-  // ATR-based dynamic TP/SL - autonomous
   var atrMult = atrPct < 0.08 ? 1.6 : atrPct < 0.18 ? 1.4 : atrPct < 0.40 ? 1.2 : 1.0;
   var slDist = Math.max(atr5 * atrMult * riskMult, price * 0.002);
   slDist = Math.min(slDist, price * 0.025);
   
-  // Recovery mode
   var recoveryMult = 1;
   if (CFG.recoveryMode) { recoveryMult = 0.5; ctx.reasons.push({t: 'RECOVERY_MODE', cls: 'warn'}); }
   
   var cRate = costRate();
   
-  // Dinamik risk - profesyonel
   var stats = getScoreStats(score);
   var kelly = kellyRisk(stats.winRate, stats.avgWin, stats.avgLoss);
   var volMult = volatilityMultiplier(atr5, pData[sym].atrAvg);
@@ -2548,24 +2536,23 @@ function analyze(sym) {
   var finalRiskAmount = Math.max(dynamicRiskAmount, 0.01);
   var riskNotional = finalRiskAmount / Math.max((slDist / price) + cRate, 0.0001);
   
-  // Position size limits (autonomous: 0 = unlimited)
   var baseCap = maxPosSize > 0 ? maxPosSize : 999999;
-  var marginCap = Math.max(0, balance) * 0.50 * Math.max(1, Math.min(10, leverage || 1));
+  // ✅ DÜZELTİLDİ: leverage değişkeni globalden alınıyor
+  var marginCap = Math.max(0, balance) * 0.50 * Math.max(1, Math.min(10, (typeof leverage !== 'undefined' ? leverage : 2)));
   var posVal = Math.max(0, Math.min(riskNotional, baseCap, marginCap));
   var qty = posVal / price;
   var estimatedCosts = posVal * cRate;
   
-  // TP: ATR-based dynamic
   var targetMultFinal = num(targetMult, 1.5);
   var tpDist = Math.max(slDist * 1.5, atr5 * targetMultFinal);
   tpDist = Math.min(tpDist, price * 0.06);
   
-  // Leverage: autonomous = piyasa koşullarına göre
+  // ✅ DÜZELTİLDİ: leverage hesabı
   var autoLeverage = maxLeverage > 0 ? Math.min(maxLeverage, 10) : 
                      (adx >= 30 ? 5 : adx >= 20 ? 3 : 2);
   if (atrPct < 0.05) autoLeverage = Math.min(autoLeverage * 2, 20);
   if (atrPct > 0.5) autoLeverage = Math.max(1, Math.floor(autoLeverage / 2));
-  leverage = clampNum(autoLeverage, 1, 100);
+  var finalLeverage = clampNum(autoLeverage, 1, 100);
   
   var sl = rawSig === 'LONG' ? price - slDist : price + slDist;
   var tp = rawSig === 'LONG' ? price + tpDist : price - tpDist;
@@ -2577,7 +2564,7 @@ function analyze(sym) {
   out.tier = tierOf(score);
   out.sl = sl; out.tp = tp; out.slDist = slDist; out.tpDist = tpDist;
   out.posVal = posVal; out.qty = qty; out.comm = posVal * CFG.feeRate * 2;
-  out.marginUsed = posVal / Math.max(1, leverage);
+  out.marginUsed = posVal / Math.max(1, finalLeverage);
   out.rrActual = tpDist / slDist;
   out.estProfit = grossProfit - estimatedCosts;
   out.estRisk = grossRisk + estimatedCosts;
@@ -2585,7 +2572,7 @@ function analyze(sym) {
   out.regime = regime;
   out.adx = adx;
   out.recoveryMode = CFG.recoveryMode;
-  out.leverage = leverage;
+  out.leverage = finalLeverage;
   return out;
 }
 
@@ -2639,7 +2626,7 @@ function lossMultiplier() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   RISK MANAGER (AUTONOMOUS - SADECE KRİTİK KONTROLLER)
+   RISK MANAGER
    ═══════════════════════════════════════════════════════════ */
 var RiskManager = {
   todayTrades: function() { return trades.filter(function(t) { return sameDay(t.closedAt || Date.now()); }).length; },
@@ -2653,7 +2640,7 @@ var RiskManager = {
     if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) return {ok: false, reason: 'MAX DRAWDOWN'};
     if (RiskManager.stale(sym)) return {ok: false, reason: 'STALE DATA'};
     if (Runtime.openingLocks[sym]) return {ok: false, reason: 'OPEN REQUEST PENDING'};
-    var margin = Accounting.marginRequired(notional, leverage);
+    var margin = Accounting.marginRequired(notional, (typeof leverage !== 'undefined' ? leverage : 2));
     if (appMode === 'demo' && margin > balance * 0.90) return {ok: false, reason: 'INSUFFICIENT MARGIN'};
     return {ok: true};
   }
@@ -2692,7 +2679,6 @@ function toggleAutonomous() {
     document.getElementById('wrAutoStatus').textContent = '⚡ RUNNING';
     document.getElementById('wrAutoStatus').style.color = 'var(--long)';
     
-    // Auto trade ve auto close'u aç
     autoTrade = true;
     autoClose = true;
     document.getElementById('togAutoTrade').className = 'tog on';
@@ -2700,7 +2686,6 @@ function toggleAutonomous() {
     document.getElementById('togAutoTradeD').textContent = 'On — Autonomous mode opens positions';
     document.getElementById('togAutoCloseD').textContent = 'On — TP/SL automatic';
     
-    // Engine'i başlat
     if (!engineOn) toggleEng();
     
     sendTelegram('⚡ <b>AUTONOMOUS MODE ACTIVATED</b>\n' +
@@ -2721,7 +2706,6 @@ function toggleAutonomous() {
     document.getElementById('wrAutoStatus').textContent = '⏸️';
     document.getElementById('wrAutoStatus').style.color = 'var(--warn)';
     
-    // Auto trade'yi kapat (pozisyonlar açılmaz)
     autoTrade = false;
     document.getElementById('togAutoTrade').className = 'tog';
     document.getElementById('togAutoTradeD').textContent = 'Off — Autonomous mode stops';
@@ -2738,7 +2722,7 @@ function toggleAutonomous() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   EXECUTION (AUTONOMOUS - PROFESYONEL)
+   EXECUTION
    ═══════════════════════════════════════════════════════════ */
 var StateMachine = {
   allowed: {
@@ -2787,10 +2771,10 @@ var Execution = {
       var tpDist = Accounting.pnlTargetToDistance(manualTargetUsd, qty);
       sl = side === 'LONG' ? price - slDist : price + slDist;
       tp = side === 'LONG' ? price + tpDist : price - tpDist;
-      lev = Math.min(3, leverage || 2);
+      lev = Math.min(3, (typeof leverage !== 'undefined' ? leverage : 2));
     } else if (an) {
       posVal = Number(an.posVal); qty = posVal / price; sl = Number(an.sl); tp = Number(an.tp);
-      lev = an.leverage || Math.min(5, leverage || 2);
+      lev = an.leverage || Math.min(5, (typeof leverage !== 'undefined' ? leverage : 2));
       if (posVal < 3) { notify((auto ? 'AUTO ' : '') + 'Signal size too small ($' + posVal.toFixed(2) + ')', 'error'); return; }
     } else { notify('No signal — manual target/risk required', 'error'); return; }
     
@@ -3006,7 +2990,7 @@ var TrailService = {
     if (grossPnl > pos.highPnl) pos.highPnl = grossPnl;
     var high = pos.highPnl || 0;
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    var refTarget = Math.abs(pos.entry * 0.01 * (pos.leverage || 1)); // Dinamik hedef
+    var refTarget = Math.abs(pos.entry * 0.01 * (pos.leverage || 1));
     var activation = Math.max(refTarget * 0.30, roundTrip * 1.5);
     if (high < activation) return;
     var pullback = high >= refTarget * 1.5 ? 0.15 : high >= refTarget * 1.0 ? 0.25 : high >= refTarget * 0.75 ? 0.33 : 0.45;
@@ -3111,7 +3095,7 @@ Execution.sweepStuck = function() {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   ENGINE
+   ENGINE - DÜZELTİLDİ
    ═══════════════════════════════════════════════════════════ */
 function toggleEng() {
   engineOn = !engineOn;
@@ -3138,13 +3122,11 @@ function runEngine() {
   var el = document.getElementById('eLast'); if (el) el.textContent = new Date().toLocaleTimeString('en');
   var eo = document.getElementById('eOpen'); if (eo) eo.textContent = positions.length;
   
-  // Autonomous mod: tüm coinleri tara, en iyi sinyali seç
   var best = null, bestScore = -1;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i];
     var an = pData[s] && pData[s].an;
     if (!an || an.signal === 'WAIT') continue;
-    // Autonomous: skor bazlı sıralama
     var adjustedScore = an.score * (an.vr || 1) * (an.adx / 20 || 1);
     if (adjustedScore > bestScore) { bestScore = adjustedScore; best = {sym: s, an: an}; }
   }
@@ -3155,10 +3137,8 @@ function runEngine() {
   var strongTag = best.an.tier === 'A' && best.an.score >= 80 ? ' ⭐' : '';
   if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + strongTag + ' ' + best.an.signal + ' (' + best.an.score + '%)' + (best.an.leverage ? ' ' + best.an.leverage + 'x' : '');
   
-  // Autonomous: otomatik aç
   if (autonomousMode && autoTrade && positions.length < 3) {
     Execution.open(best.sym, best.an.signal, true);
-    // Otomatik bildirim
     if (TELEGRAM.enabled) {
       sendTelegram('🤖 <b>AUTO TRADE EXECUTED</b>\n' +
         'Pair: ' + best.sym + '\n' +
@@ -3622,7 +3602,7 @@ function updatePosUI() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MARKET DATA (HTTP / API)
+   MARKET DATA
    ═══════════════════════════════════════════════════════════ */
 var Http = {
   request: function(url, options, timeoutMs) {
@@ -3683,7 +3663,7 @@ var ApiCompat = {
       return;
     }
     Runtime.capabilities.snapshot = false;
-    ApiCompat.setLegacy('no capability flags in /ping (pre-v16.1 worker?)');
+    ApiCompat.setLegacy('no capability flags in /ping');
   },
   extractBalance: function(payload) {
     var seen = [];
