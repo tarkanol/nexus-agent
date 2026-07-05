@@ -1311,6 +1311,109 @@ canvas {
   .qa-btn { min-height: 30px; font-size: 6px; }
   .qa-btn .icon { font-size: 12px; }
 }
+
+/* ============================================================
+   V8.1 MODERN UI — iPhone 6 (375×667) dahil tüm ekranlarda
+   büyük fontlar + Apple HIG dokunma alanı (min 44px) + daha
+   yumuşak/modern kartlar. Eski V8.0 kuralları üstteki kalır,
+   burada kasıtlı olarak override ediyoruz (CSS sırası önemli).
+   ============================================================ */
+html, body { font-size: 15px; }
+
+.hdr { min-height: 52px; padding: calc(env(safe-area-inset-top) + 8px) 14px 8px; }
+.logo { font-size: 13px; }
+.logo span { font-size: 9px; }
+.logo .version, .logo .autonomous { font-size: 8px; padding: 2px 5px; }
+
+.bdg { font-size: 9px; padding: 4px 7px; min-height: 26px; border-radius: 5px; }
+.bdg.telegram { min-height: 30px; padding: 5px 9px; font-size: 12px; }
+
+.balbar { padding: 10px 14px; }
+.bal-num { font-size: 25px; }
+.bal-sub { font-size: 9px; }
+.bal-day, .bal-pct { font-size: 11px; }
+
+.wr-strip { padding: 6px 12px; gap: 14px; }
+.wr-item { font-size: 10px; }
+
+.ticker { padding: 6px 12px; }
+.tick-s, .tick-p { font-size: 10px; }
+
+.card { padding: 14px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); }
+.card .card-title { font-size: 10px; margin-bottom: 10px; letter-spacing: 1px; }
+
+.auto-btn { font-size: 15px; padding: 16px; min-height: 58px; border-radius: 10px; }
+.auto-btn .sub { font-size: 10px; }
+.auto-btn .stats { font-size: 10px; }
+
+.quick-actions { gap: 7px; }
+.qa-btn { min-height: 50px; font-size: 9px; border-radius: 8px; }
+.qa-btn .icon { font-size: 19px; }
+
+.pp { min-height: 42px; padding: 6px 12px; font-size: 11px; border-radius: 8px; }
+.pp-price { font-size: 9px; }
+.pp-sig { font-size: 8px; padding: 1px 5px; }
+
+.sig-badge { font-size: 24px; padding: 12px 22px; border-radius: 10px; min-width: 120px; }
+.sig-meta { font-size: 10px; }
+.conf-tier { font-size: 9px; padding: 3px 9px; }
+
+.filter-cell, .mtf-cell, .ind-cell { padding: 6px; border-radius: 6px; }
+.filter-label, .mtf-label, .ind-label { font-size: 8px; }
+.filter-val, .mtf-val, .ind-val { font-size: 11px; }
+
+.rtag { font-size: 9px; padding: 3px 7px; border-radius: 5px; }
+
+.plan-hd { font-size: 11px; padding: 8px 12px; }
+.plan-row { font-size: 10px; padding: 5px 0; }
+.pk { font-size: 9px; }
+
+input, select { font-size: 15px; min-height: 46px; border-radius: 8px; padding: 6px 12px; }
+.inp-label { font-size: 9px; margin-bottom: 3px; }
+
+.btn { font-size: 12px; min-height: 46px; border-radius: 8px; letter-spacing: 0.5px; }
+.btn-sm { min-height: 42px; font-size: 10px; }
+
+.tog { width: 38px; height: 22px; }
+.tog::after { width: 16px; height: 16px; }
+.tog.on::after { left: 18px; }
+.tog-title { font-size: 11px; }
+.tog-desc { font-size: 9px; }
+
+.nb { min-height: 58px; font-size: 9px; padding: 7px 2px 5px; }
+.ni { font-size: 21px; }
+
+.pos-sym { font-size: 13px; }
+.pos-side { font-size: 9px; padding: 2px 7px; }
+.pos-pnl { font-size: 16px; }
+.pgc-l { font-size: 8px; }
+.pgc-v { font-size: 10px; }
+
+.stat-label { font-size: 8px; }
+.stat-val { font-size: 14px; }
+
+.score-row { font-size: 10px; }
+.eng-title { font-size: 13px; }
+.eng-sub { font-size: 9px; }
+.eng-stats { font-size: 10px; }
+
+.logbox { font-size: 10px; }
+
+.notif { font-size: 11px; padding: 9px 13px; }
+
+.banner-dead, .banner-pos, .banner-streak, .banner-regime { font-size: 10px; padding: 6px 10px; }
+.regime-label { font-size: 8px; }
+.regime-value { font-size: 11px; }
+
+/* Telegram / kritik butonları tam genişlikte, alt alta, net görünür
+   dizmek için — küçük ekranlarda sıkışıp kaybolmasınlar diye */
+.tg-btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 2px;
+}
+.tg-btn-col .btn { width: 100%; flex: none; }
 </style>
 </head>
 <body>
@@ -1504,15 +1607,15 @@ canvas {
     <div class="card" id="telegramSettingsCard" style="border-color:rgba(0,136,204,0.2);background:rgba(0,136,204,0.03)">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row">
-        <div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramTokenMobile" placeholder="1234567890:ABC..." type="text" autocomplete="off" style="font-size:8px;min-height:28px"></div>
-        <div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatIdMobile" placeholder="-100..." type="text" autocomplete="off" style="font-size:8px;min-height:28px"></div>
+        <div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramTokenMobile" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div>
+        <div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatIdMobile" placeholder="-100..." type="text" autocomplete="off"></div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-telegram btn-sm" onclick="saveTelegramMobile()" style="flex:1">💾 KAYDET</button>
-        <button class="btn btn-out btn-sm" onclick="testTelegramMobile()" style="flex:1">📨 TEST</button>
-        <button class="btn btn-out btn-sm" onclick="toggleTelegram()" style="flex:0.7">AÇ/KAPA</button>
+      <div class="tg-btn-col">
+        <button class="btn btn-telegram" onclick="saveTelegramMobile()">💾 KAYDET</button>
+        <button class="btn btn-out" onclick="testTelegramMobile()">📨 TEST GÖNDER</button>
+        <button class="btn btn-out" onclick="toggleTelegram()">AÇ / KAPA</button>
       </div>
-      <div id="telegramStatusMobile" style="font-size:7px;color:var(--dim2);font-family:var(--mono);margin-top:3px;text-align:center">Not configured</div>
+      <div id="telegramStatusMobile" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
 
     <!-- MANUAL ENTRY -->
@@ -1635,14 +1738,14 @@ canvas {
     <div class="card">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row">
-        <div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramToken" placeholder="1234567890:ABC..." type="text" autocomplete="off" style="font-size:8px;min-height:28px"></div>
-        <div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatId" placeholder="-100..." type="text" autocomplete="off" style="font-size:8px;min-height:28px"></div>
+        <div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramToken" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div>
+        <div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatId" placeholder="-100..." type="text" autocomplete="off"></div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-telegram btn-sm" onclick="saveTelegram()" style="flex:1">SAVE & TEST</button>
-        <button class="btn btn-out btn-sm" onclick="toggleTelegram()" style="flex:0.6">TOGGLE</button>
+      <div class="tg-btn-col">
+        <button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE & TEST GÖNDER</button>
+        <button class="btn btn-out" onclick="toggleTelegram()">AÇ / KAPA</button>
       </div>
-      <div id="telegramStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);margin-top:3px;text-align:center">Not configured</div>
+      <div id="telegramStatus" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
   </div>
 </div>
