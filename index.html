@@ -150,6 +150,9 @@ body::before {
   color: #0088cc;
   background: rgba(0,136,204,0.07);
   cursor: pointer;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
 }
 .bdg.telegram.on {
   border-color: #00d4ff;
@@ -1081,7 +1084,7 @@ canvas {
 }
 
 /* ============================================
-   INPUTS & BUTTONS
+   INPUTS & BUTTONS - MOBIL İYİLEŞTİRMELER
    ============================================ */
 .fr { margin-bottom: 5px; }
 .inp-label {
@@ -1112,6 +1115,7 @@ select option { background: #041018; }
 .btn-row {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 .btn {
   flex: 1;
@@ -1177,6 +1181,34 @@ select option { background: #041018; }
   font-size: 8px;
   padding: 4px 8px;
   letter-spacing: 1px;
+}
+
+/* Mobil için buton büyütme */
+@media (max-width: 480px) {
+  .btn {
+    min-height: 44px !important;
+    font-size: 12px !important;
+    padding: 10px 14px !important;
+  }
+  .btn-sm {
+    min-height: 38px !important;
+    font-size: 10px !important;
+    padding: 8px 12px !important;
+  }
+  input, select {
+    min-height: 38px !important;
+    font-size: 11px !important;
+  }
+  .inp-label {
+    font-size: 9px !important;
+  }
+  .hdr {
+    padding-top: calc(env(safe-area-inset-top) + 4px) !important;
+  }
+  .badges .bdg {
+    font-size: 6px !important;
+    padding: 1px 4px !important;
+  }
 }
 
 /* ============================================
@@ -1405,6 +1437,20 @@ select option { background: #041018; }
       </button>
     </div>
 
+    <!-- HIZLI TELEGRAM DURUMU -->
+    <div class="card" style="border-color:rgba(0,136,204,0.15);background:rgba(0,136,204,0.02)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">📨 TELEGRAM</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span id="telegramStatusQuick" style="font-size:8px;color:var(--dim2)">⏸️ Kapalı</span>
+          <button class="btn btn-telegram btn-sm" onclick="toggleTelegram()" style="min-width:50px;padding:4px 10px;font-size:9px;flex:0 1 auto">
+            <span id="telegramBtnQuick">AÇ</span>
+          </button>
+          <button class="btn btn-out btn-sm" onclick="scrollToTelegramSettings()" style="min-width:40px;padding:4px 8px;font-size:9px;flex:0 1 auto">⚙</button>
+        </div>
+      </div>
+    </div>
+
     <!-- BANNERS -->
     <div id="bannerDead" style="display:none" class="banner-dead">🔒 LOW VOLATILITY HOUR (UTC 02-06) — Reducing size</div>
     <div id="bannerStreak" style="display:none" class="banner-streak">🔥 WIN STREAK — Size boosted</div>
@@ -1499,6 +1545,25 @@ select option { background: #041018; }
 
     <!-- PLAN -->
     <div id="planWrap"></div>
+
+    <!-- TELEGRAM AYARLARI (Mobil için) -->
+    <div class="card" id="telegramSettingsCard">
+      <div class="card-title">📨 TELEGRAM AYARLARI</div>
+      <div class="fr">
+        <span class="inp-label">Bot Token</span>
+        <input id="telegramTokenMobile" placeholder="1234567890:ABCdef..." type="text" autocomplete="off">
+      </div>
+      <div class="fr">
+        <span class="inp-label">Chat ID</span>
+        <input id="telegramChatIdMobile" placeholder="-1001234567890" type="text" autocomplete="off">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-telegram btn-sm" onclick="saveTelegramMobile()" style="flex:1">💾 KAYDET</button>
+        <button class="btn btn-out btn-sm" onclick="testTelegramMobile()" style="flex:1">📨 TEST</button>
+      </div>
+      <div id="telegramStatusMobile" style="font-size:8px;color:var(--dim2);font-family:var(--mono);margin-top:4px;text-align:center">Not configured</div>
+      <div class="grid-note" style="margin-top:4px;font-size:7px">Token ve Chat ID'yi girdikten sonra KAYDET'e, ardından TEST'e tıklayın. Telegram'dan test mesajı gelirse kurulum tamamdır.</div>
+    </div>
 
     <!-- MANUAL ENTRY (Emergency) -->
     <div class="card">
@@ -1658,9 +1723,9 @@ select option { background: #041018; }
       <div id="safeDiagOut" class="logbox" style="height:120px;margin-top:5px"></div>
     </div>
 
-    <!-- TELEGRAM -->
+    <!-- TELEGRAM (Engine sayfası) -->
     <div class="card">
-      <div class="card-title">TELEGRAM BILDIRIM</div>
+      <div class="card-title">📨 TELEGRAM BILDIRIM</div>
       <div class="fr">
         <span class="inp-label">Bot Token</span>
         <input id="telegramToken" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" type="text" autocomplete="off">
@@ -1761,13 +1826,13 @@ select option { background: #041018; }
 })();
 
 /* ═══════════════════════════════════════════════════════════
-   GLOBAL STATE - DÜZELTİLDİ
+   GLOBAL STATE
    ═══════════════════════════════════════════════════════════ */
 var APP_VERSION = '8.0';
 var START_BAL = 50;
 var MAX_P = 999;
-var leverage = 2;        // ✅ EKLENDI
-var engineOn = false;    // ✅ EKLENDI
+var leverage = 2;
+var engineOn = false;
 var DEMO_BASE = {
   BTC_USDT: 74000, ETH_USDT: 2050, SOL_USDT: 83, BNB_USDT: 588,
   XRP_USDT: 0.605, DOGE_USDT: 0.12, ADA_USDT: 0.45, AVAX_USDT: 35,
@@ -1887,6 +1952,7 @@ function toggleTelegram() {
   TELEGRAM.enabled = !TELEGRAM.enabled;
   TelegramStore.save();
   updateTelegramUI();
+  updateTelegramQuickUI();
   if (TELEGRAM.enabled) {
     sendTelegram('🤖 <b>AUTONOMOUS MODE</b> ready\nVersion: ' + APP_VERSION + '\nStatus: ' + (autonomousMode ? 'ACTIVE' : 'STANDBY'));
   }
@@ -1902,6 +1968,32 @@ function updateTelegramUI() {
   }
   var btn = document.getElementById('btnTelegram');
   if (btn) { btn.textContent = TELEGRAM.enabled ? 'UPDATE' : 'SAVE & TEST'; btn.className = 'btn ' + (TELEGRAM.enabled ? 'btn-telegram on' : 'btn-telegram'); }
+  updateTelegramMobileUI();
+}
+
+function updateTelegramQuickUI() {
+  var status = document.getElementById('telegramStatusQuick');
+  var btn = document.getElementById('telegramBtnQuick');
+  if (status) {
+    status.textContent = TELEGRAM.enabled ? '✅ Aktif' : '⏸️ Kapalı';
+    status.style.color = TELEGRAM.enabled ? 'var(--long)' : 'var(--dim2)';
+  }
+  if (btn) {
+    btn.textContent = TELEGRAM.enabled ? 'KAPAT' : 'AÇ';
+    btn.className = 'btn ' + (TELEGRAM.enabled ? 'btn-telegram on btn-sm' : 'btn-telegram btn-sm');
+  }
+}
+
+function updateTelegramMobileUI() {
+  var status = document.getElementById('telegramStatusMobile');
+  if (status) {
+    status.textContent = TELEGRAM.enabled ? '✅ Telegram aktif | Chat: ' + (TELEGRAM.chatId || '---') : '⏸️ Telegram pasif';
+    status.style.color = TELEGRAM.enabled ? 'var(--long)' : 'var(--dim2)';
+  }
+  var tokenInput = document.getElementById('telegramTokenMobile');
+  var chatInput = document.getElementById('telegramChatIdMobile');
+  if (tokenInput && !tokenInput.value) tokenInput.value = TELEGRAM.token || '';
+  if (chatInput && !chatInput.value) chatInput.value = TELEGRAM.chatId || '';
 }
 
 function saveTelegram() {
@@ -1910,12 +2002,44 @@ function saveTelegram() {
   if (token) TELEGRAM.token = token;
   if (chatId) TELEGRAM.chatId = chatId;
   TelegramStore.save();
+  updateTelegramUI();
+  updateTelegramMobileUI();
   sendTelegram('✅ <b>TEST MESSAGE</b>\nBot connected successfully!\nVersion: ' + APP_VERSION)
     .then(function(success) {
       if (success) notify('Telegram test mesajı gönderildi!', 'telegram');
       else notify('Telegram test başarısız. Token/Chat ID kontrol edin.', 'error');
     });
+}
+
+function saveTelegramMobile() {
+  var token = document.getElementById('telegramTokenMobile').value.trim();
+  var chatId = document.getElementById('telegramChatIdMobile').value.trim();
+  if (token) TELEGRAM.token = token;
+  if (chatId) TELEGRAM.chatId = chatId;
+  TelegramStore.save();
   updateTelegramUI();
+  updateTelegramMobileUI();
+  notify('Telegram ayarları kaydedildi. Test etmek için TEST butonuna tıklayın.', 'info');
+}
+
+function testTelegramMobile() {
+  sendTelegram('✅ <b>MOBİL TEST MESAJI</b>\nBot connected!\nVersion: ' + APP_VERSION)
+    .then(function(success) {
+      if (success) notify('📨 Telegram test mesajı gönderildi!', 'telegram');
+      else notify('❌ Test başarısız. Token/Chat ID kontrol edin.', 'error');
+    });
+}
+
+function scrollToTelegramSettings() {
+  var el = document.getElementById('telegramSettingsCard');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.borderColor = 'var(--acc)';
+    el.style.transition = 'border-color 0.5s';
+    setTimeout(function() { el.style.borderColor = ''; }, 2000);
+  } else {
+    swPage('settings');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2317,7 +2441,7 @@ var Accounting = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   ANALYZE - DÜZELTİLDİ
+   ANALYZE
    ═══════════════════════════════════════════════════════════ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
@@ -2537,7 +2661,6 @@ function analyze(sym) {
   var riskNotional = finalRiskAmount / Math.max((slDist / price) + cRate, 0.0001);
   
   var baseCap = maxPosSize > 0 ? maxPosSize : 999999;
-  // ✅ DÜZELTİLDİ: leverage değişkeni globalden alınıyor
   var marginCap = Math.max(0, balance) * 0.50 * Math.max(1, Math.min(10, (typeof leverage !== 'undefined' ? leverage : 2)));
   var posVal = Math.max(0, Math.min(riskNotional, baseCap, marginCap));
   var qty = posVal / price;
@@ -2547,7 +2670,6 @@ function analyze(sym) {
   var tpDist = Math.max(slDist * 1.5, atr5 * targetMultFinal);
   tpDist = Math.min(tpDist, price * 0.06);
   
-  // ✅ DÜZELTİLDİ: leverage hesabı
   var autoLeverage = maxLeverage > 0 ? Math.min(maxLeverage, 10) : 
                      (adx >= 30 ? 5 : adx >= 20 ? 3 : 2);
   if (atrPct < 0.05) autoLeverage = Math.min(autoLeverage * 2, 20);
@@ -3018,7 +3140,7 @@ var TrailService = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   TRACKER
+   TRACKER - DÜZELTİLDİ (Exchange senkronizasyonu eklendi)
    ═══════════════════════════════════════════════════════════ */
 function startTracker() {
   if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
@@ -3057,6 +3179,54 @@ function processTrackedPositions() {
 function runTracker() {
   if (!positions.length) { stopTracker(); return; }
   trackerTick++;
+  
+  // ✅ YENİ: Exchange senkronizasyonu - TP/SL hit olunca pozisyonu temizle
+  if (appMode === 'live' && WORKER && trackerTick % 3 === 0) {
+    Http.get('/state')
+      .then(function(data) {
+        if (data && data.success && data.positions) {
+          var exchangeSymbols = data.positions.map(function(p) { return p.symbol || p.contract; });
+          for (var i = positions.length - 1; i >= 0; i--) {
+            var pos = positions[i];
+            if (pos.state !== POSITION_STATE.CLOSED && exchangeSymbols.indexOf(pos.pair) === -1) {
+              // Exchange'de pozisyon yok, bot'tan kaldır
+              logPos('[EXCHANGE SYNC] ' + pos.pair + ' exchange pozisyonu kapandı, bot güncelleniyor', 'warn');
+              // Son fiyatı al
+              var lastPrice = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+              // Posizyonu kapat (telegram bildirimi olmadan)
+              try { 
+                StateMachine.transition(pos, POSITION_STATE.CLOSED); 
+                // PnL hesapla
+                var pnl = (lastPrice - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
+                var exitFee = pos.qty * lastPrice * CFG.feeRate;
+                var net = pnl - pos.entryFee - exitFee;
+                balance += net;
+                dailyPnL += net;
+                trades.push({
+                  pair: pos.pair, side: pos.side, pnl: net,
+                  entry: pos.entry, exit: lastPrice, reason: 'EXCHANGE_CLOSED (TP/SL)',
+                  openedAt: pos.openTime, closedAt: Date.now(),
+                  score: pos.score || 0
+                });
+                equityHistory.push(balance);
+                if (equityHistory.length > 500) equityHistory.shift();
+                Store.save();
+              } catch(e) {}
+              positions.splice(i, 1);
+              updatePosUI();
+              updateSignalUI();
+              updateBalUI();
+              updateWRStrip();
+              drawEquity();
+              if (!positions.length) stopTracker();
+            }
+          }
+        }
+      })
+      .catch(function(e) { /* sessiz */ });
+  }
+  
+  // Mevcut tracker işlemleri
   var el = document.getElementById('eTrack');
   if (el) el.textContent = (appMode === 'live' ? 'LIVE #' : 'TICK #') + trackerTick;
   var he = document.getElementById('eHits'); if (he) he.textContent = tpSlHits;
@@ -3095,7 +3265,7 @@ Execution.sweepStuck = function() {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   ENGINE - DÜZELTİLDİ
+   ENGINE
    ═══════════════════════════════════════════════════════════ */
 function toggleEng() {
   engineOn = !engineOn;
@@ -4215,6 +4385,8 @@ window.__apexReady(function() {
   readSettings();
   bindSafeUI();
   updateTelegramUI();
+  updateTelegramQuickUI();
+  updateTelegramMobileUI();
   
   document.querySelectorAll('.nb').forEach(function(b) { b.onclick = function() { swPage(b.getAttribute('data-page')); }; });
   document.querySelectorAll('.tf-btn').forEach(function(b) { b.onclick = function() { setTF(b.getAttribute('data-tf')); }; });
@@ -4226,6 +4398,8 @@ window.__apexReady(function() {
   
   document.getElementById('telegramToken').value = TELEGRAM.token || '';
   document.getElementById('telegramChatId').value = TELEGRAM.chatId || '';
+  document.getElementById('telegramTokenMobile').value = TELEGRAM.token || '';
+  document.getElementById('telegramChatIdMobile').value = TELEGRAM.chatId || '';
   
   startDemo();
   
@@ -4236,6 +4410,7 @@ window.__apexReady(function() {
     log('⚡ Autonomous mode: Click START AUTONOMOUS MODE to begin full trading', 'ok');
     log('📊 Strategy: Dynamic ATR-based TP/SL, Kelly risk, adaptive leverage', 'ok');
     log('📱 Telegram: ' + (TELEGRAM.enabled ? '✅ aktif' : '⏸️ pasif'), 'ok');
+    log('🔄 Exchange sync: Bot otomatik olarak TP/SL hitleri algılar', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
