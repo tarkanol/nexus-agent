@@ -1072,7 +1072,7 @@ canvas {
    ============================================ */
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 3px;
   margin-bottom: 5px;
 }
@@ -1437,7 +1437,9 @@ input, select { font-size: 15px; min-height: 46px; border-radius: 8px; padding: 
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
     <span class="bdg" id="bdgAuto">⏸️</span>
+    <span class="bdg" id="bdgEng">ENG:OFF</span>
     <span class="bdg" id="bdgPos">0</span>
+    <span class="bdg gold" id="bdgStreak" style="display:none">🔥</span>
     <span class="bdg telegram" id="bdgTelegram" onclick="toggleTelegram()">📨</span>
   </div>
 </header>
@@ -1643,6 +1645,7 @@ input, select { font-size: 15px; min-height: 46px; border-radius: 8px; padding: 
       <div class="stat-cell"><div class="stat-label">BALANCE</div><div class="stat-val" id="stBal" style="color:var(--gold)">$50.00</div></div>
       <div class="stat-cell"><div class="stat-label">DAY PNL</div><div class="stat-val" id="stDay">$0.00</div></div>
       <div class="stat-cell"><div class="stat-label">WIN RATE</div><div class="stat-val" id="stWR" style="color:var(--long)">--%</div></div>
+      <div class="stat-cell"><div class="stat-label">AUTO TRADES</div><div class="stat-val" id="stAutoCount" style="color:var(--acc)">0</div></div>
     </div>
 
     <div class="card">
@@ -1655,6 +1658,8 @@ input, select { font-size: 15px; min-height: 46px; border-radius: 8px; padding: 
     <div class="card">
       <div class="card-title">SAFETY</div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Daily loss ($)</span><input id="safeDaily" type="number" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">DD (%)</span><input id="safeDD" type="number" step="0.5" min="1"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max trades/day</span><input id="safeTrades" type="number" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Stale data (s)</span><input id="safeStale" type="number" step="5" min="10"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Slippage (bps)</span><input id="safeSlip" type="number" step="0.5" min="0"></div><div class="inp-wrap"><span class="inp-label">Spread (bps)</span><input id="safeSpread" type="number" step="0.5" min="0"></div></div>
       <div class="btn-row"><button class="btn btn-gold btn-sm" id="safeSave">SAVE</button><button class="btn btn-danger btn-sm" id="safeKill">KILL</button></div>
       <div id="safeRiskStatus" style="font:6px var(--mono);color:var(--dim2);margin-top:3px"></div>
     </div>
@@ -2734,6 +2739,23 @@ var RiskManager = {
     var margin = Accounting.marginRequired(notional, (typeof leverage !== 'undefined' ? leverage : 2));
     if (appMode === 'demo' && margin > balance * 0.90) return {ok: false, reason: 'MARGIN'};
     return {ok: true};
+  },
+  // Her pozisyon kapanışından sonra günlük zarar / drawdown / işlem sayısı
+  // limitlerini kontrol eder; aşılırsa kill-switch'i devreye sokar ve
+  // otonom modu güvenli şekilde durdurur.
+  enforce: function() {
+    if (CFG.killSwitch) return;
+    var reasons = [];
+    if (dailyPnL < 0 && Math.abs(dailyPnL) >= CFG.maxDailyLoss) reasons.push('Günlük zarar limiti');
+    if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) reasons.push('Max drawdown');
+    if (RiskManager.todayTrades() >= CFG.maxTradesPerDay) reasons.push('Günlük işlem limiti');
+    if (!reasons.length) return;
+    CFG.killSwitch = true;
+    try { Store.save(); } catch(e) {}
+    try { renderRiskStatus(); } catch(e) {}
+    if (autonomousMode) { try { toggleAutonomous(); } catch(e) {} }
+    notify('🛑 Risk limiti aşıldı: ' + reasons.join(', '), 'error');
+    log('[RISK] Kill-switch etkinleşti: ' + reasons.join(', '), 'err');
   }
 };
 
@@ -3184,11 +3206,11 @@ Execution.sweepStuck = function() {
    ═══════════════════════════════════════════════════════════ */
 function toggleEng() {
   engineOn = !engineOn;
-  document.getElementById('btnEng').textContent = engineOn ? 'STOP' : 'START';
-  document.getElementById('bdgEng').textContent = engineOn ? 'ON' : 'OFF';
-  document.getElementById('bdgEng').className = 'bdg ' + (engineOn ? 'on' : '');
-  document.getElementById('engTxt').textContent = engineOn ? 'ENGINE RUN' : 'ENGINE OFF';
-  document.getElementById('engStats').style.display = engineOn ? 'grid' : 'none';
+  var elBtn = document.getElementById('btnEng'); if (elBtn) elBtn.textContent = engineOn ? 'STOP' : 'START';
+  var elBdg = document.getElementById('bdgEng');
+  if (elBdg) { elBdg.textContent = engineOn ? 'ENG:ON' : 'ENG:OFF'; elBdg.className = 'bdg ' + (engineOn ? 'on' : ''); }
+  var elTxt = document.getElementById('engTxt'); if (elTxt) elTxt.textContent = engineOn ? 'ENGINE RUN' : 'ENGINE OFF';
+  var elStats = document.getElementById('engStats'); if (elStats) elStats.style.display = engineOn ? 'grid' : 'none';
   if (engineOn) startCountdown(); else if (cdTimer) clearInterval(cdTimer);
 }
 
@@ -3234,7 +3256,8 @@ function updateAutoStats() {
       ' • ' + positions.length + ' open' + 
       ' • ' + autonomousTrades + ' trades';
   }
-  document.getElementById('stAutoCount').textContent = autonomousTrades;
+  var autoCountEl = document.getElementById('stAutoCount');
+  if (autoCountEl) autoCountEl.textContent = autonomousTrades;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -4127,12 +4150,13 @@ function bindSafeUI() {
   
   var save = document.getElementById('safeSave');
   if (save) save.onclick = function() {
-    CFG.maxDailyLoss = Math.abs(num(document.getElementById('safeDaily').value, 999));
-    CFG.maxDrawdownPct = Math.abs(num(document.getElementById('safeDD').value, 8));
-    CFG.maxTradesPerDay = Math.max(1, Math.floor(num(document.getElementById('safeTrades').value, 999)));
-    CFG.staleDataMs = Math.max(10000, num(document.getElementById('safeStale').value, 90) * 1000);
-    CFG.slippageBps = Math.max(0, num(document.getElementById('safeSlip').value, 2));
-    CFG.spreadBps = Math.max(0, num(document.getElementById('safeSpread').value, 1));
+    function gv(id, fb) { var e = document.getElementById(id); return e ? num(e.value, fb) : fb; }
+    CFG.maxDailyLoss = Math.abs(gv('safeDaily', 999));
+    CFG.maxDrawdownPct = Math.abs(gv('safeDD', 8));
+    CFG.maxTradesPerDay = Math.max(1, Math.floor(gv('safeTrades', 999)));
+    CFG.staleDataMs = Math.max(10000, gv('safeStale', 90) * 1000);
+    CFG.slippageBps = Math.max(0, gv('safeSlip', 2));
+    CFG.spreadBps = Math.max(0, gv('safeSpread', 1));
     Store.save(); renderRiskStatus(); notify('Safety limits saved', 'success');
   };
   
