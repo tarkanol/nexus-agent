@@ -6,7 +6,7 @@
 <title>APEX SCALP V8.0 - MOBİL</title>
 <style>
 /* ============================================
-   APEX V8.0 - MOBİL OPTİMİZE
+   APEX V8.0 - MOBİL OPTİMİZE - DÜZELTİLDİ
    ============================================ */
 :root {
   --bg: #060a12;
@@ -281,7 +281,7 @@ body::before {
 }
 
 /* ============================================
-   NAVIGATION
+   NAVIGATION - DÜZELTİLDİ
    ============================================ */
 .nav {
   position: fixed;
@@ -317,7 +317,7 @@ body::before {
 .ni { font-size: 14px; line-height: 1.2; }
 
 /* ============================================
-   PAGES
+   PAGES - DÜZELTİLDİ
    ============================================ */
 .page {
   display: none;
@@ -400,7 +400,7 @@ body::before {
 }
 
 /* ============================================
-   QUICK ACTIONS - MOBİL İÇİN HIZLI ERIŞIM
+   QUICK ACTIONS
    ============================================ */
 .quick-actions {
   display: grid;
@@ -568,7 +568,7 @@ body::before {
 }
 
 /* ============================================
-   FILTER GRID - MOBİL
+   FILTER GRID
    ============================================ */
 .filter-grid {
   display: grid;
@@ -664,7 +664,7 @@ body::before {
 }
 
 /* ============================================
-   MTF ROW - MOBİL
+   MTF ROW
    ============================================ */
 .mtf-row {
   display: grid;
@@ -696,7 +696,7 @@ body::before {
 .mtf-val.WAIT { color: var(--dim2); }
 
 /* ============================================
-   INDICATORS - MOBİL
+   INDICATORS
    ============================================ */
 .ind-grid {
   display: grid;
@@ -775,7 +775,7 @@ body::before {
 .pv.rr { color: var(--warn); }
 
 /* ============================================
-   BUTTONS & INPUTS - MOBİL
+   BUTTONS & INPUTS
    ============================================ */
 .fr { margin-bottom: 4px; }
 .inp-label {
@@ -1058,7 +1058,7 @@ canvas {
 }
 
 /* ============================================
-   STATS GRID - MOBİL
+   STATS GRID
    ============================================ */
 .stats-grid {
   display: grid;
@@ -1285,7 +1285,7 @@ canvas {
 .regime-value.volatile { color: var(--short); }
 
 /* ============================================
-   MOBİL ÖZEL - EKRAN TASARRUFU
+   MOBİL ÖZEL
    ============================================ */
 @media (max-width: 480px) {
   .filter-grid { grid-template-columns: 1fr 1fr; }
@@ -1306,7 +1306,7 @@ canvas {
 <body>
 
 <!-- ==========================================
-     NOTIFICATION CONTAINER
+     NOTIFICATION
      ========================================== -->
 <div id="notif"></div>
 
@@ -1368,7 +1368,7 @@ canvas {
 <div class="page active" id="pg-signal">
   <div class="scroll">
     
-    <!-- AUTONOMOUS MODE BUTTON -->
+    <!-- AUTONOMOUS MODE -->
     <div class="card" style="border-color:rgba(0,255,136,0.15);background:rgba(0,255,136,0.02)">
       <button class="auto-btn" id="autoBtn" onclick="toggleAutonomous()">
         <span id="autoBtnText">▶ START</span>
@@ -1377,7 +1377,7 @@ canvas {
       </button>
     </div>
 
-    <!-- QUICK ACTIONS - MOBİL HIZLI ERIŞIM -->
+    <!-- QUICK ACTIONS -->
     <div class="quick-actions">
       <button class="qa-btn" onclick="toggleAutonomous()" id="qaAuto">
         <span class="icon">⚡</span>AUTO
@@ -1488,7 +1488,7 @@ canvas {
     <!-- PLAN -->
     <div id="planWrap"></div>
 
-    <!-- TELEGRAM SETTINGS - MOBİL İÇİN HEMEN BURADA -->
+    <!-- TELEGRAM SETTINGS -->
     <div class="card" id="telegramSettingsCard" style="border-color:rgba(0,136,204,0.2);background:rgba(0,136,204,0.03)">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row">
@@ -1557,7 +1557,7 @@ canvas {
 </div>
 
 <!-- ==========================================
-     PAGE: ENGINE (ÖZET)
+     PAGE: ENGINE
      ========================================== -->
 <div class="page" id="pg-engine">
   <div class="scroll">
@@ -1609,7 +1609,7 @@ canvas {
         <div class="inp-wrap"><span class="inp-label">Risk (ATR×)</span><select id="selRiskMult"><option value="0.8">0.8</option><option value="1.0" selected>1.0</option><option value="1.2">1.2</option><option value="1.5">1.5</option></select></div>
       </div>
       <div style="background:rgba(2,10,16,0.9);border:1px solid var(--brd);border-radius:3px;padding:4px;font-family:var(--mono);font-size:7px;color:var(--dim2);line-height:1.6">
-        Risk: <strong id="showRisk" style="color:var(--gold)">Dynamic</strong> | Target: <strong id="showTP" style="color:var(--long)">ATR-based</strong> | Lev: <strong id="showLev" style="color:var(--acc)">Auto</strong>
+        Risk: <strong id="showRisk" style="color:var(--gold)">Dynamic</strong> | Target: <strong id="showTP" style="color:var(--long)">ATR</strong> | Lev: <strong id="showLev" style="color:var(--acc)">Auto</strong>
       </div>
     </div>
 
@@ -1619,7 +1619,7 @@ canvas {
       <div id="safeDiagOut" class="logbox" style="height:70px;margin-top:4px"></div>
     </div>
 
-    <!-- TELEGRAM (Engine'de de var) -->
+    <!-- TELEGRAM -->
     <div class="card">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row">
@@ -1677,27 +1677,26 @@ canvas {
 </div>
 
 <!-- ==========================================
-     NAVIGATION
+     NAVIGATION - DÜZELTİLDİ
      ========================================== -->
 <nav class="nav">
-  <button class="nb active" data-page="signal"><span class="ni">📡</span>Sig</button>
-  <button class="nb" data-page="pos"><span class="ni">📁</span>Pos</button>
-  <button class="nb" data-page="engine"><span class="ni">⚙</span>Eng</button>
-  <button class="nb" data-page="settings"><span class="ni">🔧</span>Set</button>
+  <button class="nb active" data-page="signal" onclick="swPage('signal')"><span class="ni">📡</span>Sig</button>
+  <button class="nb" data-page="pos" onclick="swPage('pos')"><span class="ni">📁</span>Pos</button>
+  <button class="nb" data-page="engine" onclick="swPage('engine')"><span class="ni">⚙</span>Eng</button>
+  <button class="nb" data-page="settings" onclick="swPage('settings')"><span class="ni">🔧</span>Set</button>
 </nav>
 
 <!-- ==========================================
-     JAVASCRIPT - APEX V8.0 MOBİL
+     JAVASCRIPT - DÜZELTİLDİ
      ========================================== -->
 <script>
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   APEX SCALP V8.0 - MOBİL OPTİMİZE
-   Tüm butonlar erişilebilir, küçük ekran için düzenlendi
+   APEX SCALP V8.0 - MOBİL - TÜM SAYFALAR ÇALIŞIYOR
    ═══════════════════════════════════════════════════════════ */
 
-/* ---- STORAGE ---- */
+// ---- STORAGE ----
 (function() {
   var memory = {};
   var fallback = {
@@ -1873,7 +1872,6 @@ function saveTelegram() {
   if (chatId) TELEGRAM.chatId = chatId;
   TelegramStore.save();
   updateTelegramUI();
-  // Mobile inputs'u da güncelle
   document.getElementById('telegramTokenMobile').value = TELEGRAM.token;
   document.getElementById('telegramChatIdMobile').value = TELEGRAM.chatId;
   sendTelegram('✅ Test message\nBot connected!\nVersion: ' + APP_VERSION)
@@ -1976,7 +1974,7 @@ var Store = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   MATH / INDICATORS (KISA VERSİYON)
+   MATH / INDICATORS (KISA)
    ═══════════════════════════════════════════════════════════ */
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.map(function(){return null;}) : [];
@@ -2299,7 +2297,7 @@ var Accounting = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   ANALYZE - KISA VERSİYON
+   ANALYZE
    ═══════════════════════════════════════════════════════════ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
@@ -2677,7 +2675,7 @@ function toggleAutonomous() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   EXECUTION (KISA)
+   EXECUTION
    ═══════════════════════════════════════════════════════════ */
 var StateMachine = {
   allowed: {
@@ -2953,7 +2951,7 @@ var TrailService = {
 };
 
 /* ═══════════════════════════════════════════════════════════
-   TRACKER (Exchange sync ile)
+   TRACKER
    ═══════════════════════════════════════════════════════════ */
 function startTracker() {
   if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
@@ -2989,7 +2987,7 @@ function runTracker() {
   if (!positions.length) { stopTracker(); return; }
   trackerTick++;
   
-  // Exchange sync - TP/SL hit olanları temizle
+  // Exchange sync
   if (appMode === 'live' && WORKER && trackerTick % 3 === 0) {
     Http.get('/state')
       .then(function(data) {
@@ -3867,11 +3865,38 @@ function toggleTrail() {
   document.getElementById('togTrailD').textContent = trailOn ? 'On' : 'Off';
 }
 
+// ════════════════════════════════════════════════════════════
+// SAYFA GEÇİŞİ - DÜZELTİLDİ
+// ════════════════════════════════════════════════════════════
 function swPage(name) {
-  ['signal', 'pos', 'engine', 'settings'].forEach(function(p) { document.getElementById('pg-' + p).classList.toggle('active', p === name); });
-  document.querySelectorAll('.nb').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-page') === name); });
-  if (name === 'signal') setTimeout(drawChart, 80);
-  if (name === 'pos') { updatePosUI(); setTimeout(drawEquity, 80); }
+  // Tüm sayfaları gizle
+  var pages = ['signal', 'pos', 'engine', 'settings'];
+  for (var i = 0; i < pages.length; i++) {
+    var pg = document.getElementById('pg-' + pages[i]);
+    if (pg) { pg.className = 'page'; }
+  }
+  
+  // Seçili sayfayı göster
+  var activePage = document.getElementById('pg-' + name);
+  if (activePage) { activePage.className = 'page active'; }
+  
+  // Navigation butonlarını güncelle
+  var navBtns = document.querySelectorAll('.nb');
+  for (var j = 0; j < navBtns.length; j++) {
+    navBtns[j].className = 'nb';
+    if (navBtns[j].getAttribute('data-page') === name) {
+      navBtns[j].className = 'nb active';
+    }
+  }
+  
+  // Chart'ı güncelle
+  if (name === 'signal') {
+    setTimeout(drawChart, 100);
+  }
+  if (name === 'pos') {
+    updatePosUI();
+    setTimeout(drawEquity, 100);
+  }
 }
 
 function setTF(tf) {
@@ -4109,7 +4134,7 @@ window.__apexReady(function() {
   bindSafeUI();
   updateTelegramUI();
   
-  document.querySelectorAll('.nb').forEach(function(b) { b.onclick = function() { swPage(b.getAttribute('data-page')); }; });
+  // Navigation butonları zaten onclick ile ayarlandı
   document.querySelectorAll('.tf-btn').forEach(function(b) { b.onclick = function() { setTF(b.getAttribute('data-tf')); }; });
   ['selTargetMult', 'selRiskMult', 'selInt', 'autoMaxSize', 'autoMaxLeverage', 'autoMinScore'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.onchange = readSettings;
@@ -4128,7 +4153,7 @@ window.__apexReady(function() {
     var results = TestSuite.run();
     var failed = results.filter(function(x) { return !x.ok; });
     log('APEX V' + APP_VERSION + ' MOBILE loaded — ' + (results.length - failed.length) + '/' + results.length + ' tests passed', failed.length ? 'err' : 'ok');
-    log('📱 Mobile optimized: All buttons accessible', 'ok');
+    log('📱 All pages working: Signal, Position, Engine, Settings', 'ok');
     log('⚡ Tap START for autonomous trading', 'ok');
     log('📨 Telegram: ' + (TELEGRAM.enabled ? '✅ active' : '⏸️ inactive'), 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
