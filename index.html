@@ -2585,6 +2585,11 @@ var MarketData = {
       var firstM = firstSym ? snap.market[firstSym] : null;
       log('[SNAPSHOT] top-level keys: ' + JSON.stringify(Object.keys(snap || {})), 'info');
       if (firstM) log('[SNAPSHOT] ' + firstSym + ' market keys: ' + JSON.stringify(Object.keys(firstM)), 'info');
+      if (firstM && Array.isArray(firstM['5m']) && firstM['5m'].length) {
+        log('[SNAPSHOT] ' + firstSym + ' 5m len=' + firstM['5m'].length + ' sample[0]=' + JSON.stringify(firstM['5m'][0]), 'info');
+      } else if (firstM) {
+        log('[SNAPSHOT] ' + firstSym + ' 5m is ' + (Array.isArray(firstM['5m']) ? 'EMPTY array' : typeof firstM['5m']), 'err');
+      }
     }
     Object.keys(snap.market || {}).forEach(function(sym) {
       var m = snap.market[sym];
@@ -2790,8 +2795,17 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
 
 ApiCompat.normalizeCandle = function(k) {
   var out;
-  if (Array.isArray(k)) out = {t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5]};
-  else out = {t: +k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +(k.v != null ? k.v : k.sum)};
+  if (Array.isArray(k)) {
+    out = {t: +k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5]};
+  } else {
+    var t = k.t != null ? k.t : (k.time != null ? k.time : (k.timestamp != null ? k.timestamp : k.T));
+    var o = k.o != null ? k.o : (k.open != null ? k.open : k.O);
+    var h = k.h != null ? k.h : (k.high != null ? k.high : k.H);
+    var l = k.l != null ? k.l : (k.low != null ? k.low : k.L);
+    var c = k.c != null ? k.c : (k.close != null ? k.close : k.C);
+    var v = k.v != null ? k.v : (k.volume != null ? k.volume : (k.vol != null ? k.vol : k.sum));
+    out = {t: +t, o: +o, h: +h, l: +l, c: +c, v: +v};
+  }
   if (out.t > 0 && out.t < 1000000000000) out.t *= 1000;
   return out;
 };
