@@ -1649,6 +1649,17 @@ var Execution = {
       if (posVal < 3) { notify((auto ? 'AUTO ' : '') + 'Signal too small ($' + posVal.toFixed(2) + ')', 'error'); return; }
     } else { notify('No signal', 'error'); return; }
     
+    // KORELASYON RİSK AZALTMA: Aynı yönde (ör. hepsi LONG) zaten açık pozisyon(lar) varsa,
+    // yeni pozisyonun boyutunu küçült. Farklı coinler olsa da kripto piyasasında yüksek
+    // korelasyon olduğundan "3 ayrı LONG" pratikte tek yönlü tek büyük bahis gibi davranır.
+    var sameSideOpen = positions.filter(function(p) { return p.side === side && p.state !== POSITION_STATE.CLOSED; }).length;
+    if (sameSideOpen > 0) {
+      var corrMult = sameSideOpen === 1 ? 0.55 : sameSideOpen === 2 ? 0.30 : 0.15;
+      posVal = posVal * corrMult;
+      qty = posVal / price;
+      if (posVal < 3) { notify((auto ? 'AUTO ' : '') + 'Korelasyon azaltmasından sonra boyut çok küçük ($' + posVal.toFixed(2) + '), atlanıyor', 'info'); return; }
+    }
+    
     var gate = RiskManager.gate(sym, posVal);
     if (!gate.ok) { if (!auto) notify(gate.reason, 'error'); return; }
     
