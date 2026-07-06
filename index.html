@@ -2222,8 +2222,9 @@ function updateSignalUI() {
   var dsEl = document.getElementById('bannerDataSrc');
   if (dsEl) {
     var pdSrc = pd && pd.source;
-    var showWarn = appMode === 'live' && pdSrc && pdSrc.indexOf('live') === -1;
-    if (showWarn) { dsEl.style.display = 'block'; dsEl.textContent = '⚠️ ' + currentPair.replace('_USDT', '') + ' canlı fiyat yerine yedek veri kullanıyor (' + pdSrc + ') — Worker\'ı kontrol et'; }
+    var goodSources = {live: 1, 'live-legacy': 1};
+    var showWarn = appMode === 'live' && pdSrc && !goodSources[pdSrc];
+    if (showWarn) { dsEl.style.display = 'block'; dsEl.textContent = '⚠️ ' + currentPair.replace('_USDT', '') + ' canlı fiyat yerine yedek veri kullanıyor (' + pdSrc + ') — LOG sekmesine bak'; }
     else dsEl.style.display = 'none';
   }
   
@@ -2688,7 +2689,7 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
   
   await Promise.all(validSymbols.map(async function(sym) {
     if (!pData[sym]) pData[sym] = {};
-    var priceOk = false, candleOk = false;
+    var priceOk = false, candleOk = false, lastPriceErr = '', klineErrs = [];
     try {
       var d = await Http.get('/price?symbol=' + encodeURIComponent(sym));
       var src = d && (d.data || d);
@@ -2699,8 +2700,10 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
         if (!pxState[sym]) pxState[sym] = {price: pr, vel: 0};
         pxState[sym].price = pr;
         priceOk = true;
+      } else {
+        lastPriceErr = 'empty /price response';
       }
-    } catch(e) { /* sessizce geç */ }
+    } catch(e) { lastPriceErr = e.message; }
     
     var specs = [{tf: '5m', limit: 150, key: 'kl5m'}, {tf: '15m', limit: 100, key: 'kl15m'}, {tf: '1h', limit: 60, key: 'kl1h'}, {tf: '4h', limit: 60, key: 'kl4h'}];
     await Promise.all(specs.map(async function(s) {
@@ -2710,24 +2713,35 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
         if (rows && rows.length) {
           pData[sym][s.key] = closedCandles(rows.map(ApiCompat.normalizeCandle).filter(function(k) { return k.t && k.c; }), s.tf, Date.now());
           if (pData[sym][s.key].length > 0) candleOk = true;
+          else klineErrs.push(s.tf + ':0_after_filter(' + rows.length + '_raw)');
+        } else {
+          klineErrs.push(s.tf + ':bad_format(' + JSON.stringify(Object.keys(d || {})).slice(0, 60) + ')');
         }
-      } catch(e) { /* sessizce geç */ }
+      } catch(e) { klineErrs.push(s.tf + ':' + e.message); }
     }));
     
-    // Eğer hiç veri gelmediyse ve demo base varsa onu kullan
-    if (!priceOk && !candleOk && DEMO_BASE[sym]) {
-      pData[sym].price = DEMO_BASE[sym];
-      if (!pxState[sym]) pxState[sym] = {price: DEMO_BASE[sym], vel: 0};
-      if (!pData[sym].masterKlines) {
+    // Fiyat gelse bile mumlar gelmediyse (Worker /klines formatı uyuşmuyor olabilir) senteze
+    // düş — böylece DATA_WARMUP sonsuza kadar takılı kalmaz. Kaynağı 'live-nocandles' olarak
+    // işaretliyoruz ki arayüzdeki veri uyarısı banner'ı bunu göstersin.
+    if (!candleOk) {
+      var anchor = priceOk ? pData[sym].price : (DEMO_BASE[sym] || 1);
+      DEMO_BASE[sym] = DEMO_BASE[sym] || anchor;
+      if (!pData[sym].masterKlines || pData[sym].masterKlines.length < 100) {
         pData[sym].masterKlines = seedKlines(sym, 500);
-        tickFull(sym);
-        candleOk = true;
+        var lastK = pData[sym].masterKlines[pData[sym].masterKlines.length - 1];
+        var shift = anchor - lastK.c;
+        pData[sym].masterKlines.forEach(function(k) { k.o += shift; k.h += shift; k.l += shift; k.c += shift; });
       }
+      tickFull(sym);
+      if (priceOk) pData[sym].price = anchor;
+      log('[KLINES] ' + sym + ' mum verisi alınamadı, sentetik geçmişle devam: ' + klineErrs.join(' | '), 'err');
+      candleOk = true;
     }
+    if (!priceOk && lastPriceErr) log('[PRICE] ' + sym + ' fiyat alınamadı: ' + lastPriceErr, 'err');
     
     if (priceOk || candleOk) { 
       pData[sym].dataUpdatedAt = Date.now(); 
-      pData[sym].source = 'live-legacy'; 
+      pData[sym].source = (priceOk && candleOk && klineErrs.length === 0) ? 'live-legacy' : (priceOk ? 'live-nocandles' : 'demo');
       okCount++; 
     }
   }));
