@@ -2579,21 +2579,54 @@ var ApiCompat = {
 var MarketData = {
   applySnapshot: function(snap) {
     var now = Date.now();
+    if (!ApiCompat._snapshotShapeLogged) {
+      ApiCompat._snapshotShapeLogged = true;
+      var firstSym = Object.keys(snap.market || {})[0];
+      var firstM = firstSym ? snap.market[firstSym] : null;
+      log('[SNAPSHOT] top-level keys: ' + JSON.stringify(Object.keys(snap || {})), 'info');
+      if (firstM) log('[SNAPSHOT] ' + firstSym + ' market keys: ' + JSON.stringify(Object.keys(firstM)), 'info');
+    }
     Object.keys(snap.market || {}).forEach(function(sym) {
       var m = snap.market[sym];
       if (!pData[sym]) pData[sym] = {};
-      prevPx[sym] = pData[sym].price || Number(m.price);
-      pData[sym].price = Number(m.price);
-      if (!pxState[sym]) pxState[sym] = {price: Number(m.price), vel: 0};
-      pxState[sym].price = Number(m.price);
+      var priceVal = Number(m.price != null ? m.price : (m.lastPrice != null ? m.lastPrice : m.last));
+      prevPx[sym] = pData[sym].price || priceVal;
+      pData[sym].price = priceVal;
+      if (!pxState[sym]) pxState[sym] = {price: priceVal, vel: 0};
+      pxState[sym].price = priceVal;
       var tfList = ['1m','5m','15m','1h','4h'];
+      var candleOk = false, missing = [];
       tfList.forEach(function(tf) {
         var key = tf === '1m' ? 'kl1m' : tf === '5m' ? 'kl5m' : tf === '15m' ? 'kl15m' : tf === '1h' ? 'kl1h' : 'kl4h';
-        var raw = Array.isArray(m[tf]) ? m[tf] : [];
-        pData[sym][key] = closedCandles(raw.map(function(k) { return {t: +k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v}; }), tf, now);
+        // Worker farklı alan adları kullanıyor olabilir: m['5m'], m.candles_5m, m.klines['5m'] vb. hepsini dene.
+        var raw = Array.isArray(m[tf]) ? m[tf]
+          : Array.isArray(m['candles_' + tf]) ? m['candles_' + tf]
+          : Array.isArray(m.klines && m.klines[tf]) ? m.klines[tf]
+          : Array.isArray(m.candles && m.candles[tf]) ? m.candles[tf]
+          : [];
+        if (raw.length) {
+          pData[sym][key] = closedCandles(raw.map(ApiCompat.normalizeCandle), tf, now);
+          if (pData[sym][key].length > 0) candleOk = true; else missing.push(tf + ':empty_after_filter');
+        } else missing.push(tf + ':no_array');
       });
+      if (!candleOk && Number.isFinite(priceVal) && priceVal > 0) {
+        DEMO_BASE[sym] = DEMO_BASE[sym] || priceVal;
+        if (!pData[sym].masterKlines || pData[sym].masterKlines.length < 100) {
+          pData[sym].masterKlines = seedKlines(sym, 500);
+          var lastK = pData[sym].masterKlines[pData[sym].masterKlines.length - 1];
+          var shift = priceVal - lastK.c;
+          pData[sym].masterKlines.forEach(function(k) { k.o += shift; k.h += shift; k.l += shift; k.c += shift; });
+        }
+        tickFull(sym);
+        pData[sym].price = priceVal;
+        if (!ApiCompat._candleWarnedFor) ApiCompat._candleWarnedFor = {};
+        if (!ApiCompat._candleWarnedFor[sym]) {
+          ApiCompat._candleWarnedFor[sym] = true;
+          log('[SNAPSHOT] ' + sym + ' mum dizisi boş geldi (' + missing.join(', ') + '), sentetik geçmişle devam ediliyor', 'err');
+        }
+      }
       pData[sym].dataUpdatedAt = Number(m.serverTime || snap.serverTime || now);
-      pData[sym].source = 'live';
+      pData[sym].source = candleOk ? 'live' : 'live-nocandles';
     });
     analyzeAll();
     if (snap.account) Execution.reconcilePayload(snap.account);
