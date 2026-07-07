@@ -317,6 +317,18 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div id="bannerDataSrc" style="display:none" class="banner-dead">⚠️ VERİ UYARISI</div>
     <div id="bannerRegime" class="banner-regime" style="display:none"><span id="regimeLabel">📊 REGIME</span><span id="regimeValue" style="font-weight:700">--</span></div>
 
+    <!-- FOCUS MODE TOGGLE -->
+    <div class="card" style="border-color:rgba(0,212,255,0.1)">
+      <div class="tog-row">
+        <div class="tog on" id="togFocus" onclick="toggleFocus()"></div>
+        <div>
+          <div class="tog-title">🔒 Focus Mode</div>
+          <div class="tog-desc" id="togFocusD">On — scan stops when position open</div>
+        </div>
+      </div>
+      <div id="focusStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);text-align:center;margin-top:2px">🔓 Focus ON - No positions</div>
+    </div>
+
     <div class="pairs" id="pairRow"></div>
 
     <div class="card">
@@ -536,14 +548,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 'use strict';
 
 /* ============================================================
-   APEX SCALP V8.1 - MOBİL - DÜZELTİLMİŞ (MIN POS + GÜÇLÜ SİNYAL)
-   DEĞİŞİKLİKLER:
-   1. Min pozisyon boyutu $3 → $0.25 (mikro işlem desteği)
-   2. Risk: Hesap büyüklüğünden bağımsız, spread+komisyonu aşan minimum lot
-   3. Sinyal üretimi: Daha agresif, daha fazla coinde sinyal
-   4. Yeni: Breakout + Momentum + Hacim spike sinyalleri
-   5. Regime detection: TRENDING/RANGING/VOLATILE tespiti iyileştirildi
-   6. Coin sayısı: 6 → 8 (daha fazla fırsat)
+   APEX SCALP V8.1 - MOBİL
+   TRACKER + FOCUS MODE EKLENMİŞ TAM SÜRÜM
    ============================================================ */
 
 /* ============================================================
@@ -581,7 +587,6 @@ var DEMO_BASE = {
 };
 var balance = START_BAL, dailyPnL = 0, peakBal = START_BAL;
 var positions = [], trades = [], posId = 1;
-// GENİŞLETİLMİŞ COIN LİSTESİ - daha fazla sinyal fırsatı
 var pairs = ['BTC_USDT','ETH_USDT','SOL_USDT','BNB_USDT','XRP_USDT','DOGE_USDT','ADA_USDT','AVAX_USDT'];
 var currentPair = 'BTC_USDT', currentTF = '5m';
 var autonomousMode = false, autoTrade = true, trailOn = true;
@@ -598,8 +603,7 @@ var closingNow = {};
 var equityHistory = [50];
 var trendState = {};
 var autonomousTrades = 0;
-// MİNİMUM POZİSYON SABİTİ - düşürüldü
-var MIN_POS_VAL = 0.25; // $0.25 minimum (önceden $3'tü)
+var MIN_POS_VAL = 0.25;
 
 var POSITION_STATE = Object.freeze({
   PENDING_OPEN: 'PENDING_OPEN',
@@ -640,6 +644,96 @@ var Runtime = {
   compatNotified: false,
   posListWarnedOnce: false
 };
+
+/* ============================================================
+   FOCUS MODE
+   ============================================================ */
+var focusModeOn = true;
+
+function toggleFocus() {
+  focusModeOn = !focusModeOn;
+  updateFocusUI();
+  saveFocusState();
+  if (autonomousMode && focusModeOn && positions.length > 0) {
+    log('[FOCUS] Auto trade paused due to open position', 'info');
+  }
+  if (engineOn) runEngine();
+  return focusModeOn;
+}
+
+function isFocusModeActive() { return focusModeOn; }
+
+function shouldScanForSignals() {
+  if (focusModeOn && positions && positions.length > 0) { return false; }
+  return true;
+}
+
+function updateFocusUI() {
+  var banner = document.getElementById('bannerPos');
+  if (banner) {
+    var hasPos = positions && positions.length > 0;
+    if (focusModeOn && hasPos) {
+      banner.style.display = 'block';
+      banner.textContent = '🔒 FOCUS: ' + positions.length + ' open - no new signals';
+    } else if (hasPos) {
+      banner.style.display = 'block';
+      banner.textContent = '⚠️ OPEN POSITION (Focus OFF)';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+  
+  var tog = document.getElementById('togFocus');
+  if (tog) { tog.className = 'tog ' + (focusModeOn ? 'on' : 'off'); }
+  
+  var desc = document.getElementById('togFocusD');
+  if (desc) {
+    desc.textContent = focusModeOn ? 'On — scan stops when position open' : 'Off — scan continues even with open positions';
+  }
+  
+  var status = document.getElementById('focusStatus');
+  if (status) {
+    if (focusModeOn && positions && positions.length > 0) {
+      status.textContent = '🔒 Focus ON - Blocking new signals (' + positions.length + ' open)';
+      status.style.color = 'var(--warn)';
+    } else if (focusModeOn) {
+      status.textContent = '🔓 Focus ON - No positions';
+      status.style.color = 'var(--long)';
+    } else {
+      status.textContent = '🔓 Focus OFF - Scanning freely';
+      status.style.color = 'var(--dim2)';
+    }
+  }
+  
+  var sigEl = document.getElementById('eSig');
+  if (sigEl && focusModeOn && positions && positions.length > 0) {
+    var pairs = positions.map(function(p) { return p.pair.replace('_USDT', ''); }).join(',');
+    sigEl.textContent = '🔒 FOCUS: ' + pairs;
+    sigEl.style.color = 'var(--warn)';
+  }
+}
+
+function saveFocusState() {
+  try {
+    window.__apexStorage.setItem('apex-focus-mode-v81', JSON.stringify({
+      focusModeOn: focusModeOn,
+      updatedAt: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function loadFocusState() {
+  try {
+    var raw = window.__apexStorage.getItem('apex-focus-mode-v81');
+    if (raw) {
+      var data = JSON.parse(raw);
+      if (typeof data.focusModeOn === 'boolean') {
+        focusModeOn = data.focusModeOn;
+        updateFocusUI();
+      }
+    }
+  } catch(e) {}
+}
 
 /* ============================================================
    TELEGRAM
@@ -952,7 +1046,6 @@ function calcStochRSI(closes, p) {
   return (mx - mn) < 0.01 ? 50 : (sl[sl.length - 1] - mn) / (mx - mn) * 100;
 }
 
-// YENİ: Hacim spike tespiti
 function detectVolumeSpike(kl, threshold) {
   threshold = threshold || 2.0;
   if (!kl || kl.length < 22) return {spike: false, ratio: 1};
@@ -964,7 +1057,6 @@ function detectVolumeSpike(kl, threshold) {
   return {spike: ratio >= threshold, ratio: ratio};
 }
 
-// YENİ: Momentum göstergesi (RoC)
 function calcROC(closes, p) {
   p = p || 10;
   if (closes.length < p + 1) return 0;
@@ -973,34 +1065,25 @@ function calcROC(closes, p) {
   return prev > 0 ? (now - prev) / prev * 100 : 0;
 }
 
-// YENİ: Price action pattern tespiti
 function detectPattern(kl) {
   if (!kl || kl.length < 5) return 'NONE';
   var last = kl[kl.length - 1], prev = kl[kl.length - 2], prev2 = kl[kl.length - 3];
-  var prev3 = kl[kl.length - 4], prev4 = kl[kl.length - 5];
-  
-  // Inside bar
   if (last.h <= prev.h && last.l >= prev.l) return 'INSIDE_BAR';
-  // Outside bar (engulfing)
   if (last.h > prev.h && last.l < prev.l) {
     if (last.c > last.o && prev.c < prev.o) return 'BULLISH_ENGULFING';
     if (last.c < last.o && prev.c > prev.o) return 'BEARISH_ENGULFING';
   }
-  // Pin bar (hammer / shooting star)
   var body = Math.abs(last.c - last.o);
   var upperWick = last.h - Math.max(last.c, last.o);
   var lowerWick = Math.min(last.c, last.o) - last.l;
   if (body > 0 && lowerWick > body * 2 && upperWick < body * 0.5) return 'HAMMER';
   if (body > 0 && upperWick > body * 2 && lowerWick < body * 0.5) return 'SHOOTING_STAR';
-  // Three white soldiers / black crows
   if (last.c > last.o && prev.c > prev.o && prev2.c > prev2.o &&
       last.c > prev.c && prev.c > prev2.c) return 'THREE_WHITE';
   if (last.c < last.o && prev.c < prev.o && prev2.c < prev2.o &&
       last.c < prev.c && prev.c < prev2.c) return 'THREE_BLACK';
-  // Morning/Evening star
   if (prev2.c > prev2.o && Math.abs(prev.c - prev.o) < body * 0.3 && last.c < last.o && last.c < prev2.o) return 'EVENING_STAR';
   if (prev2.c < prev2.o && Math.abs(prev.c - prev.o) < body * 0.3 && last.c > last.o && last.c > prev2.o) return 'MORNING_STAR';
-  
   return 'NONE';
 }
 
@@ -1022,7 +1105,6 @@ function detectRegime(kl5, kl15, kl1h) {
   var trendStrength = 0;
   var trendDir = 'NEUTRAL';
   
-  // İYİLEŞTİRİLMİŞ: Daha hassas trend tespiti
   if (adx >= 25 && lastE9 > lastE21 && slope > 0.00005) {
     trendStrength = Math.min(100, adx + (slope * 100000));
     trendDir = 'STRONG_UP';
@@ -1051,17 +1133,17 @@ function detectRegime(kl5, kl15, kl1h) {
 }
 
 /* ============================================================
-   DEMO PRICE ENGINE (GENİŞLETİLMİŞ)
+   DEMO PRICE ENGINE
    ============================================================ */
 function initTrendState(sym) {
   trendState[sym] = {
     trend: Math.random() > 0.5 ? 1 : -1,
-    trendStrength: 0.3 + Math.random() * 0.5, // ARTTIRILDI
+    trendStrength: 0.3 + Math.random() * 0.5,
     trendDuration: 0,
     trendMaxDur: 20 + Math.floor(Math.random() * 60),
     volPhase: Math.random() * Math.PI * 2,
     volCycle: 30 + Math.floor(Math.random() * 50),
-    noiseAmp: 0.0003 + Math.random() * 0.0008 // ARTTIRILDI
+    noiseAmp: 0.0003 + Math.random() * 0.0008
   };
 }
 
@@ -1072,14 +1154,14 @@ function demoTick(sym) {
   ts.trendDuration++;
   if (ts.trendDuration >= ts.trendMaxDur) {
     ts.trend = -ts.trend;
-    ts.trendStrength = 0.25 + Math.random() * 0.55; // DAHA GÜÇLÜ TREND
+    ts.trendStrength = 0.25 + Math.random() * 0.55;
     ts.trendDuration = 0;
     ts.trendMaxDur = 15 + Math.floor(Math.random() * 70);
   }
   ts.volPhase += (2 * Math.PI) / ts.volCycle;
-  var volMult = 0.6 + 1.0 * Math.abs(Math.sin(ts.volPhase)); // DAHA VOLATİL
+  var volMult = 0.6 + 1.0 * Math.abs(Math.sin(ts.volPhase));
   var base = DEMO_BASE[sym] || 1;
-  var meanRev = (base - s.price) * 0.00015; // DAHA AZ MEAN REVERSION
+  var meanRev = (base - s.price) * 0.00015;
   var drift = ts.trend * ts.trendStrength * s.price * 0.00035;
   var noise = (Math.random() - 0.5) * ts.noiseAmp * s.price;
   var momentum = s.vel * 0.55;
@@ -1203,18 +1285,15 @@ var Accounting = {
   roundTripCost: function(posVal, feeRate) {
     return (posVal || 0) * (num(feeRate, CFG.feeRate) * 2 + (CFG.spreadBps + CFG.slippageBps) / 10000);
   },
-  // YENİ: Minimum karlı pozisyon büyüklüğünü hesapla
   minProfitableSize: function(price, slDist, tpDist) {
     var cRate = (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
-    // spread+komisyon maliyetini aşacak minimum lot
-    // tpDist/slDist oranı en az 1.2 olmalı ki maliyetlerden sonra kar kalsın
     var minNotional = Math.max(MIN_POS_VAL, (cRate * price * 2) / (tpDist/slDist - cRate));
     return Math.max(MIN_POS_VAL, minNotional);
   }
 };
 
 /* ============================================================
-   ANALYZE - GÜÇLENDİRİLMİŞ SİNYAL MOTORU
+   ANALYZE
    ============================================================ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
@@ -1222,7 +1301,7 @@ function costRate() {
 
 function tierOf(score) {
   score = num(score, 0);
-  return score >= 80 ? 'A' : score >= 60 ? 'B' : 'C'; // B eşiği düşürüldü
+  return score >= 80 ? 'A' : score >= 60 ? 'B' : 'C';
 }
 
 function resultBase(ctx) {
@@ -1274,7 +1353,6 @@ function analyze(sym) {
   var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [], kl4h = pd.kl4h || [];
   
   var price = Number(pd.price || (kl5.length ? kl5[kl5.length - 1].c : 0));
-  // DÜŞÜRÜLMÜŞ DATA_WARMUP EŞİĞİ
   if (!price || kl5.length < 15 || kl15.length < 8 || kl1h.length < 4) {
     return {
       signal: 'WAIT', score: 0, price: price || 0,
@@ -1333,7 +1411,6 @@ function analyze(sym) {
   var vr = calcVolRatio(kl5);
   var bb5 = calcBB(c5, 20, 2);
   
-  // YENİ: Volume spike, momentum, pattern
   var volSpike = detectVolumeSpike(kl5, 1.8);
   var roc10 = calcROC(c5, 10);
   var pattern = detectPattern(kl5);
@@ -1344,75 +1421,61 @@ function analyze(sym) {
   var breakoutLong = last.c > maxHighOf(kl5, 1, 8);
   var breakoutShort = last.c < minLowOf(kl5, 1, 8);
   
-  // GENİŞLETİLMİŞ OYLAMA SİSTEMİ
   var longVotes = 0, shortVotes = 0;
   
-  // Trend oyları
   if (aboveEMA && sl5 > 0.00001) longVotes += 2; else if (aboveEMA) longVotes++;
   if (belowEMA && sl5 < -0.00001) shortVotes += 2; else if (belowEMA) shortVotes++;
   
-  // MACD oyları
   if (macd5.hist > 0 && macd5.aligned) longVotes += 2;
   else if (macd5.hist > 0) longVotes++;
   if (macd5.hist < 0 && macd5.aligned) shortVotes += 2;
   else if (macd5.hist < 0) shortVotes++;
   
-  // MACD cross
   if (macd5.cross === 'UP') longVotes += 3;
   if (macd5.cross === 'DN') shortVotes += 3;
   
-  // RSI oyları
   if (rsi5 > 50 && rsi5 > prevRsi5) longVotes += 2;
   else if (rsi5 > 50) longVotes++;
   if (rsi5 < 50 && rsi5 < prevRsi5) shortVotes += 2;
   else if (rsi5 < 50) shortVotes++;
   
-  // Fiyat aksiyonu
   if (last.c > prev.c && last.c > last.o) longVotes++;
   if (last.c < prev.c && last.c < last.o) shortVotes++;
   if (breakoutLong) longVotes += 2;
   if (breakoutShort) shortVotes += 2;
   
-  // YENİ: Hacim spike
   if (volSpike.spike) {
     if (last.c > prev.c) longVotes += 2;
     else shortVotes += 2;
   }
   
-  // YENİ: Momentum (RoC)
   if (roc10 > 2) longVotes += 2;
   else if (roc10 > 1) longVotes++;
   if (roc10 < -2) shortVotes += 2;
   else if (roc10 < -1) shortVotes++;
   
-  // YENİ: Pattern oyları
   if (pattern === 'BULLISH_ENGULFING' || pattern === 'MORNING_STAR' || pattern === 'THREE_WHITE' || pattern === 'HAMMER') longVotes += 3;
   if (pattern === 'BEARISH_ENGULFING' || pattern === 'EVENING_STAR' || pattern === 'THREE_BLACK' || pattern === 'SHOOTING_STAR') shortVotes += 3;
-  if (pattern === 'INSIDE_BAR') { /* konsolidasyon, mevcut trende oy */ if (aboveEMA) longVotes++; else shortVotes++; }
+  if (pattern === 'INSIDE_BAR') { if (aboveEMA) longVotes++; else shortVotes++; }
   
-  // Multi-timeframe
   if (trend15 === 'LONG') longVotes += 1;
   if (trend15 === 'SHORT') shortVotes += 1;
   if (bias1h === 'LONG') longVotes += 1;
   if (bias1h === 'SHORT') shortVotes += 1;
   
-  // StochRSI
-  if (stochRsi5 < 25 && rsi5 < 45) longVotes++; // oversold bounce
-  if (stochRsi5 > 75 && rsi5 > 55) shortVotes++; // overbought drop
+  if (stochRsi5 < 25 && rsi5 < 45) longVotes++;
+  if (stochRsi5 > 75 && rsi5 > 55) shortVotes++;
   
-  // ADX filtresi: çok düşük ADX'te sinyal üretme
   if (adx < 15) { longVotes = Math.max(0, longVotes - 2); shortVotes = Math.max(0, shortVotes - 2); }
   
   var rawSig = 'WAIT', strategy = 'TREND';
   
-  // YENİ: Daha düşük eşiklerle sinyal üretimi
   if (longVotes >= 5 && longVotes > shortVotes + 1) rawSig = 'LONG';
   else if (longVotes >= 4 && longVotes >= shortVotes + 3) rawSig = 'LONG';
   
   if (shortVotes >= 5 && shortVotes > longVotes + 1) rawSig = 'SHORT';
   else if (shortVotes >= 4 && shortVotes >= longVotes + 3) rawSig = 'SHORT';
   
-  // RANGE / MEAN-REVERSION MODU
   var isChoppy = (regime.regime === 'RANGING' || (regime.regime === 'MIXED' && adx < 20));
   if (rawSig === 'WAIT' && isChoppy && bb5.mid > 0) {
     var nearLower = price <= bb5.lower * 1.002;
@@ -1421,13 +1484,11 @@ function analyze(sym) {
     else if (nearUpper && rsi5 >= 60 && stochRsi5 >= 70) { rawSig = 'SHORT'; strategy = 'RANGE'; }
   }
   
-  // YENİ: Hacim spike + breakout sinyali
   if (rawSig === 'WAIT' && volSpike.spike && volSpike.ratio >= 2.5) {
     if (last.c > prev.c && sl5 > 0) { rawSig = 'LONG'; strategy = 'BREAKOUT'; }
     else if (last.c < prev.c && sl5 < 0) { rawSig = 'SHORT'; strategy = 'BREAKOUT'; }
   }
   
-  // YENİ: Pattern-only sinyali (güçlü pattern varsa)
   if (rawSig === 'WAIT') {
     if ((pattern === 'BULLISH_ENGULFING' || pattern === 'MORNING_STAR') && vr >= 0.8 && adx >= 15) {
       rawSig = 'LONG'; strategy = 'PATTERN';
@@ -1490,12 +1551,10 @@ function analyze(sym) {
     if (vr >= 1.0) { score += 5; reasons.push({t: 'VOL_OK', cls: 'neut'}); }
   }
   
-  // RSI değerlendirmesi
   var rsiIdeal = rawSig === 'LONG' ? (rsi5 >= 35 && rsi5 <= 68) : (rsi5 >= 25 && rsi5 <= 58);
   score += rsiIdeal ? 5 : 2;
   reasons.push({t: 'RSI:' + rsi5.toFixed(0), cls: rsiIdeal ? rawSig.toLowerCase() : 'neut'});
   
-  // StochRSI
   if ((rawSig === 'LONG' && stochRsi5 < 50) || (rawSig === 'SHORT' && stochRsi5 > 50)) {
     score += 3;
     reasons.push({t: 'StRSI_OK', cls: rawSig.toLowerCase()});
@@ -1516,22 +1575,16 @@ function analyze(sym) {
   
   if (rawSig === 'WAIT') return waitResult(ctx, 'NO_DIR');
   
-  // SKOR EŞİĞİ - düşürüldü
   var minScoreThreshold = strategy === 'RANGE' ? Math.max(20, Math.min(minScore, 60)) : 
                          strategy === 'BREAKOUT' ? Math.max(30, Math.min(minScore, 70)) : 
                          strategy === 'PATTERN' ? Math.max(25, Math.min(minScore, 65)) :
                          Math.max(25, minScore);
   
   if (score < minScoreThreshold) return waitResult(ctx, 'SCORE:' + score);
-  
-  // Volume kontrolü - daha esnek
   if (strategy === 'TREND' && vr < 0.55) return waitResult(ctx, 'VOL_LOW');
   if (strategy !== 'BREAKOUT' && vr < 0.35) return waitResult(ctx, 'VOL_LOW');
-  
-  // ATF kontrolü - daha esnek
   if (strategy === 'TREND' && tfCount < 1) return waitResult(ctx, 'TF_ALIGN');
   
-  // SL/TP hesaplama
   var atrMult = atrPct < 0.08 ? 1.6 : atrPct < 0.18 ? 1.4 : atrPct < 0.40 ? 1.2 : 1.0;
   var slDist = Math.max(atr5 * atrMult * riskMult, price * 0.0015);
   slDist = Math.min(slDist, price * 0.025);
@@ -1687,6 +1740,203 @@ function analyzeAll() {
 }
 
 /* ============================================================
+   TRACKER - POZİSYON TAKİP SİSTEMİ (500ms)
+   ============================================================ */
+function startTracker() {
+  if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
+  trackerTick = 0;
+  TRACKER_INTERVAL = setInterval(runTracker, CFG.trackerMs || 500);
+  logPos('Tracker started (' + (CFG.trackerMs || 500) + 'ms)', 'ok');
+}
+
+function stopTracker() {
+  if (TRACKER_INTERVAL) { 
+    clearInterval(TRACKER_INTERVAL); 
+    TRACKER_INTERVAL = null; 
+    logPos('Tracker stopped', 'info');
+  }
+}
+
+function runTracker() {
+  if (!positions.length) { 
+    stopTracker(); 
+    return; 
+  }
+  
+  trackerTick++;
+  
+  if (appMode === 'demo') {
+    pairs.forEach(function(s) { tickPriceOnly(s); });
+    processTrackedPositions();
+  } else {
+    processTrackedPositions();
+    MarketData.refreshOpenPrices()
+      .then(function() { 
+        processTrackedPositions(); 
+        updateTicker(); 
+      })
+      .catch(function(e) { 
+        logPos('[LIVE PRICE] ' + e.message, 'err'); 
+      });
+  }
+  
+  if (trailOn) {
+    for (var i = 0; i < positions.length; i++) {
+      var pos = positions[i];
+      if (!pos || closingNow[pos.id]) continue;
+      if (pos.state !== POSITION_STATE.OPEN) continue;
+      var pr = Number(pData[pos.pair] && pData[pos.pair].price);
+      if (Number.isFinite(pr) && pr > 0) {
+        TrailService.update(pos, pr);
+      }
+    }
+  }
+  
+  // Weakness detector (her 5 dakikada bir)
+  var now = Date.now();
+  for (var i = 0; i < positions.length; i++) {
+    var pos = positions[i];
+    if (!pos || pos.state !== POSITION_STATE.OPEN) continue;
+    if (!pos.lastWeaknessCheck) pos.lastWeaknessCheck = 0;
+    if (now - pos.lastWeaknessCheck < 300000) continue;
+    pos.lastWeaknessCheck = now;
+    
+    var pd = pData[pos.pair];
+    if (!pd) continue;
+    var kl1h = pd.kl1h || [];
+    if (kl1h.length < 5) continue;
+    
+    var c1h = kl1h.map(function(k) { return k.c; });
+    var e9 = calcEMA(c1h, 9);
+    var e21 = calcEMA(c1h, 21);
+    if (!e9 || e9.length < 2 || !e21 || e21.length < 2) continue;
+    
+    var lastE9 = e9[e9.length - 1];
+    var lastE21 = e21[e21.length - 1];
+    var prevE9 = e9[e9.length - 2];
+    var prevE21 = e21[e21.length - 2];
+    if (!lastE9 || !lastE21 || !prevE9 || !prevE21) continue;
+    
+    var macd = calcMACD(c1h);
+    var rsi = calcRSI(c1h, 14);
+    var vol = kl1h[kl1h.length - 1].v;
+    var volAvg = 0;
+    for (var j = kl1h.length - 20; j < kl1h.length; j++) volAvg += kl1h[j].v;
+    volAvg /= 20;
+    if (volAvg <= 0) volAvg = 1;
+
+    var currentData = {
+      macdHist: macd.hist,
+      prevMacdHist: macd.prev,
+      ema9: lastE9,
+      ema21: lastE21,
+      prevEma9: prevE9,
+      prevEma21: prevE21,
+      volume: vol,
+      avgVolume: volAvg,
+      rsi: rsi,
+      emaSlope: (lastE9 - e9[Math.max(0, e9.length - 5)]) / (e9[Math.max(0, e9.length - 5)] || 1)
+    };
+
+    var wScore = weaknessScore(pos, currentData);
+    if (wScore >= 5) {
+      Execution.close(pos.id, 'WEAKNESS_FULL');
+    } else if (wScore >= 3) {
+      Execution.closePartial(pos.id, 0.5, 'WEAKNESS_HALF');
+    }
+  }
+  
+  if (appMode === 'live' && trackerTick % Math.max(1, Math.round((CFG.reconcileMs || 3000) / (CFG.trackerMs || 500))) === 0) {
+    Execution.reconcile(false);
+  }
+  
+  if (trackerTick % 10 === 0 && Execution.sweepStuck) {
+    Execution.sweepStuck();
+  }
+  
+  if (trackerTick % 2 === 0) { 
+    updatePosUI(); 
+    updateTicker(); 
+    renderRiskStatus(); 
+  }
+  
+  if (!positions.length) stopTracker();
+}
+
+function processTrackedPositions() {
+  for (var i = positions.length - 1; i >= 0; i--) {
+    var pos = positions[i];
+    if (!pos || closingNow[pos.id]) continue;
+    if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
+    
+    var pr = Number(pData[pos.pair] && pData[pos.pair].price);
+    if (!Number.isFinite(pr) || pr <= 0) continue;
+    
+    var hitSL = (pos.side === 'LONG' && pr <= Number(pos.sl)) || 
+               (pos.side === 'SHORT' && pr >= Number(pos.sl));
+    if (hitSL) {
+      logPos('[SL HIT] ' + pos.pair + ' price:' + fp(pr) + ' sl:' + fp(pos.sl), 'err');
+      Execution.close(pos.id, pos.trailActive ? 'TRAILING STOP' : 'STOP LOSS');
+      continue;
+    }
+    
+    var hitTP = (pos.side === 'LONG' && pr >= Number(pos.tp)) || 
+               (pos.side === 'SHORT' && pr <= Number(pos.tp));
+    if (hitTP) {
+      logPos('[TP HIT] ' + pos.pair + ' price:' + fp(pr) + ' tp:' + fp(pos.tp), 'ok');
+      Execution.close(pos.id, 'TAKE PROFIT');
+    }
+  }
+}
+
+var TrailService = {
+  update: function(pos, price) {
+    var qty = Math.abs(Number(pos.qty) || 0);
+    if (!qty) return;
+    var grossPnl = Accounting.grossPnl(pos.side, pos.entry, price, qty);
+    if (grossPnl > pos.highPnl) pos.highPnl = grossPnl;
+    var high = pos.highPnl || 0;
+    var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
+    var refTarget = Math.abs(pos.entry * 0.008 * (pos.leverage || 1));
+    var activation = Math.max(refTarget * 0.25, roundTrip * 1.2);
+    if (high < activation) return;
+    var pullback = high >= refTarget * 1.5 ? 0.12 : 
+                   high >= refTarget * 1.0 ? 0.20 : 
+                   high >= refTarget * 0.5 ? 0.30 : 0.40;
+    var locked = Math.max(high * (1 - pullback), roundTrip);
+    var dist = locked / qty;
+    var newSL = pos.side === 'LONG' ? pos.entry + dist : pos.entry - dist;
+    var improved = pos.side === 'LONG' ? newSL > pos.sl : newSL < pos.sl;
+    if (!improved) return;
+    if (Math.abs(newSL - pos.sl) / (price || pos.entry) < 0.00015) return;
+    pos.sl = newSL;
+    pos.trailActive = true;
+    logPos('[TRAIL] ' + pos.pair.replace('_USDT', '') + ' SL→$' + fp(newSL), 'ok');
+  }
+};
+
+function weaknessScore(pos, currentData) {
+  var score = 0;
+  var yon = pos.side;
+
+  if (yon === 'LONG' && currentData.macdHist < currentData.prevMacdHist) score += 1;
+  if (yon === 'SHORT' && currentData.macdHist > currentData.prevMacdHist) score += 1;
+
+  var emaSpread = currentData.ema9 - currentData.ema21;
+  var prevSpread = currentData.prevEma9 - currentData.prevEma21;
+  if (yon === 'LONG' && emaSpread < prevSpread) score += 1;
+  if (yon === 'SHORT' && emaSpread > prevSpread) score += 1;
+
+  if (currentData.volume < currentData.avgVolume * 0.8) score += 1;
+  if (yon === 'LONG' && currentData.rsi > 75) score += 2;
+  if (yon === 'SHORT' && currentData.rsi < 25) score += 2;
+  if (yon === 'LONG' && currentData.emaSlope < 0) score += 2;
+  if (yon === 'SHORT' && currentData.emaSlope > 0) score += 2;
+
+  return score;
+}
+
+/* ============================================================
    AUTONOMOUS MODE
    ============================================================ */
 function toggleAutonomous() {
@@ -1729,7 +1979,7 @@ function toggleAutonomous() {
 }
 
 /* ============================================================
-   EXECUTION - MİN POZİSYON DÜZELTİLDİ
+   EXECUTION
    ============================================================ */
 var StateMachine = {
   allowed: {
@@ -1759,7 +2009,8 @@ var Execution = {
       openTime: Date.now(), highPnl: 0, trailActive: false, auto: !!auto,
       state: POSITION_STATE.PENDING_OPEN, stateUpdatedAt: Date.now(),
       clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live',
-      score: score || 0, entryAtr: entryAtr || 0, leverage: leverageUsed || 1
+      score: score || 0, entryAtr: entryAtr || 0, leverage: leverageUsed || 1,
+      lastWeaknessCheck: 0
     };
   },
   
@@ -1782,7 +2033,6 @@ var Execution = {
     } else if (an) {
       posVal = Number(an.posVal); qty = posVal / price; sl = Number(an.sl); tp = Number(an.tp);
       lev = an.leverage || Math.min(5, (typeof leverage !== 'undefined' ? leverage : 2));
-      // DÜZELTME: Minimum pozisyon boyutu kontrolü yumuşatıldı
       if (posVal < MIN_POS_VAL) {
         posVal = MIN_POS_VAL;
         qty = posVal / price;
@@ -1794,7 +2044,7 @@ var Execution = {
       var corrMult = sameSideOpen === 1 ? 0.5 : sameSideOpen === 2 ? 0.25 : 0.12;
       posVal = posVal * corrMult;
       qty = posVal / price;
-      if (posVal < MIN_POS_VAL * 0.5) { return; } // çok küçükse sessizce atla
+      if (posVal < MIN_POS_VAL * 0.5) { return; }
     }
     
     var gate = RiskManager.gate(sym, posVal);
@@ -1829,6 +2079,14 @@ var Execution = {
       }
       notify((auto ? '🤖 AUTO ' : '') + side + ' ' + sym.replace('_USDT', '') + ' opened $' + posVal.toFixed(2), 'success');
       sendTelegram('🔓 OPEN\n' + sym + ' ' + side + '\nEntry: $' + fp(price) + '\nSize: $' + posVal.toFixed(2) + '\nSL: $' + fp(sl) + '\nTP: $' + fp(tp) + '\nLev: ' + lev + 'x');
+      
+      // FOCUS MODE - pozisyon açıldı
+      if (focusModeOn) {
+        updateFocusUI();
+        var sigEl = document.getElementById('eSig');
+        if (sigEl) sigEl.textContent = '🔒 FOCUS: ' + sym.replace('_USDT', '');
+      }
+      
       startTracker();
     } catch(e) {
       try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch(_) {}
@@ -1882,6 +2140,37 @@ var Execution = {
     }
   },
   
+  closePartial: function(id, fraction, reason) {
+    var pos = positions.find(function(p) { return p.id === id; });
+    if (!pos || pos.state !== POSITION_STATE.OPEN) return;
+    var closeQty = pos.qty * fraction;
+    var remainQty = pos.qty - closeQty;
+    if (remainQty < 0.001 * pos.qty) { Execution.close(id, reason); return; }
+    var price = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+    var gross = (price - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * closeQty;
+    var exitFee = closeQty * price * CFG.feeRate;
+    var net = gross - exitFee;
+    pos.qty = remainQty;
+    pos.posVal = remainQty * pos.entry;
+    var partialEntryFee = pos.entryFee * fraction;
+    pos.entryFee = pos.entryFee * (1 - fraction);
+    trades.push({
+      pair: pos.pair, side: pos.side, pnl: net, gross: gross,
+      entryFee: partialEntryFee, exitFee: exitFee, reason: reason + ' (partial)',
+      entry: pos.entry, exit: price, openedAt: pos.openTime, closedAt: Date.now(),
+      score: pos.score || 0, entryAtr: pos.entryAtr || 0
+    });
+    balance += net;
+    dailyPnL += net;
+    peakBal = Math.max(peakBal, balance);
+    if (net > 0) { winStreak++; loseStreak = 0; } else { loseStreak++; winStreak = 0; }
+    logPos('PARTIAL CLOSE: ' + pos.pair + ' ' + (fraction * 100) + '% closed', 'ok');
+    Store.save();
+    updatePosUI();
+    updateBalUI();
+    updateWRStrip();
+  },
+  
   finalizeClose: function(pos, exitPrice, reason, serverTrade) {
     var br = Accounting.closeBreakdown(pos, exitPrice, 0);
     var net = (serverTrade && Number.isFinite(Number(serverTrade.net))) ? Number(serverTrade.net) : br.tradeNet;
@@ -1915,10 +2204,34 @@ var Execution = {
     sendTelegram(emoji + ' CLOSE\n' + pos.pair + ' ' + reason + '\nPnL: ' + pnlText + '\nBalance: $' + balance.toFixed(2));
     if (/TAKE PROFIT|STOP LOSS|TRAILING/.test(reason)) notify(reason + ' — ' + pos.pair.replace('_USDT', '') + ' ' + pnlText, net >= 0 ? 'success' : 'error');
     
+    // FOCUS MODE - pozisyon kapandı
+    if (focusModeOn) {
+      updateFocusUI();
+      if (positions.length === 0) {
+        var sigEl = document.getElementById('eSig');
+        if (sigEl) sigEl.textContent = 'Scanning...';
+      }
+    }
+    
     RiskManager.enforce();
     Store.save();
     if (!positions.length) stopTracker();
     updatePosUI(); updateSignalUI(); updateWRStrip(); updateBalUI(); drawEquity();
+  },
+  
+  sweepStuck: function() {
+    var now = Date.now();
+    positions = positions.filter(function(pos) {
+      if (pos.state === POSITION_STATE.CLOSED) return false;
+      var stuck = (pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.ERROR) &&
+                  (now - (pos.stateUpdatedAt || 0) > 8000);
+      if (stuck) {
+        delete closingNow[pos.id];
+        log('[SWEEP] Removed stuck: ' + pos.pair, 'err');
+        return false;
+      }
+      return true;
+    });
   },
   
   reconcile: async function(force) {
@@ -1985,146 +2298,10 @@ var Execution = {
       entryFee: Number(p.entryFee || 0), openTime: Number(p.openTime || Date.now()), highPnl: 0,
       trailActive: !!p.trailActive, state: POSITION_STATE.OPEN, stateUpdatedAt: Date.now(),
       clientOrderId: p.clientOrderId || '', exchangeOrderId: p.orderId || '', serverManaged: true,
-      score: p.score || 0, entryAtr: p.entryAtr || 0, leverage: p.leverage || 1
+      score: p.score || 0, entryAtr: p.entryAtr || 0, leverage: p.leverage || 1,
+      lastWeaknessCheck: 0
     };
   }
-};
-
-/* ============================================================
-   TRAILING STOP
-   ============================================================ */
-var TrailService = {
-  update: function(pos, price) {
-    var qty = Math.abs(Number(pos.qty) || 0);
-    if (!qty) return;
-    var grossPnl = Accounting.grossPnl(pos.side, pos.entry, price, qty);
-    if (grossPnl > pos.highPnl) pos.highPnl = grossPnl;
-    var high = pos.highPnl || 0;
-    var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    var refTarget = Math.abs(pos.entry * 0.008 * (pos.leverage || 1));
-    var activation = Math.max(refTarget * 0.25, roundTrip * 1.2);
-    if (high < activation) return;
-    var pullback = high >= refTarget * 1.5 ? 0.12 : high >= refTarget * 1.0 ? 0.20 : high >= refTarget * 0.5 ? 0.30 : 0.40;
-    var locked = Math.max(high * (1 - pullback), roundTrip);
-    var dist = locked / qty;
-    var newSL = pos.side === 'LONG' ? pos.entry + dist : pos.entry - dist;
-    var improved = pos.side === 'LONG' ? newSL > pos.sl : newSL < pos.sl;
-    if (!improved) return;
-    if (Math.abs(newSL - pos.sl) / (price || pos.entry) < 0.00015) return;
-    pos.sl = newSL;
-    pos.trailActive = true;
-  }
-};
-
-/* ============================================================
-   TRACKER
-   ============================================================ */
-function startTracker() {
-  if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
-  trackerTick = 0;
-  TRACKER_INTERVAL = setInterval(runTracker, CFG.trackerMs);
-}
-
-function stopTracker() {
-  if (TRACKER_INTERVAL) { clearInterval(TRACKER_INTERVAL); TRACKER_INTERVAL = null; }
-}
-
-function processTrackedPositions() {
-  for (var i = positions.length - 1; i >= 0; i--) {
-    var pos = positions[i];
-    if (!pos || closingNow[pos.id]) continue;
-    if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
-    var pr = Number(pData[pos.pair] && pData[pos.pair].price);
-    if (!Number.isFinite(pr) || pr <= 0) continue;
-    if (trailOn) TrailService.update(pos, pr);
-    var hitSL = (pos.side === 'LONG' && pr <= Number(pos.sl)) || (pos.side === 'SHORT' && pr >= Number(pos.sl));
-    if (hitSL) {
-      Execution.close(pos.id, pos.trailActive ? 'TRAILING STOP' : 'STOP LOSS');
-      continue;
-    }
-    var hitTP = (pos.side === 'LONG' && pr >= Number(pos.tp)) || (pos.side === 'SHORT' && pr <= Number(pos.tp));
-    if (hitTP) {
-      Execution.close(pos.id, 'TAKE PROFIT');
-    }
-  }
-}
-
-function runTracker() {
-  if (!positions.length) { stopTracker(); return; }
-  trackerTick++;
-  
-  if (appMode === 'live' && WORKER && trackerTick % 3 === 0) {
-    Http.get('/state')
-      .then(function(data) {
-        if (data && data.success && data.positions) {
-          var exchangeSymbols = data.positions.map(function(p) { return p.symbol || p.contract; });
-          for (var i = positions.length - 1; i >= 0; i--) {
-            var pos = positions[i];
-            if (pos.state !== POSITION_STATE.CLOSED && exchangeSymbols.indexOf(pos.pair) === -1) {
-              logPos('[SYNC] ' + pos.pair + ' exchange closed, updating bot', 'warn');
-              var lastPrice = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
-              try {
-                StateMachine.transition(pos, POSITION_STATE.CLOSED);
-                var pnl = (lastPrice - pos.entry) * (pos.side === 'LONG' ? 1 : -1) * pos.qty;
-                var exitFee = pos.qty * lastPrice * CFG.feeRate;
-                var net = pnl - pos.entryFee - exitFee;
-                balance += net;
-                dailyPnL += net;
-                trades.push({
-                  pair: pos.pair, side: pos.side, pnl: net,
-                  entry: pos.entry, exit: lastPrice, reason: 'EXCHANGE_CLOSED',
-                  openedAt: pos.openTime, closedAt: Date.now(),
-                  score: pos.score || 0
-                });
-                equityHistory.push(balance);
-                if (equityHistory.length > 500) equityHistory.shift();
-                Store.save();
-              } catch(e) {}
-              positions.splice(i, 1);
-              updatePosUI();
-              updateSignalUI();
-              updateBalUI();
-              updateWRStrip();
-              drawEquity();
-              if (!positions.length) stopTracker();
-            }
-          }
-        }
-      })
-      .catch(function() {});
-  }
-  
-  if (appMode === 'demo') {
-    pairs.forEach(function(s) { tickPriceOnly(s); });
-    processTrackedPositions();
-  } else {
-    processTrackedPositions();
-    MarketData.refreshOpenPrices()
-      .then(function() { processTrackedPositions(); updateTicker(); })
-      .catch(function(e) {});
-  }
-  
-  if (appMode === 'live' && trackerTick % Math.max(1, Math.round(CFG.reconcileMs / CFG.trackerMs)) === 0) {
-    Execution.reconcile(false);
-  }
-  if (trackerTick % 10 === 0) Execution.sweepStuck();
-  if (trackerTick % 2 === 0) { updatePosUI(); updateTicker(); renderRiskStatus(); }
-  if (!positions.length) stopTracker();
-}
-
-Execution.sweepStuck = function() {
-  var now = Date.now();
-  positions = positions.filter(function(pos) {
-    if (pos.state === POSITION_STATE.CLOSED) return false;
-    var stuck = (pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.ERROR) &&
-                (now - (pos.stateUpdatedAt || 0) > 8000);
-    if (stuck) {
-      delete closingNow[pos.id];
-      log('[SWEEP] Removed stuck: ' + pos.pair, 'err');
-      return false;
-    }
-    return true;
-  });
 };
 
 /* ============================================================
@@ -2152,10 +2329,25 @@ function startCountdown() {
 
 function runEngine() {
   if (!engineOn) return;
-  var el = document.getElementById('eLast'); if (el) el.textContent = new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'});
-  var eo = document.getElementById('eOpen'); if (eo) eo.textContent = positions.length;
+  var el = document.getElementById('eLast'); 
+  if (el) el.textContent = new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'});
+  var eo = document.getElementById('eOpen'); 
+  if (eo) eo.textContent = positions.length;
   
-  // EN İYİ SİNYALİ BUL - tüm coinleri tara
+  // === FOCUS MODE KONTROLÜ ===
+  if (focusModeOn && positions.length > 0) {
+    var sigEl = document.getElementById('eSig');
+    if (sigEl) {
+      var activePairs = positions.map(function(p) { 
+        return p.pair.replace('_USDT', ''); 
+      }).join(', ');
+      sigEl.textContent = '🔒 FOCUS: ' + activePairs;
+      sigEl.style.color = 'var(--warn)';
+    }
+    return; // YENİ SİNYAL ARAŞTIRMA
+  }
+  // ============================
+  
   var best = null, bestScore = -1;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i];
@@ -2164,15 +2356,22 @@ function runEngine() {
     var adjustedScore = an.score * (an.vr || 1) * (an.adx / 18 || 1);
     if (an.strategy === 'BREAKOUT') adjustedScore *= 1.1;
     if (an.strategy === 'PATTERN') adjustedScore *= 1.05;
-    if (adjustedScore > bestScore) { bestScore = adjustedScore; best = {sym: s, an: an}; }
+    if (adjustedScore > bestScore) { 
+      bestScore = adjustedScore; 
+      best = {sym: s, an: an}; 
+    }
   }
   
   var sigEl = document.getElementById('eSig');
-  if (!best) { if (sigEl) sigEl.textContent = 'Scanning...'; return; }
+  if (sigEl) sigEl.style.color = 'var(--acc)';
+  if (!best) { 
+    if (sigEl) sigEl.textContent = 'Scanning...'; 
+    return; 
+  }
   
-  if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' (' + best.an.score + '%) ' + (best.an.strategy || '');
+  if (sigEl) sigEl.textContent = best.sym.replace('_USDT', '') + ' ' + best.an.signal + ' (' + best.an.score + '%)';
   
-  if (autonomousMode && autoTrade && positions.length < 4) { // MAX 4 POZİSYON
+  if (autonomousMode && autoTrade && positions.length < 4) {
     Execution.open(best.sym, best.an.signal, true);
   }
   updateAutoStats();
@@ -2190,7 +2389,7 @@ function updateAutoStats() {
 }
 
 /* ============================================================
-   UI - TÜM GÜNCELLEME FONKSİYONLARI (DEĞİŞMEDİ)
+   UI - TÜM GÜNCELLEME FONKSİYONLARI
    ============================================================ */
 function updateWRStrip() {
   var wins = 0, losses = 0, totalW = 0, totalL = 0;
@@ -2367,7 +2566,10 @@ function updateSignalUI() {
   renderPlan(an, (pd && pd.price) || DEMO_BASE[currentPair] || 1);
   
   var banPos = document.getElementById('bannerPos');
-  if (banPos) banPos.style.display = (positions.length > 0) ? 'block' : 'none';
+  if (banPos && !focusModeOn) {
+    banPos.style.display = (positions.length > 0) ? 'block' : 'none';
+    if (positions.length > 0) banPos.textContent = '⚠️ OPEN POSITION (Focus OFF)';
+  }
   document.getElementById('bannerDead').style.display = isDeadHour() ? 'block' : 'none';
   
   var dsEl = document.getElementById('bannerDataSrc');
@@ -2383,6 +2585,8 @@ function updateSignalUI() {
   document.getElementById('btnL').disabled = !canOpen;
   document.getElementById('btnS').disabled = !canOpen;
   document.getElementById('manNote').textContent = canOpen ? 'Emergency manual | Auto: ' + (autonomousMode ? 'ON' : 'OFF') : 'Max open';
+  
+  updateFocusUI();
 }
 
 function renderPlan(an, price) {
@@ -2450,7 +2654,7 @@ function updateCoinScoreTable() {
 }
 
 /* ============================================================
-   CHARTS (DEĞİŞMEDİ)
+   CHARTS
    ============================================================ */
 function initChart() {
   var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d');
@@ -2586,7 +2790,7 @@ function updatePosUI() {
 }
 
 /* ============================================================
-   HTTP / API COMPAT / MARKET DATA (AYNI)
+   HTTP / API COMPAT / MARKET DATA
    ============================================================ */
 var Http = {
   request: function(url, options, timeoutMs) {
@@ -2720,7 +2924,6 @@ var ApiCompat = {
     if (out.t > 0 && out.t < 1000000000000) out.t *= 1000;
     return out;
   },
-  _candleWarnedFor: {},
   _lastBalSync: 0
 };
 
@@ -3242,11 +3445,13 @@ window.__apexReady = function(fn) {
 window.__apexReady(function() {
   Store.load();
   TelegramStore.load();
+  loadFocusState();
   initChart();
   renderCoinList();
   readSettings();
   bindSafeUI();
   updateTelegramUI();
+  updateFocusUI();
   
   document.querySelectorAll('.tf-btn').forEach(function(b) { b.onclick = function() { setTF(b.getAttribute('data-tf')); }; });
   ['selTargetMult', 'selRiskMult', 'selInt', 'autoMaxSize', 'autoMaxLeverage', 'autoMinScore'].forEach(function(id) {
@@ -3260,6 +3465,15 @@ window.__apexReady(function() {
   document.getElementById('telegramTokenMobile').value = TELEGRAM.token || '';
   document.getElementById('telegramChatIdMobile').value = TELEGRAM.chatId || '';
   
+  // Focus toggle bağlama
+  var focusTog = document.getElementById('togFocus');
+  if (focusTog) {
+    focusTog.onclick = function() {
+      toggleFocus();
+      if (engineOn) runEngine();
+    };
+  }
+  
   startDemo();
   
   setTimeout(function() {
@@ -3268,10 +3482,12 @@ window.__apexReady(function() {
     log('APEX V' + APP_VERSION + ' MOBILE loaded — ' + (results.length - failed.length) + '/' + results.length + ' tests passed', failed.length ? 'err' : 'ok');
     log('📱 Min pos: $' + MIN_POS_VAL + ' | Coins: ' + pairs.length, 'ok');
     log('⚡ New: Volume spike, pattern, momentum signals', 'ok');
-    log('📊 Modes: TREND | RANGE | BREAKOUT | PATTERN', 'ok');
+    log('🔒 Focus Mode: ' + (focusModeOn ? 'ON' : 'OFF'), 'ok');
+    log('🔄 Tracker: ' + (CFG.trackerMs || 500) + 'ms', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 200);
 });
+
 </script>
 </body>
 </html>
