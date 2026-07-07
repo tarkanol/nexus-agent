@@ -549,7 +549,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 
 /* ============================================================
    APEX SCALP V8.1 - MOBİL
-   TRACKER + FOCUS MODE EKLENMİŞ TAM SÜRÜM
+   DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ SÜRÜM
    ============================================================ */
 
 /* ============================================================
@@ -1740,13 +1740,26 @@ function analyzeAll() {
 }
 
 /* ============================================================
-   TRACKER - POZİSYON TAKİP SİSTEMİ (500ms)
+   TRACKER - DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ
    ============================================================ */
 function startTracker() {
-  if (TRACKER_INTERVAL) clearInterval(TRACKER_INTERVAL);
+  if (TRACKER_INTERVAL) {
+    clearInterval(TRACKER_INTERVAL);
+    TRACKER_INTERVAL = null;
+  }
+  
+  var activePositions = positions.filter(function(p) {
+    return p.state !== POSITION_STATE.CLOSED;
+  });
+  
+  if (!activePositions.length) {
+    logPos('Tracker: No active positions', 'info');
+    return;
+  }
+  
   trackerTick = 0;
   TRACKER_INTERVAL = setInterval(runTracker, CFG.trackerMs || 500);
-  logPos('Tracker started (' + (CFG.trackerMs || 500) + 'ms)', 'ok');
+  logPos('Tracker started (' + (CFG.trackerMs || 500) + 'ms) - ' + activePositions.length + ' positions', 'ok');
 }
 
 function stopTracker() {
@@ -1758,9 +1771,22 @@ function stopTracker() {
 }
 
 function runTracker() {
-  if (!positions.length) { 
-    stopTracker(); 
-    return; 
+  // Kapalı pozisyonları temizle
+  positions = positions.filter(function(p) {
+    if (p.state === POSITION_STATE.CLOSED) {
+      delete closingNow[p.id];
+      return false;
+    }
+    return true;
+  });
+  
+  var activePositions = positions.filter(function(p) {
+    return p.state === POSITION_STATE.OPEN || p.state === POSITION_STATE.ERROR;
+  });
+  
+  if (!activePositions.length) {
+    stopTracker();
+    return;
   }
   
   trackerTick++;
@@ -1792,7 +1818,6 @@ function runTracker() {
     }
   }
   
-  // Weakness detector (her 5 dakikada bir)
   var now = Date.now();
   for (var i = 0; i < positions.length; i++) {
     var pos = positions[i];
@@ -1860,14 +1885,31 @@ function runTracker() {
     renderRiskStatus(); 
   }
   
-  if (!positions.length) stopTracker();
+  activePositions = positions.filter(function(p) {
+    return p.state === POSITION_STATE.OPEN || p.state === POSITION_STATE.ERROR;
+  });
+  
+  if (!activePositions.length) {
+    stopTracker();
+  }
 }
 
 function processTrackedPositions() {
-  for (var i = positions.length - 1; i >= 0; i--) {
-    var pos = positions[i];
+  positions = positions.filter(function(p) {
+    if (p.state === POSITION_STATE.CLOSED) {
+      delete closingNow[p.id];
+      return false;
+    }
+    return true;
+  });
+  
+  var openPositions = positions.filter(function(p) {
+    return p.state === POSITION_STATE.OPEN || p.state === POSITION_STATE.ERROR;
+  });
+  
+  for (var i = 0; i < openPositions.length; i++) {
+    var pos = openPositions[i];
     if (!pos || closingNow[pos.id]) continue;
-    if (pos.state !== POSITION_STATE.OPEN && pos.state !== POSITION_STATE.ERROR) continue;
     
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
     if (!Number.isFinite(pr) || pr <= 0) continue;
@@ -1979,7 +2021,7 @@ function toggleAutonomous() {
 }
 
 /* ============================================================
-   EXECUTION
+   EXECUTION - DÜZELTİLMİŞ VERSİYON
    ============================================================ */
 var StateMachine = {
   allowed: {
@@ -2080,7 +2122,6 @@ var Execution = {
       notify((auto ? '🤖 AUTO ' : '') + side + ' ' + sym.replace('_USDT', '') + ' opened $' + posVal.toFixed(2), 'success');
       sendTelegram('🔓 OPEN\n' + sym + ' ' + side + '\nEntry: $' + fp(price) + '\nSize: $' + posVal.toFixed(2) + '\nSL: $' + fp(sl) + '\nTP: $' + fp(tp) + '\nLev: ' + lev + 'x');
       
-      // FOCUS MODE - pozisyon açıldı
       if (focusModeOn) {
         updateFocusUI();
         var sigEl = document.getElementById('eSig');
@@ -2100,21 +2141,52 @@ var Execution = {
   
   close: async function(id, reason) {
     var pos = positions.find(function(p) { return p.id === id; });
-    if (!pos || pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.CLOSED) return;
     
-    try { StateMachine.transition(pos, POSITION_STATE.PENDING_CLOSE); }
-    catch(e) { notify(e.message, 'error'); return; }
+    if (!pos) {
+      delete closingNow[id];
+      return;
+    }
+    
+    if (pos.state === POSITION_STATE.CLOSED) {
+      delete closingNow[id];
+      positions = positions.filter(function(p) { return p.id !== id; });
+      return;
+    }
+    
+    if (pos.state === POSITION_STATE.PENDING_CLOSE) {
+      return;
+    }
+    
+    try { 
+      StateMachine.transition(pos, POSITION_STATE.PENDING_CLOSE); 
+    } catch(e) {
+      delete closingNow[id];
+      positions = positions.filter(function(p) { return p.id !== id; });
+      return;
+    }
+    
     closingNow[id] = true;
     updatePosUI();
     
     try {
       if (appMode === 'live') {
         var cid = orderId('close', pos.pair);
-        var r = await Http.post('/close', {symbol: pos.pair, side: pos.side, clientOrderId: cid, reason: reason || 'MANUAL'});
-        if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Close rejected');
-        var exitPrice = Number(r.fillPrice) || Number(r.trade && r.trade.exitPrice) || Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+        var r = await Http.post('/close', {
+          symbol: pos.pair, 
+          side: pos.side, 
+          clientOrderId: cid, 
+          reason: reason || 'MANUAL'
+        });
+        if (!r || !(r.success || r.ok)) {
+          throw new Error((r && r.error) || 'Close rejected');
+        }
+        var exitPrice = Number(r.fillPrice) || 
+                       Number(r.trade && r.trade.exitPrice) || 
+                       Number(pData[pos.pair] && pData[pos.pair].price) || 
+                       pos.entry;
         var serverTrade = r.trade || null;
         Execution.finalizeClose(pos, exitPrice, reason || 'MANUAL', serverTrade);
+        
         if (Runtime.capabilities.state === false) {
           if (!Runtime.posListWarnedOnce) {
             Runtime.posListWarnedOnce = true;
@@ -2131,12 +2203,29 @@ var Execution = {
       }
     } catch(e) {
       delete closingNow[id];
-      try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch(_) { pos.state = POSITION_STATE.ERROR; pos.lastError = e.message; }
+      try { 
+        StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); 
+      } catch(_) { 
+        pos.state = POSITION_STATE.ERROR; 
+        pos.lastError = e.message; 
+      }
       logPos('CLOSE FAILED ' + pos.pair + ': ' + e.message, 'err');
       notify('Close failed; position kept: ' + e.message, 'error');
-      if (appMode === 'live') setTimeout(function() { Execution.reconcile(true); }, 1000);
+      if (appMode === 'live') {
+        setTimeout(function() { Execution.reconcile(true); }, 1000);
+      }
     } finally {
-      updatePosUI(); updateSignalUI();
+      if (pos.state === POSITION_STATE.CLOSED) {
+        delete closingNow[pos.id];
+        positions = positions.filter(function(p) { return p.id !== pos.id; });
+      }
+      updatePosUI(); 
+      updateSignalUI();
+      if (!positions.length) {
+        stopTracker();
+      } else {
+        startTracker();
+      }
     }
   },
   
@@ -2175,7 +2264,12 @@ var Execution = {
     var br = Accounting.closeBreakdown(pos, exitPrice, 0);
     var net = (serverTrade && Number.isFinite(Number(serverTrade.net))) ? Number(serverTrade.net) : br.tradeNet;
     
-    try { StateMachine.transition(pos, POSITION_STATE.CLOSED); } catch(_) { pos.state = POSITION_STATE.CLOSED; }
+    try { 
+      StateMachine.transition(pos, POSITION_STATE.CLOSED); 
+    } catch(_) { 
+      pos.state = POSITION_STATE.CLOSED; 
+    }
+    
     positions = positions.filter(function(p) { return p.id !== pos.id; });
     delete closingNow[pos.id];
     
@@ -2202,9 +2296,11 @@ var Execution = {
     
     logPos('CLOSE: ' + pos.pair.replace('_USDT', '') + ' ' + reason + ' ' + pnlText, net >= 0 ? 'ok' : 'err');
     sendTelegram(emoji + ' CLOSE\n' + pos.pair + ' ' + reason + '\nPnL: ' + pnlText + '\nBalance: $' + balance.toFixed(2));
-    if (/TAKE PROFIT|STOP LOSS|TRAILING/.test(reason)) notify(reason + ' — ' + pos.pair.replace('_USDT', '') + ' ' + pnlText, net >= 0 ? 'success' : 'error');
     
-    // FOCUS MODE - pozisyon kapandı
+    if (/TAKE PROFIT|STOP LOSS|TRAILING/.test(reason)) {
+      notify(reason + ' — ' + pos.pair.replace('_USDT', '') + ' ' + pnlText, net >= 0 ? 'success' : 'error');
+    }
+    
     if (focusModeOn) {
       updateFocusUI();
       if (positions.length === 0) {
@@ -2215,14 +2311,25 @@ var Execution = {
     
     RiskManager.enforce();
     Store.save();
-    if (!positions.length) stopTracker();
-    updatePosUI(); updateSignalUI(); updateWRStrip(); updateBalUI(); drawEquity();
+    
+    if (!positions.length) {
+      stopTracker();
+    }
+    
+    updatePosUI(); 
+    updateSignalUI(); 
+    updateWRStrip(); 
+    updateBalUI(); 
+    drawEquity();
   },
   
   sweepStuck: function() {
     var now = Date.now();
     positions = positions.filter(function(pos) {
-      if (pos.state === POSITION_STATE.CLOSED) return false;
+      if (pos.state === POSITION_STATE.CLOSED) {
+        delete closingNow[pos.id];
+        return false;
+      }
       var stuck = (pos.state === POSITION_STATE.PENDING_CLOSE || pos.state === POSITION_STATE.ERROR) &&
                   (now - (pos.stateUpdatedAt || 0) > 8000);
       if (stuck) {
@@ -2334,7 +2441,6 @@ function runEngine() {
   var eo = document.getElementById('eOpen'); 
   if (eo) eo.textContent = positions.length;
   
-  // === FOCUS MODE KONTROLÜ ===
   if (focusModeOn && positions.length > 0) {
     var sigEl = document.getElementById('eSig');
     if (sigEl) {
@@ -2344,9 +2450,8 @@ function runEngine() {
       sigEl.textContent = '🔒 FOCUS: ' + activePairs;
       sigEl.style.color = 'var(--warn)';
     }
-    return; // YENİ SİNYAL ARAŞTIRMA
+    return;
   }
-  // ============================
   
   var best = null, bestScore = -1;
   for (var i = 0; i < pairs.length; i++) {
@@ -3465,7 +3570,6 @@ window.__apexReady(function() {
   document.getElementById('telegramTokenMobile').value = TELEGRAM.token || '';
   document.getElementById('telegramChatIdMobile').value = TELEGRAM.chatId || '';
   
-  // Focus toggle bağlama
   var focusTog = document.getElementById('togFocus');
   if (focusTog) {
     focusTog.onclick = function() {
