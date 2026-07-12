@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>APEX SCALP V8.1 - MOBİL</title>
+<style>
+:root {
+  --bg: #060a12;
+  --panel: #0a1420;
+  --card: #0e1a2a;
+  --brd: #162838;
+  --brd2: #1a3048;
+  --acc: #00d4ff;
+  --acc2: #0088bb;
+  --long: #00ff88;
+  --long2: #00cc66;
+  --short: #ff3355;
+  --short2: #cc1133;
+  --warn: #ffaa00;
+  --gold: #ffcc44;
+  --text: #7ab0c8;
+  --text2: #c0e0f0;
+  --dim: #1e4060;
+  --dim2: #2e5878;
+  --mono: 'Share Tech Mono', monospace;
+  --body: 'Rajdhani', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text2); font-family: var(--body); font-size: 13px; }
+#appRoot { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.hdr { background: linear-gradient(180deg, #0e1a29, #0a1420); border-bottom: 1px solid var(--brd2); padding: calc(env(safe-area-inset-top) + 4px) 10px 4px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 100; min-height: 44px; box-shadow: 0 1px 0 rgba(0,212,255,0.05); }
+.logo { font-family: var(--mono); font-size: 11px; color: var(--acc); letter-spacing: 2px; }
+.logo span { color: var(--dim2); font-size: 7px; letter-spacing: 1px; }
+.logo .version { color: var(--gold); font-size: 6px; background: rgba(255,204,68,0.1); padding: 1px 4px; border-radius: 2px; margin-left: 3px; }
+.logo .autonomous { color: var(--long); font-size: 6px; background: rgba(0,255,136,0.1); padding: 1px 4px; border-radius: 2px; margin-left: 3px; animation: pulse-autonomous 2s ease infinite; }
+@keyframes pulse-autonomous { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.badges { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.bdg { font-family: var(--mono); font-size: 6px; padding: 2px 4px; border-radius: 2px; border: 1px solid var(--brd2); color: var(--dim2); letter-spacing: 0.5px; white-space: nowrap; min-height: 20px; display: inline-flex; align-items: center; }
+.bdg.live { border-color: var(--long2); color: var(--long); background: rgba(0,255,136,0.05); }
+.bdg.on { border-color: var(--acc2); color: var(--acc); background: rgba(0,212,255,0.05); animation: blink 1.5s ease infinite; }
+.bdg.gold { border-color: var(--gold); color: var(--gold); background: rgba(255,204,68,0.07); }
+.bdg.autonomous { border-color: var(--long); color: var(--long); background: rgba(0,255,136,0.1); animation: pulse-autonomous 1.5s ease infinite; }
+.bdg.telegram { border-color: #0088cc; color: #0088cc; background: rgba(0,136,204,0.07); cursor: pointer; min-height: 22px; display: inline-flex; align-items: center; padding: 2px 6px; }
+.bdg.telegram.on { border-color: #00d4ff; color: #00d4ff; background: rgba(0,212,255,0.07); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.balbar { background: linear-gradient(180deg, #0d1826, #0a1420); border-bottom: 1px solid var(--brd); padding: 6px 10px; flex-shrink: 0; }
+.bal-row { display: flex; justify-content: space-between; align-items: center; }
+.bal-num { font-family: var(--mono); font-size: 20px; color: var(--gold); letter-spacing: 1px; }
+.bal-sub { font-size: 7px; color: var(--dim2); font-family: var(--mono); }
+.bal-stats { text-align: right; }
+.bal-day { font-family: var(--mono); font-size: 8px; }
+.bal-pct { font-family: var(--mono); font-size: 8px; }
+.bal-pct.up { color: var(--long); }
+.bal-pct.dn { color: var(--short); }
+.prog-track { height: 2px; background: var(--brd2); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--acc2), var(--gold)); transition: width 0.8s ease; }
+.wr-strip { background: rgba(2,12,20,0.95); border-bottom: 1px solid var(--brd); padding: 2px 8px; display: flex; gap: 8px; font-family: var(--mono); font-size: 7px; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+.wr-strip::-webkit-scrollbar { display: none; }
+.wr-item { display: flex; gap: 2px; align-items: center; white-space: nowrap; }
+.wr-label { color: var(--dim2); }
+.wr-val { color: var(--text2); font-weight: 700; }
+.wr-val.pos { color: var(--long); }
+.wr-val.neg { color: var(--short); }
+.wr-val.warn { color: var(--warn); }
+.ticker { background: rgba(4,16,24,0.95); border-bottom: 1px solid var(--brd); padding: 2px 8px; overflow-x: auto; white-space: nowrap; flex-shrink: 0; scrollbar-width: none; }
+.ticker::-webkit-scrollbar { display: none; }
+.tick { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; }
+.tick-s { font-family: var(--mono); font-size: 7px; color: var(--dim2); }
+.tick-p { font-family: var(--mono); font-size: 7px; }
+.nav { position: relative; flex-shrink: 0; z-index: 200; background: var(--panel); border-top: 1px solid var(--brd2); display: flex; padding-bottom: env(safe-area-inset-bottom); }
+.nb { flex: 1; padding: 4px 2px 3px; background: none; border: none; color: var(--dim2); font-size: 6px; font-family: var(--body); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; min-height: 40px; letter-spacing: 0.5px; text-transform: uppercase; transition: color 0.15s; }
+.nb.active { color: var(--acc); }
+.nb:active { transform: scale(0.95); }
+.ni { font-size: 14px; line-height: 1.2; }
+.page { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.page.active { display: flex; }
+.scroll { flex: 1; overflow-y: auto; padding: 6px 8px calc(12px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.card { background: var(--card); border: 1px solid var(--brd2); border-radius: 9px; padding: 9px; margin-bottom: 6px; position: relative; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.02); }
+.card .card-title { font-family: var(--mono); font-size: 7px; color: var(--dim2); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+.auto-btn { width: 100%; padding: 10px; border: 2px solid var(--brd2); border-radius: 10px; background: rgba(2,10,16,0.9); color: var(--dim2); font-family: var(--mono); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.3s; letter-spacing: 2px; text-transform: uppercase; min-height: 48px; box-shadow: 0 3px 12px rgba(0,0,0,0.3); }
+.auto-btn.active { border-color: var(--long); color: var(--long); background: rgba(0,255,136,0.05); box-shadow: 0 0 40px rgba(0,255,136,0.03); }
+.auto-btn .sub { font-size: 7px; font-weight: 400; opacity: 0.6; letter-spacing: 0.5px; }
+.auto-btn .stats { font-size: 8px; font-weight: 400; opacity: 0.8; margin-top: 2px; letter-spacing: 0.5px; }
+.quick-actions { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; margin-bottom: 5px; }
+.qa-btn { padding: 6px 2px; border: 1px solid var(--brd2); border-radius: 3px; background: rgba(2,10,16,0.8); color: var(--dim2); font-family: var(--mono); font-size: 7px; cursor: pointer; text-align: center; transition: all 0.15s; min-height: 36px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.qa-btn .icon { font-size: 14px; }
+.qa-btn.active { border-color: var(--acc); color: var(--acc); background: rgba(0,212,255,0.05); }
+.qa-btn.on { border-color: var(--long); color: var(--long); background: rgba(0,255,136,0.05); }
+.qa-btn:active { transform: scale(0.95); }
+.pairs { display: flex; overflow-x: auto; gap: 3px; padding: 2px 0 4px; scrollbar-width: none; }
+.pairs::-webkit-scrollbar { display: none; }
+.pp { flex-shrink: 0; padding: 3px 6px; border-radius: 3px; border: 1px solid var(--brd2); background: transparent; color: var(--dim2); font-size: 8px; font-family: var(--mono); cursor: pointer; min-height: 30px; display: flex; flex-direction: column; align-items: center; gap: 1px; transition: all 0.15s; }
+.pp.active { border-color: var(--acc); color: var(--acc); background: rgba(0,212,255,0.06); }
+.pp:active { transform: scale(0.95); }
+.pp-price { font-size: 6px; }
+.pp-sig { font-size: 5px; font-weight: 700; padding: 0 3px; border-radius: 2px; }
+.pp-sig.LONG { background: rgba(0,255,136,0.12); color: var(--long); }
+.pp-sig.SHORT { background: rgba(255,51,85,0.12); color: var(--short); }
+.pp-sig.WAIT { color: var(--dim); }
+.sig-display { text-align: center; padding: 6px 0 4px; }
+.sig-badge { font-family: var(--mono); font-size: 20px; letter-spacing: 3px; padding: 6px 16px; border-radius: 4px; display: inline-block; min-width: 100px; transition: all 0.3s; }
+.sig-badge.LONG { background: rgba(0,255,136,0.07); color: var(--long); border: 1px solid rgba(0,255,136,0.4); }
+.sig-badge.SHORT { background: rgba(255,51,85,0.07); color: var(--short); border: 1px solid rgba(255,51,85,0.4); }
+.sig-badge.WAIT { background: var(--card); color: var(--dim2); border: 1px solid var(--brd2); }
+.sig-badge.STRONG { background: rgba(0,255,136,0.12); color: var(--long); border: 2px solid var(--long); animation: pulse-glow 2s ease infinite; }
+@keyframes pulse-glow { 0%,100%{box-shadow:0 0 20px rgba(0,255,136,0.05)} 50%{box-shadow:0 0 40px rgba(0,255,136,0.1)} }
+.sig-meta { font-family: var(--mono); font-size: 7px; color: var(--dim2); margin-top: 3px; letter-spacing: 0.5px; }
+.conf-tier { display: inline-block; font-family: var(--mono); font-size: 6px; padding: 1px 6px; border-radius: 2px; margin-top: 2px; letter-spacing: 1px; }
+.conf-tier.A { background: rgba(0,255,136,0.1); color: var(--long); border: 1px solid rgba(0,255,136,0.3); }
+.conf-tier.B { background: rgba(255,204,68,0.1); color: var(--gold); border: 1px solid rgba(255,204,68,0.3); }
+.conf-tier.C { background: rgba(255,51,85,0.05); color: var(--short); border: 1px solid rgba(255,51,85,0.2); }
+.filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 2px; margin-top: 4px; }
+.filter-cell { background: rgba(2,10,16,0.8); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 3px; text-align: center; }
+.filter-label { font-size: 5px; color: var(--dim2); font-family: var(--mono); letter-spacing: 0.5px; }
+.filter-val { font-size: 7px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
+.filter-val.pass { color: var(--long); }
+.filter-val.fail { color: var(--short); }
+.filter-val.warn { color: var(--warn); }
+.qbar-wrap { margin: 4px 0 2px; }
+.qbar-hd { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 7px; color: var(--dim2); margin-bottom: 1px; }
+.qbar-track { height: 3px; background: var(--brd2); border-radius: 2px; overflow: hidden; }
+.qbar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease, background 0.3s; }
+.reason-row { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+.rtag { font-family: var(--mono); font-size: 6px; padding: 1px 4px; border-radius: 2px; border: 1px solid var(--brd2); color: var(--dim2); }
+.rtag.long { border-color: rgba(0,255,136,0.3); color: var(--long); background: rgba(0,255,136,0.04); }
+.rtag.short { border-color: rgba(255,51,85,0.3); color: var(--short); background: rgba(255,51,85,0.04); }
+.rtag.neut { border-color: var(--acc2); color: var(--acc); background: rgba(0,212,255,0.04); }
+.rtag.warn { border-color: rgba(255,170,0,0.3); color: var(--warn); background: rgba(255,170,0,0.04); }
+.rtag.strong { border-color: var(--long); color: var(--long); background: rgba(0,255,136,0.08); }
+.mtf-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 2px; margin-top: 4px; }
+.mtf-cell { text-align: center; background: rgba(2,10,16,0.8); border: 1px solid var(--brd); border-radius: 2px; padding: 3px; }
+.mtf-label { font-size: 5px; color: var(--dim2); font-family: var(--mono); letter-spacing: 0.5px; }
+.mtf-val { font-size: 8px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
+.mtf-val.LONG { color: var(--long); }
+.mtf-val.SHORT { color: var(--short); }
+.mtf-val.WAIT { color: var(--dim2); }
+.ind-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 2px; }
+.ind-cell { background: rgba(2,10,16,0.8); border: 1px solid var(--brd); border-radius: 2px; padding: 3px 4px; text-align: center; }
+.ind-label { font-size: 5px; color: var(--dim2); font-family: var(--mono); letter-spacing: 0.5px; margin-bottom: 1px; }
+.ind-val { font-size: 8px; font-weight: 700; font-family: var(--mono); }
+.bull { color: var(--long); }
+.bear { color: var(--short); }
+.neut { color: var(--warn); }
+.plan-box { border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
+.plan-hd { padding: 4px 8px; font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+.plan-hd.long { background: rgba(0,255,136,0.08); color: var(--long); border-left: 2px solid var(--long); }
+.plan-hd.short { background: rgba(255,51,85,0.08); color: var(--short); border-left: 2px solid var(--short); }
+.plan-body { background: rgba(2,10,16,0.9); padding: 4px 8px; border: 1px solid var(--brd2); border-top: none; }
+.plan-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--brd); font-family: var(--mono); font-size: 7px; }
+.plan-row:last-child { border: none; }
+.pk { color: var(--dim2); font-size: 6px; }
+.pv.tp { color: var(--long); }
+.pv.sl { color: var(--short); }
+.pv.rr { color: var(--warn); }
+input, select { background: rgba(2,10,16,0.9); border: 1px solid var(--brd2); color: var(--text2); padding: 4px 6px; border-radius: 6px; width: 100%; font-family: var(--mono); font-size: 9px; outline: none; min-height: 32px; transition: border-color 0.15s; -webkit-appearance: none; }
+input:focus, select:focus { border-color: var(--acc); }
+select option { background: #041018; }
+.btn-row { display: flex; gap: 3px; flex-wrap: wrap; }
+.btn { flex: 1; border: none; border-radius: 7px; padding: 6px 8px; font-weight: 700; cursor: pointer; font-size: 9px; font-family: var(--mono); min-height: 34px; letter-spacing: 1px; transition: all 0.15s; min-width: 40px; }
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.25; cursor: not-allowed; transform: none; }
+.btn-long { background: rgba(0,255,136,0.08); color: var(--long); border: 1px solid rgba(0,255,136,0.3); }
+.btn-short { background: rgba(255,51,85,0.08); color: var(--short); border: 1px solid rgba(255,51,85,0.3); }
+.btn-acc { background: rgba(0,212,255,0.08); color: var(--acc); border: 1px solid rgba(0,212,255,0.3); }
+.btn-out { background: transparent; border: 1px solid var(--brd2); color: var(--text2); }
+.btn-gold { background: rgba(255,204,68,0.08); color: var(--gold); border: 1px solid rgba(255,204,68,0.3); }
+.btn-danger { background: transparent; border: 1px solid rgba(255,51,85,0.3); color: var(--short); }
+.btn-telegram { background: rgba(0,136,204,0.08); color: #0088cc; border: 1px solid rgba(0,136,204,0.3); }
+.btn-telegram.on { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.5); }
+.btn-sm { min-height: 28px; font-size: 7px; padding: 3px 6px; letter-spacing: 0.5px; }
+.manual-row { display: flex; gap: 3px; margin-bottom: 4px; }
+.inp-wrap { flex: 1; }
+.tog-row { display: flex; align-items: flex-start; padding: 3px 0; border-bottom: 1px solid var(--brd); }
+.tog-row:last-child { border: none; }
+.tog { width: 30px; height: 16px; background: var(--brd2); border-radius: 8px; cursor: pointer; position: relative; border: 1px solid var(--brd2); flex-shrink: 0; margin-right: 6px; margin-top: 1px; transition: background 0.2s, border-color 0.2s; }
+.tog.on { background: var(--acc2); border-color: var(--acc); }
+.tog::after { content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.18s; }
+.tog.on::after { left: 16px; }
+.tog-title { font-size: 8px; color: var(--text2); font-weight: 600; }
+.tog-desc { font-size: 6px; color: var(--dim2); font-family: var(--mono); margin-top: 1px; }
+canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; border: 1px solid var(--brd); }
+.tf-row { display: flex; gap: 2px; margin-bottom: 4px; }
+.tf-btn { padding: 2px 6px; font-size: 7px; border: 1px solid var(--brd2); background: transparent; color: var(--dim2); cursor: pointer; border-radius: 2px; font-family: var(--mono); min-height: 20px; transition: all 0.15s; }
+.tf-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(255,204,68,0.07); }
+.pos-card { background: var(--card); border: 1px solid var(--brd2); border-radius: 8px; padding: 7px; margin-bottom: 5px; border-left: 3px solid var(--brd2); box-shadow: 0 2px 8px rgba(0,0,0,0.22); }
+.pos-card.long { border-left-color: var(--long); }
+.pos-card.short { border-left-color: var(--short); }
+.pos-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 2px; }
+.pos-sym { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+.pos-side { font-family: var(--mono); font-size: 6px; padding: 1px 4px; border-radius: 2px; letter-spacing: 0.5px; }
+.pos-side.LONG { background: rgba(0,255,136,0.12); color: var(--long); border: 1px solid rgba(0,255,136,0.3); }
+.pos-side.SHORT { background: rgba(255,51,85,0.12); color: var(--short); border: 1px solid rgba(255,51,85,0.3); }
+.pos-pnl { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.pos-pnl.up { color: var(--long); }
+.pos-pnl.dn { color: var(--short); }
+.pos-grid { display: flex; gap: 2px; margin-bottom: 3px; }
+.pgc { background: rgba(2,10,16,0.8); border-radius: 2px; padding: 2px; text-align: center; flex: 1; }
+.pgc-l { font-size: 5px; color: var(--dim2); font-family: var(--mono); margin-bottom: 1px; }
+.pgc-v { font-size: 7px; font-weight: 700; font-family: var(--mono); }
+.pbar-track { height: 2px; background: var(--brd2); border-radius: 2px; overflow: hidden; margin-bottom: 3px; }
+.pbar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.pos-err { font: 6px var(--mono); color: var(--short); margin-top: 2px; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 5px; }
+.stat-cell { background: var(--card); border: 1px solid var(--brd2); border-radius: 3px; padding: 4px 5px; text-align: center; }
+.stat-label { font-size: 5px; color: var(--dim2); font-family: var(--mono); letter-spacing: 0.5px; margin-bottom: 1px; }
+.stat-val { font-size: 11px; font-weight: 700; font-family: var(--mono); }
+.score-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; border-bottom: 1px solid var(--brd); font-family: var(--mono); font-size: 7px; gap: 3px; }
+.score-row:last-child { border: none; }
+.score-row .signal { font-weight: 700; font-size: 7px; }
+.score-row .signal.LONG { color: var(--long); }
+.score-row .signal.SHORT { color: var(--short); }
+.score-row .signal.WAIT { color: var(--dim2); }
+.eng-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+.eng-title { font-family: var(--mono); font-size: 10px; color: var(--text2); }
+.eng-sub { font-size: 6px; color: var(--dim2); font-family: var(--mono); margin-top: 1px; }
+.eng-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 4px; background: rgba(2,10,16,0.8); border: 1px solid var(--brd); border-radius: 3px; padding: 4px; font-family: var(--mono); font-size: 7px; }
+.eng-stats div { display: flex; justify-content: space-between; align-items: center; padding: 1px 0; }
+.eng-stats span { color: var(--dim2); }
+.eng-stats strong { color: var(--acc); }
+.logbox { background: #010609; color: #1a6040; font-family: var(--mono); font-size: 7px; height: 80px; overflow-y: auto; padding: 4px; border-radius: 3px; border: 1px solid var(--brd); line-height: 1.5; }
+.logbox::-webkit-scrollbar { display: none; }
+#notif { position: fixed; top: calc(env(safe-area-inset-top) + 44px); left: 6px; right: 6px; z-index: 9998; display: flex; flex-direction: column; pointer-events: none; }
+.notif { padding: 6px 10px; border-radius: 3px; font-family: var(--mono); font-size: 8px; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px; pointer-events: auto; animation: nIn 0.2s ease; }
+@keyframes nIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+.notif.success { background: rgba(0,20,10,.95); border: 1px solid var(--long2); color: var(--long); }
+.notif.error { background: rgba(20,0,8,.95); border: 1px solid var(--short2); color: var(--short); }
+.notif.info { background: rgba(10,10,0,.95); border: 1px solid rgba(255,170,0,.3); color: var(--warn); }
+.notif.telegram { background: rgba(0,40,60,.95); border: 1px solid #0088cc; color: #00d4ff; }
+.notif.autonomous { background: rgba(0,30,20,.95); border: 1px solid var(--long); color: var(--long); }
+.banner-dead, .banner-pos, .banner-streak, .banner-regime { padding: 3px 6px; margin-bottom: 4px; border-radius: 3px; font-family: var(--mono); font-size: 7px; letter-spacing: 0.5px; }
+.banner-dead { background: rgba(255,51,85,.04); border: 1px solid rgba(255,51,85,.2); color: var(--short); }
+.banner-pos { background: rgba(0,212,255,.04); border: 1px solid var(--acc2); color: var(--acc); }
+.banner-streak { background: rgba(255,204,68,.05); border: 1px solid rgba(255,204,68,.2); color: var(--gold); }
+.banner-regime { background: rgba(0,255,136,.04); border: 1px solid rgba(0,255,136,.15); display: flex; justify-content: space-between; align-items: center; }
+.regime-box { display: flex; gap: 4px; padding: 3px 6px; background: rgba(2,10,16,0.8); border-radius: 2px; margin-bottom: 4px; border: 1px solid var(--brd); flex-wrap: wrap; }
+.regime-item { flex: 1; text-align: center; min-width: 40px; }
+.regime-label { font-size: 5px; color: var(--dim2); font-family: var(--mono); letter-spacing: 0.5px; }
+.regime-value { font-size: 8px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
+.regime-value.trend { color: var(--long); }
+.regime-value.range { color: var(--gold); }
+.regime-value.volatile { color: var(--short); }
+@media (max-width: 480px) {
+  .filter-grid { grid-template-columns: 1fr 1fr; }
+  .ind-grid { grid-template-columns: 1fr 1fr; }
+  .mtf-row { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .eng-stats { grid-template-columns: 1fr 1fr; }
+  .quick-actions { grid-template-columns: 1fr 1fr 1fr; }
+  .sig-badge { font-size: 16px; padding: 4px 12px; min-width: 80px; }
+  .bal-num { font-size: 18px; }
+  .regime-box { flex-wrap: wrap; }
+  .auto-btn { font-size: 11px; padding: 8px; min-height: 40px; }
+  .qa-btn { min-height: 30px; font-size: 6px; }
+  .qa-btn .icon { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div id="notif"></div>
+<div id="appRoot">
+
+<header class="hdr">
+  <div class="logo">APEX<span> // SCALP</span><span class="version">v8.1</span><span class="autonomous">⚡</span></div>
+  <div class="badges">
+    <span class="bdg" id="bdgConn">DEMO</span>
+    <span class="bdg" id="bdgAuto">⏸️</span>
+    <span class="bdg" id="bdgEng">ENG:OFF</span>
+    <span class="bdg" id="bdgPos">0</span>
+    <span class="bdg gold" id="bdgStreak" style="display:none">🔥</span>
+    <span class="bdg telegram" id="bdgTelegram" onclick="toggleTelegram()">📨</span>
+  </div>
+</header>
+
+<div class="balbar">
+  <div class="bal-row">
+    <div><div class="bal-num" id="balNum">$50.00</div><div class="bal-sub">START $50 → ∞</div></div>
+    <div class="bal-stats"><div class="bal-day" id="balDay">DAY: $0.00</div><div class="bal-pct" id="balPct">+0.00%</div></div>
+  </div>
+  <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+</div>
+
+<div class="wr-strip">
+  <div class="wr-item"><span class="wr-label">WIN%</span><span class="wr-val" id="wrWinRate">--%</span></div>
+  <div class="wr-item"><span class="wr-label">W/L</span><span class="wr-val" id="wrWL">0/0</span></div>
+  <div class="wr-item"><span class="wr-label">STR</span><span class="wr-val" id="wrStreak">--</span></div>
+  <div class="wr-item"><span class="wr-label">SHARPE</span><span class="wr-val" id="wrSharpe">--</span></div>
+  <div class="wr-item"><span class="wr-label">AUTO</span><span class="wr-val" id="wrAutoStatus" style="color:var(--warn)">⏸️</span></div>
+</div>
+
+<div class="ticker" id="tickerEl"></div>
+
+<!-- ===================== SIGNAL PAGE ===================== -->
+<div class="page active" id="pg-signal">
+  <div class="scroll">
+    <div class="card" style="border-color:rgba(0,255,136,0.15);background:rgba(0,255,136,0.02)">
+      <button class="auto-btn" id="autoBtn" onclick="toggleAutonomous()">
+        <span id="autoBtnText">▶ START</span>
+        <div class="sub" id="autoBtnSub">Full autonomous trading</div>
+        <div class="stats" id="autoBtnStats">Status: Idle</div>
+      </button>
+    </div>
+
+    <div class="quick-actions">
+      <button class="qa-btn" onclick="toggleAutonomous()" id="qaAuto"><span class="icon">⚡</span>AUTO</button>
+      <button class="qa-btn" onclick="toggleTelegram()" id="qaTelegram"><span class="icon">📨</span>TG</button>
+      <button class="qa-btn" onclick="document.getElementById('telegramSettingsCard').scrollIntoView({behavior:'smooth'})"><span class="icon">⚙</span>SET</button>
+      <button class="qa-btn" onclick="swPage('pos')"><span class="icon">📊</span>POS</button>
+    </div>
+
+    <div id="bannerDead" style="display:none" class="banner-dead">🔒 UTC 02-06</div>
+    <div id="bannerStreak" style="display:none" class="banner-streak">🔥 WIN STREAK</div>
+    <div id="bannerPos" style="display:none" class="banner-pos">⚠️ OPEN POSITION</div>
+    <div id="bannerDataSrc" style="display:none" class="banner-dead">⚠️ VERİ UYARISI</div>
+    <div id="bannerRegime" class="banner-regime" style="display:none"><span id="regimeLabel">📊 REGIME</span><span id="regimeValue" style="font-weight:700">--</span></div>
+
+    <!-- FOCUS MODE TOGGLE -->
+    <div class="card" style="border-color:rgba(0,212,255,0.1)">
+      <div class="tog-row">
+        <div class="tog on" id="togFocus" onclick="toggleFocus()"></div>
+        <div>
+          <div class="tog-title">🔒 Focus Mode</div>
+          <div class="tog-desc" id="togFocusD">On — scan stops when position open</div>
+        </div>
+      </div>
+      <div id="focusStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);text-align:center;margin-top:2px">🔓 Focus ON - No positions</div>
+    </div>
+
+    <div class="pairs" id="pairRow"></div>
+
+    <div class="card">
+      <div class="sig-display">
+        <div class="sig-badge WAIT" id="sigBadge">WAIT</div>
+        <div style="margin-top:2px"><span class="conf-tier" id="confTier" style="display:none">A-GRADE</span></div>
+        <div class="sig-meta" id="sigMeta">Awaiting analysis...</div>
+      </div>
+
+      <div class="regime-box" id="regimeBox">
+        <div class="regime-item"><div class="regime-label">TREND</div><div class="regime-value" id="regTrend">--</div></div>
+        <div class="regime-item"><div class="regime-label">VOL</div><div class="regime-value" id="regVol">--</div></div>
+        <div class="regime-item"><div class="regime-label">ADX</div><div class="regime-value" id="regAdx">--</div></div>
+        <div class="regime-item"><div class="regime-label">REGIME</div><div class="regime-value" id="regRegime">--</div></div>
+      </div>
+
+      <div class="filter-grid" id="filterGrid">
+        <div class="filter-cell"><div class="filter-label">TREND</div><div class="filter-val" id="fTrend">--</div></div>
+        <div class="filter-cell"><div class="filter-label">VOL</div><div class="filter-val" id="fVol">--</div></div>
+        <div class="filter-cell"><div class="filter-label">ATR</div><div class="filter-val" id="fAtr">--</div></div>
+        <div class="filter-cell"><div class="filter-label">RSI</div><div class="filter-val" id="fRsi">--</div></div>
+        <div class="filter-cell"><div class="filter-label">MACD</div><div class="filter-val" id="fMacd">--</div></div>
+        <div class="filter-cell"><div class="filter-label">ADX</div><div class="filter-val" id="fAdx">--</div></div>
+        <div class="filter-cell"><div class="filter-label">REGIME</div><div class="filter-val" id="fRegime">--</div></div>
+        <div class="filter-cell"><div class="filter-label">SCORE</div><div class="filter-val" id="fScore">--</div></div>
+      </div>
+
+      <div class="qbar-wrap">
+        <div class="qbar-hd"><span>CONFIDENCE</span><span id="qVal" style="color:var(--acc)">--%</span></div>
+        <div class="qbar-track"><div class="qbar-fill" id="qBar" style="width:0%"></div></div>
+      </div>
+      <div class="reason-row" id="reasonRow"></div>
+    </div>
+
+    <div class="card">
+      <div class="tf-row">
+        <button class="tf-btn" data-tf="1m">1m</button>
+        <button class="tf-btn active" data-tf="5m">5m</button>
+        <button class="tf-btn" data-tf="15m">15m</button>
+        <button class="tf-btn" data-tf="1h">1h</button>
+      </div>
+      <canvas id="chart" height="120"></canvas>
+      <div class="mtf-row">
+        <div class="mtf-cell"><div class="mtf-label">5m</div><div class="mtf-val WAIT" id="m5">--</div></div>
+        <div class="mtf-cell"><div class="mtf-label">15m</div><div class="mtf-val WAIT" id="m15">--</div></div>
+        <div class="mtf-cell"><div class="mtf-label">1h</div><div class="mtf-val WAIT" id="m1h">--</div></div>
+        <div class="mtf-cell"><div class="mtf-label">4h</div><div class="mtf-val WAIT" id="m4h">--</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">INDICATORS</div>
+      <div class="ind-grid">
+        <div class="ind-cell"><div class="ind-label">RSI_5m</div><div class="ind-val neut" id="iRsi5">--</div></div>
+        <div class="ind-cell"><div class="ind-label">RSI_15m</div><div class="ind-val neut" id="iRsi15">--</div></div>
+        <div class="ind-cell"><div class="ind-label">MACD</div><div class="ind-val neut" id="iMacd">--</div></div>
+        <div class="ind-cell"><div class="ind-label">EMA_X</div><div class="ind-val neut" id="iEma">--</div></div>
+        <div class="ind-cell"><div class="ind-label">VOL_x</div><div class="ind-val neut" id="iVol">--</div></div>
+        <div class="ind-cell"><div class="ind-label">ADX</div><div class="ind-val neut" id="iAdx">--</div></div>
+        <div class="ind-cell"><div class="ind-label">MOM</div><div class="ind-val neut" id="iMom">--</div></div>
+        <div class="ind-cell"><div class="ind-label">BB</div><div class="ind-val neut" id="iBb">--</div></div>
+      </div>
+    </div>
+
+    <div id="planWrap"></div>
+
+    <!-- TELEGRAM SETTINGS -->
+    <div class="card" id="telegramSettingsCard" style="border-color:rgba(0,136,204,0.2);background:rgba(0,136,204,0.03)">
+      <div class="card-title">📨 TELEGRAM</div>
+      <div class="manual-row">
+        <div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramTokenMobile" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div>
+        <div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatIdMobile" placeholder="-100..." type="text" autocomplete="off"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-telegram" onclick="saveTelegramMobile()">💾 KAYDET</button>
+        <button class="btn btn-out" onclick="testTelegramMobile()">📨 TEST</button>
+        <button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button>
+      </div>
+      <div id="telegramStatusMobile" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
+    </div>
+
+    <!-- MANUAL ENTRY -->
+    <div class="card">
+      <div class="card-title">MANUAL ENTRY</div>
+      <div class="manual-row">
+        <div class="inp-wrap"><span class="inp-label">TP ($)</span><input type="number" id="manTP" value="0.10" step="0.01" min="0.01"></div>
+        <div class="inp-wrap"><span class="inp-label">SL ($)</span><input type="number" id="manSL" value="0.06" step="0.01" min="0.01"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-long" id="btnL" disabled>LONG</button>
+        <button class="btn btn-short" id="btnS" disabled>SHORT</button>
+      </div>
+      <div style="font-size:7px;color:var(--dim2);margin-top:3px;text-align:center;font-family:var(--mono)" id="manNote">Emergency only</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== POSITIONS PAGE ===================== -->
+<div class="page" id="pg-pos">
+  <div class="scroll">
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-label">BALANCE</div><div class="stat-val" id="stBal" style="color:var(--gold)">$50.00</div></div>
+      <div class="stat-cell"><div class="stat-label">DAY PNL</div><div class="stat-val" id="stDay">$0.00</div></div>
+      <div class="stat-cell"><div class="stat-label">WIN RATE</div><div class="stat-val" id="stWR" style="color:var(--long)">--%</div></div>
+      <div class="stat-cell"><div class="stat-label">AUTO TRADES</div><div class="stat-val" id="stAutoCount" style="color:var(--acc)">0</div></div>
+    </div>
+
+    <div class="card"><div class="card-title">EQUITY</div><canvas id="equityChart" height="40"></canvas></div>
+    <div id="posList"><div style="text-align:center;padding:16px;color:var(--dim2);font-family:var(--mono);font-size:9px">// NO OPEN POSITIONS</div></div>
+
+    <div class="card">
+      <div class="card-title">SAFETY</div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Daily loss ($)</span><input id="safeDaily" type="number" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">DD (%)</span><input id="safeDD" type="number" step="0.5" min="1"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max trades/day</span><input id="safeTrades" type="number" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Stale data (s)</span><input id="safeStale" type="number" step="5" min="10"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Slippage (bps)</span><input id="safeSlip" type="number" step="0.5" min="0"></div><div class="inp-wrap"><span class="inp-label">Spread (bps)</span><input id="safeSpread" type="number" step="0.5" min="0"></div></div>
+      <div class="btn-row"><button class="btn btn-gold btn-sm" id="safeSave">SAVE</button><button class="btn btn-danger btn-sm" id="safeKill">KILL</button></div>
+      <div id="safeRiskStatus" style="font:6px var(--mono);color:var(--dim2);margin-top:3px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">LOG <button class="btn btn-out btn-sm" onclick="document.getElementById('posLogBox').innerHTML=''" style="padding:1px 4px;min-height:18px;font-size:6px">CLEAR</button></div>
+      <div id="posLogBox" class="logbox" style="height:70px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">RECENT</div>
+      <div id="histBox"><div style="color:var(--dim2);font-family:var(--mono);font-size:8px">--</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ENGINE PAGE ===================== -->
+<div class="page" id="pg-engine">
+  <div class="scroll">
+    <div class="card">
+      <div class="eng-row">
+        <div><div class="eng-title" id="engTxt">ENGINE OFF</div><div class="eng-sub">5m+15m+1h+4h | ATR trail</div></div>
+        <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:50px" onclick="toggleEng()">START</button>
+      </div>
+      <div class="eng-stats" id="engStats" style="display:none">
+        <div><span>SCAN:</span><strong id="eLast">--</strong></div>
+        <div><span>NEXT:</span><strong id="eNext">--s</strong></div>
+        <div><span>SIGNAL:</span><strong id="eSig">--</strong></div>
+        <div><span>OPEN:</span><strong id="eOpen">0</strong></div>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-title">SIGNAL TABLE</div><div id="coinScoreTable"></div></div>
+
+    <div class="card">
+      <div class="card-title">AUTONOMOUS</div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max Size ($)</span><input type="number" id="autoMaxSize" value="0" step="10" min="0"></div><div class="inp-wrap"><span class="inp-label">Max Lev</span><input type="number" id="autoMaxLeverage" value="0" step="1" min="0"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Min Score (%)</span><input type="number" id="autoMinScore" value="50" step="5" min="10" max="90"></div><div class="inp-wrap"><span class="inp-label">Scan (s)</span><select id="selInt"><option value="10">10</option><option value="20">20</option><option value="30" selected>30</option><option value="60">60</option></select></div></div>
+      <div class="tog-row"><div class="tog on" id="togAutoTrade" onclick="toggleAutoTrade()"></div><div><div class="tog-title">Auto Trade</div><div class="tog-desc" id="togAutoTradeD">On</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togTrail" onclick="toggleTrail()"></div><div><div class="tog-title">Trailing Stop</div><div class="tog-desc" id="togTrailD">On</div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">RISK / TARGET</div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Target (ATR×)</span><select id="selTargetMult"><option value="1.2">1.2</option><option value="1.5" selected>1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option></select></div><div class="inp-wrap"><span class="inp-label">Risk (ATR×)</span><select id="selRiskMult"><option value="0.8">0.8</option><option value="1.0" selected>1.0</option><option value="1.2">1.2</option><option value="1.5">1.5</option></select></div></div>
+      <div style="background:rgba(2,10,16,0.9);border:1px solid var(--brd);border-radius:3px;padding:4px;font-family:var(--mono);font-size:7px;color:var(--dim2);line-height:1.6">Risk: <strong id="showRisk" style="color:var(--gold)">Dynamic</strong> | Target: <strong id="showTP" style="color:var(--long)">ATR</strong> | Lev: <strong id="showLev" style="color:var(--acc)">Auto</strong></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">BACKTEST</div>
+      <div class="btn-row"><button class="btn btn-acc btn-sm" id="runBacktest">RUN</button><button class="btn btn-out btn-sm" id="runTests">TEST</button></div>
+      <div id="safeDiagOut" class="logbox" style="height:70px;margin-top:4px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📨 TELEGRAM</div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramToken" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div><div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatId" placeholder="-100..." type="text" autocomplete="off"></div></div>
+      <div class="btn-row"><button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE</button><button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button></div>
+      <div id="telegramStatus" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SETTINGS PAGE ===================== -->
+<div class="page" id="pg-settings">
+  <div class="scroll">
+    <div class="card">
+      <div class="card-title">CONNECTION</div>
+      <div class="fr"><span class="inp-label">WORKER URL</span><input id="wUrl" placeholder="https://xxx.workers.dev" type="url" autocomplete="off" style="font-size:8px;min-height:28px"></div>
+      <div class="btn-row"><button class="btn btn-acc btn-sm" onclick="connectLive()" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO</button></div>
+      <div id="connStatus" style="font-size:7px;color:var(--dim2);text-align:center;font-family:var(--mono);padding:2px;border-radius:3px;background:rgba(0,0,0,.3)">Demo mode</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">COINS</div>
+      <div id="coinList" style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px"></div>
+      <div style="display:flex;gap:3px;margin-bottom:4px"><input id="newCoin" placeholder="BTC_USDT" style="flex:1;font-size:8px;min-height:28px"><button class="btn btn-out btn-sm" onclick="addCoin()" style="min-width:36px">ADD</button></div>
+      <button class="btn btn-acc btn-sm" id="btnFetch" onclick="fetchTopCoins()" style="width:100%">⚡ TOP VOLUME</button>
+      <div id="fetchStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);margin-top:2px;min-height:12px"></div>
+    </div>
+
+    <div class="card"><div class="card-title">RESET</div><button class="btn btn-danger btn-sm" onclick="doReset()" style="width:100%">RESET TO $50</button></div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:3px">LOG <button class="btn btn-out btn-sm" onclick="document.getElementById('logEl').innerHTML=''" style="padding:1px 4px;min-height:18px;font-size:6px">CLEAR</button></div>
+      <div class="logbox" id="logEl"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== NAVIGATION ===================== -->
+<nav class="nav">
+  <button class="nb active" data-page="signal" onclick="swPage('signal')"><span class="ni">📡</span>Sig</button>
+  <button class="nb" data-page="pos" onclick="swPage('pos')"><span class="ni">📁</span>Pos</button>
+  <button class="nb" data-page="engine" onclick="swPage('engine')"><span class="ni">⚙</span>Eng</button>
+  <button class="nb" data-page="settings" onclick="swPage('settings')"><span class="ni">🔧</span>Set</button>
+</nav>
+
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   APEX SCALP V8.1 - MOBİL
+   OTOMATIK BUILD: bu blok src/*.js dosyalarindan birlestirilir.
+   BURAYI ELLE DUZENLEMEYIN — degisiklikler bir sonraki build'de
+   silinir. src/ klasorundeki ilgili dosyayi duzenleyip commit edin.
+   ============================================================ */
+/*BUILD:INJECT_SCRIPT*/
+</script>
+</body>
+</html>
