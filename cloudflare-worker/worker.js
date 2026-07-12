@@ -1,5 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// APEX Worker v16.2 — Gate.io Futures USDT
+// APEX Worker v16.3 — Gate.io Futures USDT
+//
+// v16.3 FIX:
+//   /order hata yanitinda minNotionalUsd alani kayboluyordu (err() helper
+//   sadece {success:false, error} donduruyordu, executeOrder'in hesapladigi
+//   minNotionalUsd sessizce atiliyordu). Artik frontend, "pozisyon cok kucuk"
+//   hatasi aldiginda bu coin icin gercek minimum nominal degeri gorebiliyor
+//   ve MIN_POS_VAL'i buna gore kendini otomatik kalibre edebiliyor.
 //
 // v16.2 FIX (bu surumde duzeltilen 2 gercek bug):
 // ─────────────────────────────────────────────────────────────
@@ -43,15 +50,15 @@ export default {
       "Content-Type": "application/json"
     };
     const ok  = d => new Response(JSON.stringify({ success: true,  ...d }), { headers: cors });
-    const err = m => new Response(JSON.stringify({ success: false, error: m }), { headers: cors });
+    const err = (m, extra) => new Response(JSON.stringify({ success: false, error: m, ...(extra || {}) }), { headers: cors });
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     // ── /ping ─────────────────────────────────────────────────
     if (p === "/ping" || p === "/health") {
       return ok({
-        status: "APEX Worker v16.2 (Gate.io Futures USDT)",
-        version: "16.2",
+        status: "APEX Worker v16.3 (Gate.io Futures USDT)",
+        version: "16.3",
         features: {
           snapshot: true,
           batchPrices: true,
@@ -269,7 +276,7 @@ export default {
       try { body = await request.json(); } catch(e) { return err("JSON hatası"); }
       try {
         const result = await executeOrder(env, body);
-        if (!result.success) return err(result.error);
+        if (!result.success) return err(result.error, { minNotionalUsd: result.minNotionalUsd });
         return ok(result);
       } catch(e) { return err(e.message); }
     }
