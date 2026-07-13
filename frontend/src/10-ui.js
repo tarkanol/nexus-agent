@@ -146,6 +146,7 @@ function updateSignalUI() {
     sInd('iAdx', (ind.adx || 0).toFixed(0), (ind.adx || 0) >= 25 ? 'bull' : (ind.adx || 0) >= 15 ? 'neut' : 'bear');
     sInd('iMom', 'StRSI:' + ind.stochRsi5.toFixed(0), ind.stochRsi5 < 35 ? 'bull' : ind.stochRsi5 > 65 ? 'bear' : 'neut');
     sInd('iBb', ind.bbSqueeze ? 'SQZ' : 'NORMAL', ind.bbSqueeze ? 'warn' : 'neut');
+    sInd('iAtr', '$' + fp(ind.atrVal || 0), 'neut');
   }
   if (an && an.mtf) {
     sMTF('m5', an.mtf['5m']);
