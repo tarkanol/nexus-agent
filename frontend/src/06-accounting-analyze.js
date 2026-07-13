@@ -71,6 +71,7 @@ function resultBase(ctx) {
       macd: ctx.macd5,
       vr: ctx.vr,
       atrPct: ctx.atrPct,
+      atrVal: ctx.atrVal || 0,
       adx: ctx.adx || 0,
       goldenX: ctx.goldenX,
       deathX: ctx.deathX,
@@ -306,7 +307,7 @@ function analyze(sym) {
   score = clampNum(Math.round(score), 0, 100);
   
   var ctx = {
-    price: price, score: score, reasons: reasons, atrPct: atrPct, vr: vr, adx: adx,
+    price: price, score: score, reasons: reasons, atrPct: atrPct, atrVal: atr5, vr: vr, adx: adx,
     tfCount: tfCount, rsi5: rsi5, rsi15: rsi15, macd5: macd5,
     macdLabel: (macd5.hist >= 0 ? '+' : '') + macd5.hist.toFixed(5),
     goldenX: goldenX, deathX: deathX, aboveEMA: aboveEMA,
