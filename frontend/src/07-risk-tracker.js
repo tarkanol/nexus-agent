@@ -212,10 +212,16 @@ function processTrackedPositions() {
   var openPositions = positions.filter(function(p) {
     return p.state === POSITION_STATE.OPEN || p.state === POSITION_STATE.ERROR;
   });
+  var trackNow = Date.now();
   
   for (var i = 0; i < openPositions.length; i++) {
     var pos = openPositions[i];
     if (!pos || closingNow[pos.id]) continue;
+    // v16.4: bir onceki kapama denemesi basarisiz oldugunda (state=ERROR),
+    // her tracker tick'inde (500ms) hemen tekrar denemek yerine 5sn soguma
+    // uyguluyoruz. Boylece kalici bir hata (ornegin borsada pozisyon zaten
+    // yokken tekrar tekrar /close cagirmak) siki bir donguye donusmuyor.
+    if (pos.state === POSITION_STATE.ERROR && (trackNow - (pos.stateUpdatedAt || 0)) < 5000) continue;
     
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
     if (!Number.isFinite(pr) || pr <= 0) continue;
