@@ -444,6 +444,14 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Daily loss ($)</span><input id="safeDaily" type="number" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">DD (%)</span><input id="safeDD" type="number" step="0.5" min="1"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max trades/day</span><input id="safeTrades" type="number" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Stale data (s)</span><input id="safeStale" type="number" step="5" min="10"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Slippage (bps)</span><input id="safeSlip" type="number" step="0.5" min="0"></div><div class="inp-wrap"><span class="inp-label">Spread (bps)</span><input id="safeSpread" type="number" step="0.5" min="0"></div></div>
+      <div class="tog-row">
+        <div class="tog" id="togDeadHour"></div>
+        <div>
+          <div class="tog-title">🌙 Ölü Saat Engeli (UTC)</div>
+          <div class="tog-desc" id="togDeadHourD">Kapalı — sadece bilgi banner'ı gösterilir</div>
+        </div>
+      </div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Başlangıç saati (UTC)</span><input id="deadHourStart" type="number" step="1" min="0" max="23"></div><div class="inp-wrap"><span class="inp-label">Bitiş saati (UTC)</span><input id="deadHourEnd" type="number" step="1" min="0" max="23"></div></div>
       <div class="btn-row"><button class="btn btn-gold btn-sm" id="safeSave">SAVE</button><button class="btn btn-danger btn-sm" id="safeKill">KILL</button></div>
       <div id="safeRiskStatus" style="font:6px var(--mono);color:var(--dim2);margin-top:3px"></div>
     </div>
