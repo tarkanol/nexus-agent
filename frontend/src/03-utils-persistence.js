@@ -63,7 +63,8 @@ var Store = {
         risk: {
           maxDailyLoss: CFG.maxDailyLoss, maxDrawdownPct: CFG.maxDrawdownPct,
           maxTradesPerDay: CFG.maxTradesPerDay, staleDataMs: CFG.staleDataMs,
-          slippageBps: CFG.slippageBps, spreadBps: CFG.spreadBps, killSwitch: CFG.killSwitch
+          slippageBps: CFG.slippageBps, spreadBps: CFG.spreadBps, killSwitch: CFG.killSwitch,
+          deadHourEnabled: CFG.deadHourEnabled, deadHourStart: CFG.deadHourStart, deadHourEnd: CFG.deadHourEnd
         }
       }));
     } catch(e) {}
