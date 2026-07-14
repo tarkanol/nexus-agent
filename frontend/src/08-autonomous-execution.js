@@ -110,7 +110,17 @@ var Execution = {
     }
     
     var gate = RiskManager.gate(sym, posVal);
-    if (!gate.ok) { if (!auto) notify(gate.reason, 'error'); return; }
+    if (!gate.ok) {
+      if (!auto) {
+        var gateMsgs = {
+          KILL: 'Kill-switch aktif', DD: 'Max drawdown aşıldı', STALE: 'Veri güncel değil',
+          LOCK: 'Bu coin için işlem zaten açılıyor', MARGIN: 'Yetersiz teminat',
+          DEAD_HOUR: 'Ölü saat aralığı (UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ') — işlem kapalı'
+        };
+        notify(gateMsgs[gate.reason] || gate.reason, 'error');
+      }
+      return;
+    }
     
     var cOrderId = orderId('open', sym);
     var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0, lev);
@@ -457,4 +467,3 @@ var Execution = {
     };
   }
 };
-
