@@ -7,7 +7,6 @@ function uid(prefix) { return (prefix || 'apx') + '-' + Date.now().toString(36) 
 function orderId(action, sym) {
   return ('t-apx-' + action.charAt(0) + '-' + String(sym || '').replace('_USDT', '').toLowerCase() + '-' + Date.now().toString(36)).slice(0, 28);
 }
-
 function validSymbol(s) {
   s = String(s || '').trim().toUpperCase();
   if (!/^[A-Z0-9]{2,20}_USDT$/.test(s)) throw new Error('Invalid symbol');
