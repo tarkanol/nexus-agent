@@ -181,7 +181,16 @@ function updateSignalUI() {
     banPos.style.display = (positions.length > 0) ? 'block' : 'none';
     if (positions.length > 0) banPos.textContent = '⚠️ OPEN POSITION (Focus OFF)';
   }
-  document.getElementById('bannerDead').style.display = isDeadHour() ? 'block' : 'none';
+  var deadEl = document.getElementById('bannerDead');
+  if (deadEl) {
+    var deadNow = isDeadHour();
+    deadEl.style.display = deadNow ? 'block' : 'none';
+    if (deadNow) {
+      deadEl.textContent = CFG.deadHourEnabled
+        ? '🔒 UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' — yeni işlem ENGELLİ'
+        : '⚠️ UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' — bilgi amaçlı (engelleme kapalı)';
+    }
+  }
   
   var dsEl = document.getElementById('bannerDataSrc');
   if (dsEl) {
