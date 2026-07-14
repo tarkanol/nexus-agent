@@ -9,6 +9,7 @@
     removeItem: function(k) { delete memory[k]; }
   };
   try {
+    
     var nativeStore = window.localStorage;
     var probe = '__apex_storage_probe__';
     nativeStore.setItem(probe, '1');
