@@ -43,7 +43,6 @@ function isDeadHour() {
   return h >= s || h < e; // gece yarisini gecen araliklar (orn. 22-04)
 }
 
-
 function analyzeAll() {
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
