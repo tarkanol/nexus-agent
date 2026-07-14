@@ -11,6 +11,7 @@ function readSettings() {
   updateBalUI();
 }
 
+
 function toggleAutoTrade() {
   autoTrade = !autoTrade;
   document.getElementById('togAutoTrade').className = 'tog ' + (autoTrade ? 'on' : 'off');
