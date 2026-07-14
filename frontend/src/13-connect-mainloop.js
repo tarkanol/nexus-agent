@@ -14,7 +14,23 @@ function connectLive() {
     appMode = 'live';
     document.getElementById('bdgConn').textContent = 'LIVE';
     document.getElementById('bdgConn').className = 'bdg live';
-    return Execution.reconcile(true).then(function() { return MarketData.fetchLive(); });
+    return Execution.reconcile(true).then(function() {
+      // v16.4 FIX: canliya baglanildiginda peakBal'i demo'nun sabit $50
+      // varsayimina degil, GERCEK bakiyeye gore sifirliyoruz. Aksi halde
+      // kullanici futures cuzdanini bilerek dusuk bir limitle (orn. $21)
+      // fonlamissa, uygulama bunu kalici bir "drawdown" saniyor ve DD%
+      // gostergesi hicbir zaman duzelmiyor; hatta gereksiz yere
+      // kill-switch'i tetikleyebiliyor. Gercek sermaye artik yeni baslangic
+      // noktasi.
+      if (Number.isFinite(balance) && balance > 0) {
+        var oldPeak = peakBal;
+        peakBal = balance;
+        if (Math.abs(oldPeak - peakBal) > 0.01) {
+          log('[BASELINE] Risk referansi $' + oldPeak.toFixed(2) + ' -> $' + peakBal.toFixed(2) + ' olarak güncellendi (gerçek bakiye)', 'info');
+        }
+      }
+      return MarketData.fetchLive();
+    });
   }).then(function() {
     var hasData = pairs.some(function(s) { return pData[s] && pData[s].price; });
     if (!hasData) {
