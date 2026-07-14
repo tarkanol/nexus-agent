@@ -73,7 +73,14 @@ var CFG = {
   killSwitch: false,
   persistKey: 'apex-scalp-v81-mobile',
   dayKey: new Date().toISOString().slice(0, 10),
-  recoveryMode: false
+  recoveryMode: false,
+  // v16.5: UTC "olu saat" araligi artik sabit 02-06 degil, kullanici
+  // tarafindan ayarlanabilir. deadHourEnabled=false iken banner sadece
+  // bilgi amaclidir (eskisi gibi); true iken RiskManager.gate() bu
+  // saatlerde yeni islem acilmasini fiilen engeller.
+  deadHourEnabled: false,
+  deadHourStart: 2,
+  deadHourEnd: 6
 };
 
 var Runtime = {
