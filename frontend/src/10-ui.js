@@ -9,6 +9,7 @@ function updateWRStrip() {
     else { losses++; totalL += Math.abs(trades[i].pnl); }
     returns.push(trades[i].pnl / 50);
   }
+  
   var total = wins + losses;
   var wr = total ? ((wins / total) * 100).toFixed(1) + '%' : '--%';
   
