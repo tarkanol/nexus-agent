@@ -10,6 +10,7 @@ var RiskManager = {
   },
   gate: function(sym, notional) {
     if (CFG.killSwitch) return {ok: false, reason: 'KILL'};
+    if (CFG.deadHourEnabled && isDeadHour()) return {ok: false, reason: 'DEAD_HOUR'};
     if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) return {ok: false, reason: 'DD'};
     if (RiskManager.stale(sym)) return {ok: false, reason: 'STALE'};
     if (Runtime.openingLocks[sym]) return {ok: false, reason: 'LOCK'};
@@ -35,7 +36,11 @@ var RiskManager = {
 
 function isDeadHour() {
   var h = new Date().getUTCHours();
-  return (h >= 2 && h < 6);
+  var s = num(CFG.deadHourStart, 2), e = num(CFG.deadHourEnd, 6);
+  s = clampNum(Math.round(s), 0, 23); e = clampNum(Math.round(e), 0, 23);
+  if (s === e) return false; // 0 saatlik aralik = kapali
+  if (s < e) return h >= s && h < e;
+  return h >= s || h < e; // gece yarisini gecen araliklar (orn. 22-04)
 }
 
 function analyzeAll() {
