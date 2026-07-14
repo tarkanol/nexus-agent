@@ -157,10 +157,31 @@ function manualOpen(side) {
   openPos(currentPair, side, false, tp, sl);
 }
 
+function updateDeadHourToggleUI() {
+  var tog = document.getElementById('togDeadHour');
+  if (tog) tog.className = 'tog ' + (CFG.deadHourEnabled ? 'on' : 'off');
+  var desc = document.getElementById('togDeadHourD');
+  if (desc) {
+    desc.textContent = CFG.deadHourEnabled
+      ? 'Açık — UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' arası yeni işlem engellenir'
+      : 'Kapalı — sadece bilgi banner\'ı gösterilir';
+  }
+}
+
 function bindSafeUI() {
   var ids = {safeDaily: CFG.maxDailyLoss, safeDD: CFG.maxDrawdownPct, safeTrades: CFG.maxTradesPerDay,
-             safeStale: CFG.staleDataMs / 1000, safeSlip: CFG.slippageBps, safeSpread: CFG.spreadBps};
+             safeStale: CFG.staleDataMs / 1000, safeSlip: CFG.slippageBps, safeSpread: CFG.spreadBps,
+             deadHourStart: CFG.deadHourStart, deadHourEnd: CFG.deadHourEnd};
   Object.keys(ids).forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ids[id]; });
+  updateDeadHourToggleUI();
+  
+  var togDH = document.getElementById('togDeadHour');
+  if (togDH) togDH.onclick = function() {
+    CFG.deadHourEnabled = !CFG.deadHourEnabled;
+    updateDeadHourToggleUI();
+    Store.save();
+    updateSignalUI();
+  };
   
   var save = document.getElementById('safeSave');
   if (save) save.onclick = function() {
@@ -171,7 +192,9 @@ function bindSafeUI() {
     CFG.staleDataMs = Math.max(10000, gv('safeStale', 90) * 1000);
     CFG.slippageBps = Math.max(0, gv('safeSlip', 2));
     CFG.spreadBps = Math.max(0, gv('safeSpread', 1));
-    Store.save(); renderRiskStatus(); notify('Safety limits saved', 'success');
+    CFG.deadHourStart = clampNum(Math.round(gv('deadHourStart', 2)), 0, 23);
+    CFG.deadHourEnd = clampNum(Math.round(gv('deadHourEnd', 6)), 0, 23);
+    Store.save(); renderRiskStatus(); updateSignalUI(); notify('Safety limits saved', 'success');
   };
   
   var kill = document.getElementById('safeKill');
