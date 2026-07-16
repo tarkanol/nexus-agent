@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V8.1 - MOBİL</title>
+<title>APEX SCALP V8.2 - MOBİL</title>
 <style>
 :root {
   --bg: #060a12;
@@ -263,9 +263,10 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <div id="appRoot">
 
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP</span><span class="version">v8.1</span><span class="autonomous">⚡</span></div>
+  <div class="logo">APEX<span> // SCALP</span><span class="version">v8.2</span><span class="autonomous">⚡</span></div>
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
+    <span class="bdg" id="bdgMarket">FUT</span>
     <span class="bdg" id="bdgAuto">⏸️</span>
     <span class="bdg" id="bdgEng">ENG:OFF</span>
     <span class="bdg" id="bdgPos">0</span>
@@ -389,6 +390,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
         <div class="ind-cell"><div class="ind-label">ADX</div><div class="ind-val neut" id="iAdx">--</div></div>
         <div class="ind-cell"><div class="ind-label">MOM</div><div class="ind-val neut" id="iMom">--</div></div>
         <div class="ind-cell"><div class="ind-label">BB</div><div class="ind-val neut" id="iBb">--</div></div>
+        <div class="ind-cell"><div class="ind-label">ATR($)</div><div class="ind-val neut" id="iAtr">--</div></div>
       </div>
     </div>
 
@@ -443,6 +445,14 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Daily loss ($)</span><input id="safeDaily" type="number" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">DD (%)</span><input id="safeDD" type="number" step="0.5" min="1"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max trades/day</span><input id="safeTrades" type="number" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Stale data (s)</span><input id="safeStale" type="number" step="5" min="10"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Slippage (bps)</span><input id="safeSlip" type="number" step="0.5" min="0"></div><div class="inp-wrap"><span class="inp-label">Spread (bps)</span><input id="safeSpread" type="number" step="0.5" min="0"></div></div>
+      <div class="tog-row">
+        <div class="tog" id="togDeadHour"></div>
+        <div>
+          <div class="tog-title">🌙 Ölü Saat Engeli (UTC)</div>
+          <div class="tog-desc" id="togDeadHourD">Kapalı — sadece bilgi banner'ı gösterilir</div>
+        </div>
+      </div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Başlangıç saati (UTC)</span><input id="deadHourStart" type="number" step="1" min="0" max="23"></div><div class="inp-wrap"><span class="inp-label">Bitiş saati (UTC)</span><input id="deadHourEnd" type="number" step="1" min="0" max="23"></div></div>
       <div class="btn-row"><button class="btn btn-gold btn-sm" id="safeSave">SAVE</button><button class="btn btn-danger btn-sm" id="safeKill">KILL</button></div>
       <div id="safeRiskStatus" style="font:6px var(--mono);color:var(--dim2);margin-top:3px"></div>
     </div>
@@ -491,6 +501,15 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div style="background:rgba(2,10,16,0.9);border:1px solid var(--brd);border-radius:3px;padding:4px;font-family:var(--mono);font-size:7px;color:var(--dim2);line-height:1.6">Risk: <strong id="showRisk" style="color:var(--gold)">Dynamic</strong> | Target: <strong id="showTP" style="color:var(--long)">ATR</strong> | Lev: <strong id="showLev" style="color:var(--acc)">Auto</strong></div>
     </div>
 
+    <div class="card" id="spotCfgCard" style="display:none;border-color:rgba(255,200,0,.2);background:rgba(255,200,0,.02)">
+      <div class="card-title">SPOT — TREND SIGNAL SUITE (PINE PORT)</div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Short EMA</span><input type="number" id="spotEmaShort" value="9" step="1" min="1" max="200"></div><div class="inp-wrap"><span class="inp-label">Mid EMA</span><input type="number" id="spotEmaMid" value="21" step="1" min="2" max="400"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Long EMA</span><input type="number" id="spotEmaLong" value="55" step="1" min="3" max="600"></div><div class="inp-wrap"><span class="inp-label">Length Mult</span><input type="number" id="spotLenMult" value="1.0" step="0.1" min="0.1" max="10"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">SL (%)</span><input type="number" id="spotSlPct" value="1.5" step="0.1" min="0.1"></div><div class="inp-wrap"><span class="inp-label">TP (%)</span><input type="number" id="spotTpPct" value="3.0" step="0.1" min="0.1"></div></div>
+      <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Buy ($)</span><input type="number" id="spotBuyUsd" value="10" step="1" min="1"></div><div class="inp-wrap"><span class="inp-label">Sinyal TF</span><select id="spotTf"><option value="5m" selected>5m</option><option value="15m">15m</option><option value="1h">1h</option></select></div></div>
+      <div style="font-size:7px;color:var(--dim2);font-family:var(--mono);line-height:1.5">Pine port: BUY = crossover(EMA_s, EMA_m) VE s&gt;m&gt;l yığını; SELL = crossunder VE s&lt;m&lt;l. Kapanmış mumda, bar başına 1 tetikleme. Asıl çıkış SELL sinyali; SL/TP koruyucudur (client-side). Swing AL/SAT pivotları 10 bar gecikmeli kesinleştiği için canlı emirde kullanılmaz.</div>
+    </div>
+
     <div class="card">
       <div class="card-title">BACKTEST</div>
       <div class="btn-row"><button class="btn btn-acc btn-sm" id="runBacktest">RUN</button><button class="btn btn-out btn-sm" id="runTests">TEST</button></div>
@@ -512,8 +531,10 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="card-title">CONNECTION</div>
       <div class="fr"><span class="inp-label">WORKER URL</span><input id="wUrl" placeholder="https://xxx.workers.dev" type="url" autocomplete="off" style="font-size:8px;min-height:28px"></div>
+      <div class="btn-row" style="margin-bottom:3px"><button class="btn btn-gold btn-sm" id="btnModeFut" onclick="setMarketMode('FUTURES')" style="flex:1">FUTURES</button><button class="btn btn-out btn-sm" id="btnModeSpot" onclick="setMarketMode('SPOT')" style="flex:1">SPOT</button></div>
       <div class="btn-row"><button class="btn btn-acc btn-sm" onclick="connectLive()" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO</button></div>
       <div id="connStatus" style="font-size:7px;color:var(--dim2);text-align:center;font-family:var(--mono);padding:2px;border-radius:3px;background:rgba(0,0,0,.3)">Demo mode</div>
+      <div id="spotHoldingsBox" style="display:none;font-size:7px;color:var(--gold);font-family:var(--mono);text-align:center;padding:2px;margin-top:2px;border-radius:3px;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.15)"></div>
     </div>
 
     <div class="card">
@@ -547,7 +568,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 'use strict';
 
 /* ============================================================
-   APEX SCALP V8.1 - MOBİL
+   APEX SCALP V8.2 - MOBİL
    OTOMATIK BUILD: bu blok src/*.js dosyalarindan birlestirilir.
    BURAYI ELLE DUZENLEMEYIN — degisiklikler bir sonraki build'de
    silinir. src/ klasorundeki ilgili dosyayi duzenleyip commit edin.
@@ -577,7 +598,22 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 /* ============================================================
    GLOBAL STATE
    ============================================================ */
-var APP_VERSION = '8.1';
+var APP_VERSION = '8.2';
+/* v8.2: FUTURES/SPOT piyasa modu. SPOT modunda sinyaller Pine Script
+   EMA-crossover portundan gelir (bkz 17-spot-mode.js), emirler
+   worker'in /spot/* endpoint'lerine yonlenir, kaldirac sabit 1x'tir. */
+var marketMode = 'FUTURES'; // 'FUTURES' | 'SPOT'
+var SPOT_CFG = {
+  // Pine: "Trend & Swing Signal Suite w/ Auto-Fib" girdileri
+  emaShort: 9,   // Pine: shortLen
+  emaMid:   21,  // Pine: midLen
+  emaLong:  55,  // Pine: longLen (trend filtresi)
+  lenMult:  1.0, // Pine: lenMult — uzunluklari birlikte olcekler
+  tf: '5m',      // sinyal zaman dilimi (5m | 15m | 1h)
+  slPct: 1.5,    // koruyucu stop (%) — asil cikis sellCond'dur
+  tpPct: 3.0,    // kar al (%)
+  buyUsd: 10     // Max Size ($) bos/0 ise islem basina USDT
+};
 var START_BAL = 50;
 var leverage = 2;
 var engineOn = false;
@@ -628,7 +664,14 @@ var CFG = {
   killSwitch: false,
   persistKey: 'apex-scalp-v81-mobile',
   dayKey: new Date().toISOString().slice(0, 10),
-  recoveryMode: false
+  recoveryMode: false,
+  // v16.5: UTC "olu saat" araligi artik sabit 02-06 degil, kullanici
+  // tarafindan ayarlanabilir. deadHourEnabled=false iken banner sadece
+  // bilgi amaclidir (eskisi gibi); true iken RiskManager.gate() bu
+  // saatlerde yeni islem acilmasini fiilen engeller.
+  deadHourEnabled: false,
+  deadHourStart: 2,
+  deadHourEnd: 6
 };
 
 var Runtime = {
@@ -641,7 +684,7 @@ var Runtime = {
   scanBusy: false,
   tests: [],
   apiMode: 'unknown',
-  capabilities: {snapshot: null, state: null, riskUpdate: null, kill: null},
+  capabilities: {snapshot: null, state: null, riskUpdate: null, kill: null, spot: null},
   compatNotified: false,
   posListWarnedOnce: false
 };
@@ -912,7 +955,8 @@ var Store = {
         risk: {
           maxDailyLoss: CFG.maxDailyLoss, maxDrawdownPct: CFG.maxDrawdownPct,
           maxTradesPerDay: CFG.maxTradesPerDay, staleDataMs: CFG.staleDataMs,
-          slippageBps: CFG.slippageBps, spreadBps: CFG.spreadBps, killSwitch: CFG.killSwitch
+          slippageBps: CFG.slippageBps, spreadBps: CFG.spreadBps, killSwitch: CFG.killSwitch,
+          deadHourEnabled: CFG.deadHourEnabled, deadHourStart: CFG.deadHourStart, deadHourEnd: CFG.deadHourEnd
         }
       }));
     } catch(e) {}
@@ -1334,6 +1378,7 @@ function resultBase(ctx) {
       macd: ctx.macd5,
       vr: ctx.vr,
       atrPct: ctx.atrPct,
+      atrVal: ctx.atrVal || 0,
       adx: ctx.adx || 0,
       goldenX: ctx.goldenX,
       deathX: ctx.deathX,
@@ -1569,7 +1614,7 @@ function analyze(sym) {
   score = clampNum(Math.round(score), 0, 100);
   
   var ctx = {
-    price: price, score: score, reasons: reasons, atrPct: atrPct, vr: vr, adx: adx,
+    price: price, score: score, reasons: reasons, atrPct: atrPct, atrVal: atr5, vr: vr, adx: adx,
     tfCount: tfCount, rsi5: rsi5, rsi15: rsi15, macd5: macd5,
     macdLabel: (macd5.hist >= 0 ? '+' : '') + macd5.hist.toFixed(5),
     goldenX: goldenX, deathX: deathX, aboveEMA: aboveEMA,
@@ -1711,6 +1756,7 @@ var RiskManager = {
   },
   gate: function(sym, notional) {
     if (CFG.killSwitch) return {ok: false, reason: 'KILL'};
+    if (CFG.deadHourEnabled && isDeadHour()) return {ok: false, reason: 'DEAD_HOUR'};
     if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) return {ok: false, reason: 'DD'};
     if (RiskManager.stale(sym)) return {ok: false, reason: 'STALE'};
     if (Runtime.openingLocks[sym]) return {ok: false, reason: 'LOCK'};
@@ -1736,13 +1782,20 @@ var RiskManager = {
 
 function isDeadHour() {
   var h = new Date().getUTCHours();
-  return (h >= 2 && h < 6);
+  var s = num(CFG.deadHourStart, 2), e = num(CFG.deadHourEnd, 6);
+  s = clampNum(Math.round(s), 0, 23); e = clampNum(Math.round(e), 0, 23);
+  if (s === e) return false; // 0 saatlik aralik = kapali
+  if (s < e) return h >= s && h < e;
+  return h >= s || h < e; // gece yarisini gecen araliklar (orn. 22-04)
 }
 
 function analyzeAll() {
+  // v8.2: SPOT modunda sinyal kaynagi Pine EMA-crossover portu,
+  // FUTURES modunda mevcut cok-stratejili analyze().
+  var fn = (typeof marketMode !== 'undefined' && marketMode === 'SPOT') ? spotAnalyze : analyze;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
-    try { pData[s].an = analyze(s); } catch(e) { log('Err ' + s, 'err'); }
+    try { pData[s].an = fn(s); } catch(e) { log('Err ' + s, 'err'); }
   }
 }
 
@@ -1913,10 +1966,16 @@ function processTrackedPositions() {
   var openPositions = positions.filter(function(p) {
     return p.state === POSITION_STATE.OPEN || p.state === POSITION_STATE.ERROR;
   });
+  var trackNow = Date.now();
   
   for (var i = 0; i < openPositions.length; i++) {
     var pos = openPositions[i];
     if (!pos || closingNow[pos.id]) continue;
+    // v16.4: bir onceki kapama denemesi basarisiz oldugunda (state=ERROR),
+    // her tracker tick'inde (500ms) hemen tekrar denemek yerine 5sn soguma
+    // uyguluyoruz. Boylece kalici bir hata (ornegin borsada pozisyon zaten
+    // yokken tekrar tekrar /close cagirmak) siki bir donguye donusmuyor.
+    if (pos.state === POSITION_STATE.ERROR && (trackNow - (pos.stateUpdatedAt || 0)) < 5000) continue;
     
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
     if (!Number.isFinite(pr) || pr <= 0) continue;
@@ -2066,6 +2125,11 @@ var Execution = {
   
   open: async function(sym, side, auto, manualTargetUsd, manualRiskUsd) {
     try { sym = validSymbol(sym); } catch(e) { notify(e.message, 'error'); return; }
+    // v8.2 SPOT: short yok; manuel SELL eldeki coini satmaya yonlenir.
+    if (marketMode === 'SPOT' && side === 'SHORT') {
+      SpotEngine.sellCurrent();
+      return;
+    }
     var pd = pData[sym], an = pd && pd.an && pd.an.signal !== 'WAIT' ? pd.an : null;
     var price = an ? Number(an.price) : Number(pd && pd.price);
     if (!price) { notify('Price unavailable', 'error'); return; }
@@ -2098,21 +2162,56 @@ var Execution = {
     }
     
     var gate = RiskManager.gate(sym, posVal);
-    if (!gate.ok) { if (!auto) notify(gate.reason, 'error'); return; }
+    if (!gate.ok) {
+      if (!auto) {
+        var gateMsgs = {
+          KILL: 'Kill-switch aktif', DD: 'Max drawdown aşıldı', STALE: 'Veri güncel değil',
+          LOCK: 'Bu coin için işlem zaten açılıyor', MARGIN: 'Yetersiz teminat',
+          DEAD_HOUR: 'Ölü saat aralığı (UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ') — işlem kapalı'
+        };
+        notify(gateMsgs[gate.reason] || gate.reason, 'error');
+      }
+      return;
+    }
+    
+    if (marketMode === 'SPOT') lev = 1; // spot'ta kaldirac yok
     
     var cOrderId = orderId('open', sym);
     var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0, lev);
+    if (marketMode === 'SPOT') pos.market = 'SPOT';
     Runtime.openingLocks[sym] = true;
     updateSignalUI();
     try {
       if (appMode === 'live') {
-        var r = await Http.post('/order', {
-          symbol: sym, side: side, usdAmount: posVal, leverage: lev, sl: sl, tp: tp,
-          clientOrderId: cOrderId, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
-        });
+        var r;
+        if (pos.market === 'SPOT') {
+          // v8.2: Gate.io spot market BUY — worker /spot/order, amount =
+          // QUOTE (USDT) miktari. SL/TP borsaya gonderilmez; client-side
+          // tracker izler (spot'ta worker tarafinda trigger emri yok).
+          r = await Http.post('/spot/order', {
+            symbol: sym, side: 'BUY', usdAmount: posVal, clientOrderId: cOrderId
+          });
+        } else {
+          r = await Http.post('/order', {
+            symbol: sym, side: side, usdAmount: posVal, leverage: lev, sl: sl, tp: tp,
+            clientOrderId: cOrderId, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
+          });
+        }
         if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Order rejected');
         pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
         if (r.fillPrice) pos.entry = Number(r.fillPrice);
+        if (pos.market === 'SPOT') {
+          // Gerceklesen dolum: qty = alinan coin (filledBase),
+          // posVal = harcanan USDT (filledQuote). SL/TP'yi gercek
+          // giris fiyatina gore yeniden hizala.
+          if (Number(r.filledBase) > 0)  pos.qty = Number(r.filledBase);
+          if (Number(r.filledQuote) > 0) pos.posVal = Number(r.filledQuote);
+          if (r.fillPrice && !manualTargetUsd) {
+            pos.sl = pos.entry * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
+            pos.tp = pos.entry * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
+          }
+          if (auto) autonomousTrades++;
+        }
         StateMachine.transition(pos, POSITION_STATE.OPEN);
         positions.push(pos);
         Store.save();
@@ -2139,6 +2238,16 @@ var Execution = {
       startTracker();
     } catch(e) {
       try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch(_) {}
+      // v16.3: worker "pozisyon cok kucuk" hatasinda gercek min notional'i
+      // e.data.minNotionalUsd icinde donuyor (bkz Http.request). Bunu
+      // ogrenip MIN_POS_VAL'i yukseltiyoruz ki ayni coin icin bir sonraki
+      // otomatik islem denemesi ayni sebeple bosuna tekrar reddedilmesin.
+      var minUsd = e.data && Number(e.data.minNotionalUsd);
+      if (Number.isFinite(minUsd) && minUsd > MIN_POS_VAL) {
+        var oldMin = MIN_POS_VAL;
+        MIN_POS_VAL = minUsd;
+        log('[MIN_POS] ' + sym.replace('_USDT','') + ' min pozisyon $' + oldMin.toFixed(2) + ' -> $' + minUsd.toFixed(2), 'info');
+      }
       notify('Open failed: ' + e.message, 'error');
       sendTelegram('❌ OPEN FAILED\n' + sym + '\n' + e.message);
     } finally {
@@ -2179,12 +2288,21 @@ var Execution = {
     try {
       if (appMode === 'live') {
         var cid = orderId('close', pos.pair);
-        var r = await Http.post('/close', {
-          symbol: pos.pair, 
-          side: pos.side, 
-          clientOrderId: cid, 
-          reason: reason || 'MANUAL'
-        });
+        var r;
+        if (pos.market === 'SPOT') {
+          // v8.2: spot'ta "kapatma" = eldeki base coin'in tamamini
+          // USDT'ye geri satmak (worker /spot/close).
+          r = await Http.post('/spot/close', {
+            symbol: pos.pair, clientOrderId: cid, reason: reason || 'MANUAL'
+          });
+        } else {
+          r = await Http.post('/close', {
+            symbol: pos.pair, 
+            side: pos.side, 
+            clientOrderId: cid, 
+            reason: reason || 'MANUAL'
+          });
+        }
         if (!r || !(r.success || r.ok)) {
           throw new Error((r && r.error) || 'Close rejected');
         }
@@ -2211,16 +2329,35 @@ var Execution = {
       }
     } catch(e) {
       delete closingNow[id];
-      try { 
-        StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); 
-      } catch(_) { 
-        pos.state = POSITION_STATE.ERROR; 
-        pos.lastError = e.message; 
-      }
-      logPos('CLOSE FAILED ' + pos.pair + ': ' + e.message, 'err');
-      notify('Close failed; position kept: ' + e.message, 'error');
-      if (appMode === 'live') {
-        setTimeout(function() { Execution.reconcile(true); }, 1000);
+      // v16.4 FIX (kok sebep): worker "Acik pozisyon yok" hatasi donuyorsa,
+      // bu genelde borsanin KENDI SL/TP tetikleyici emrinin bizden once
+      // pozisyonu zaten kapatmis oldugu anlamina gelir (worker acilista
+      // hem client-side hem exchange-side SL/TP kuruyor - iki katmanli
+      // koruma). Eskiden bu durum ERROR olarak isaretlenip her tracker
+      // tick'inde (500ms) tekrar deneniyordu -> sonsuz "kapanamadi" dongusu.
+      // Artik bu spesifik durumda pozisyonu basarili kapanmis sayip yerel
+      // kaydi (bakiye, PnL, trade gecmisi) elimizdeki en guncel fiyatla
+      // sonlandiriyoruz.
+      // v8.2: spot karsiligi — "Elinizde X bulunmuyor" da borsada zaten
+      // satilmis demektir (kullanici disaridan satmis olabilir).
+      var noPositionOnExchange = /açık pozisyon yok|acik pozisyon yok|no open position|elinizde .* bulunmuyor/i.test(String(e.message || ''));
+      if (appMode === 'live' && noPositionOnExchange) {
+        var exitGuess = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
+        logPos('[AUTO-RESOLVE] ' + pos.pair.replace('_USDT','') + ' borsada zaten kapanmis, yerel kayit senkronize ediliyor', 'info');
+        Execution.finalizeClose(pos, exitGuess, reason + ' (EXCHANGE_CLOSED)', null);
+        Execution.reconcile(true).catch(function() {});
+      } else {
+        try { 
+          StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); 
+        } catch(_) { 
+          pos.state = POSITION_STATE.ERROR; 
+          pos.lastError = e.message; 
+        }
+        logPos('CLOSE FAILED ' + pos.pair + ': ' + e.message, 'err');
+        notify('Close failed; position kept: ' + e.message, 'error');
+        if (appMode === 'live') {
+          setTimeout(function() { Execution.reconcile(true); }, 1000);
+        }
       }
     } finally {
       if (pos.state === POSITION_STATE.CLOSED) {
@@ -2354,6 +2491,12 @@ var Execution = {
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
     Runtime.liveReconcileBusy = true;
     try {
+      // v8.2 SPOT: futures /state spot pozisyonlarini bilmez; oraya
+      // gidersek reconcilePayload yerel spot pozisyonlarini SILER.
+      // Spot modunda gercek kaynak /spot/balance + eldeki coin'lerdir.
+      if (marketMode === 'SPOT') {
+        return await SpotEngine.syncBalance(force);
+      }
       if (Runtime.capabilities.state === false) {
         return await ApiCompat.syncLegacyBalance(force);
       }
@@ -2449,6 +2592,10 @@ function runEngine() {
   if (el) el.textContent = new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'});
   var eo = document.getElementById('eOpen'); 
   if (eo) eo.textContent = positions.length;
+  
+  // v8.2: SPOT modu — EMA crossover al / crossunder sat dongusu.
+  // Cikis taramasi focus modundan etkilenmez (SpotEngine icinde).
+  if (marketMode === 'SPOT') { SpotEngine.engineTick(); return; }
   
   if (focusModeOn && positions.length > 0) {
     var sigEl = document.getElementById('eSig');
@@ -2651,6 +2798,7 @@ function updateSignalUI() {
     sInd('iAdx', (ind.adx || 0).toFixed(0), (ind.adx || 0) >= 25 ? 'bull' : (ind.adx || 0) >= 15 ? 'neut' : 'bear');
     sInd('iMom', 'StRSI:' + ind.stochRsi5.toFixed(0), ind.stochRsi5 < 35 ? 'bull' : ind.stochRsi5 > 65 ? 'bear' : 'neut');
     sInd('iBb', ind.bbSqueeze ? 'SQZ' : 'NORMAL', ind.bbSqueeze ? 'warn' : 'neut');
+    sInd('iAtr', '$' + fp(ind.atrVal || 0), 'neut');
   }
   if (an && an.mtf) {
     sMTF('m5', an.mtf['5m']);
@@ -2685,7 +2833,16 @@ function updateSignalUI() {
     banPos.style.display = (positions.length > 0) ? 'block' : 'none';
     if (positions.length > 0) banPos.textContent = '⚠️ OPEN POSITION (Focus OFF)';
   }
-  document.getElementById('bannerDead').style.display = isDeadHour() ? 'block' : 'none';
+  var deadEl = document.getElementById('bannerDead');
+  if (deadEl) {
+    var deadNow = isDeadHour();
+    deadEl.style.display = deadNow ? 'block' : 'none';
+    if (deadNow) {
+      deadEl.textContent = CFG.deadHourEnabled
+        ? '🔒 UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' — yeni işlem ENGELLİ'
+        : '⚠️ UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' — bilgi amaçlı (engelleme kapalı)';
+    }
+  }
   
   var dsEl = document.getElementById('bannerDataSrc');
   if (dsEl) {
@@ -2786,7 +2943,7 @@ function updatePosUI() {
       var btnLabel = closing ? 'CLOSING...' : pos.state === POSITION_STATE.ERROR ? 'RETRY' : 'CLOSE';
       html += '<div class="pos-card ' + pos.side.toLowerCase() + '">' +
         '<div class="pos-hd"><span class="pos-sym">' + pos.pair.replace('_USDT', '') + autoTag + tTag + '</span>' +
-        '<span class="pos-side ' + pos.side + '">' + pos.side + ' ' + (pos.leverage || 1) + 'x</span>' +
+        '<span class="pos-side ' + pos.side + '">' + (pos.market === 'SPOT' ? 'SPOT BUY' : pos.side + ' ' + (pos.leverage || 1) + 'x') + '</span>' +
         '<span class="pos-pnl ' + (pnl >= 0 ? 'up' : 'dn') + '">' + (pnl >= 0 ? '+' : '') + ' $' + pnl.toFixed(4) + '</span></div>' +
         '<div class="pos-grid">' +
           '<div class="pgc"><div class="pgc-l">ENTRY</div><div class="pgc-v">' + fp(pos.entry) + '</div></div>' +
@@ -2956,6 +3113,7 @@ var ApiCompat = {
       Runtime.capabilities.state = !!(f.state || f.reconcile);
       Runtime.capabilities.riskUpdate = !!f.riskUpdate;
       Runtime.capabilities.kill = !!f.kill;
+      Runtime.capabilities.spot = !!f.spot; // v17.0+ worker
       Runtime.apiMode = Runtime.capabilities.snapshot ? 'modern' : 'legacy';
       return;
     }
@@ -3088,6 +3246,9 @@ var MarketData = {
   },
   fetchLive: async function() {
     if (!WORKER) return;
+    // v8.2: SPOT modunda /snapshot futures verisi doner; spot fiyat ve
+    // mumlar /spot/price + /spot/klines'tan gelir.
+    if (marketMode === 'SPOT') return SpotEngine.fetchMarket();
     if (Runtime.capabilities.snapshot !== false) {
       try {
         var qs = encodeURIComponent(pairs.join(','));
@@ -3137,7 +3298,11 @@ var MarketData = {
       }));
     }
     var request;
-    if (Runtime.capabilities.snapshot !== false) {
+    if (marketMode === 'SPOT') {
+      // v8.2: spot icin batch endpoint yok; pair basina /spot/price.
+      request = SpotEngine.refreshOpenPrices(symbols)
+        .then(function(results) { return results.some(Boolean); });
+    } else if (Runtime.capabilities.snapshot !== false) {
       request = Http.request(WORKER + '/batch-prices?symbols=' + encodeURIComponent(symbols.join(',')), {}, 1800)
         .then(function(res) {
           if (!res || !res.success || !res.prices) throw new Error('batch-prices unavailable');
@@ -3225,15 +3390,39 @@ function connectLive() {
   if (!url) { notify('Enter Worker URL', 'error'); return; }
   WORKER = url.replace(/\/+$/, '');
   Runtime.apiMode = 'unknown';
-  Runtime.capabilities = {snapshot: null, state: null, riskUpdate: null, kill: null};
+  Runtime.capabilities = {snapshot: null, state: null, riskUpdate: null, kill: null, spot: null};
   Runtime.compatNotified = false;
   Http.get('/ping').then(function(d) {
     if (!d || !d.success) throw new Error('Worker not responding');
     ApiCompat.applyPing(d);
     appMode = 'live';
+    // v8.2: SPOT modu secili ama worker spot bilmiyorsa (v17.0 oncesi)
+    // sessiz bozulma yerine FUTURES'a dusuyoruz.
+    if (marketMode === 'SPOT' && Runtime.capabilities.spot === false) {
+      notify('Worker SPOT desteklemiyor (v17.0+ gerekli) — FUTURES moduna geçildi', 'error');
+      marketMode = 'FUTURES';
+      saveMarketMode();
+      applyMarketModeUI();
+    }
     document.getElementById('bdgConn').textContent = 'LIVE';
     document.getElementById('bdgConn').className = 'bdg live';
-    return Execution.reconcile(true).then(function() { return MarketData.fetchLive(); });
+    return Execution.reconcile(true).then(function() {
+      // v16.4 FIX: canliya baglanildiginda peakBal'i demo'nun sabit $50
+      // varsayimina degil, GERCEK bakiyeye gore sifirliyoruz. Aksi halde
+      // kullanici futures cuzdanini bilerek dusuk bir limitle (orn. $21)
+      // fonlamissa, uygulama bunu kalici bir "drawdown" saniyor ve DD%
+      // gostergesi hicbir zaman duzelmiyor; hatta gereksiz yere
+      // kill-switch'i tetikleyebiliyor. Gercek sermaye artik yeni baslangic
+      // noktasi.
+      if (Number.isFinite(balance) && balance > 0) {
+        var oldPeak = peakBal;
+        peakBal = balance;
+        if (Math.abs(oldPeak - peakBal) > 0.01) {
+          log('[BASELINE] Risk referansi $' + oldPeak.toFixed(2) + ' -> $' + peakBal.toFixed(2) + ' olarak güncellendi (gerçek bakiye)', 'info');
+        }
+      }
+      return MarketData.fetchLive();
+    });
   }).then(function() {
     var hasData = pairs.some(function(s) { return pData[s] && pData[s].price; });
     if (!hasData) {
@@ -3379,7 +3568,10 @@ function fetchTopCoins() {
   if (!WORKER) { document.getElementById('fetchStatus').textContent = '⚠️ Live required.'; return; }
   var btn = document.getElementById('btnFetch'), status = document.getElementById('fetchStatus');
   btn.disabled = true; status.textContent = 'Loading...';
-  Http.get('/gateio_tickers').then(function(d) {
+  // v8.2: spot modunda hacim listesi spot piyasasindan gelir (worker
+  // her ikisini de ayni alan adlariyla normalize ediyor).
+  var tickerEP = marketMode === 'SPOT' ? '/spot/tickers' : '/gateio_tickers';
+  Http.get(tickerEP).then(function(d) {
     btn.disabled = false;
     if (d && d.success && Array.isArray(d.data)) {
       var list = d.data.filter(function(c) { return (c.contract || c.symbol || '').indexOf('_USDT') !== -1; });
@@ -3447,10 +3639,31 @@ function manualOpen(side) {
   openPos(currentPair, side, false, tp, sl);
 }
 
+function updateDeadHourToggleUI() {
+  var tog = document.getElementById('togDeadHour');
+  if (tog) tog.className = 'tog ' + (CFG.deadHourEnabled ? 'on' : 'off');
+  var desc = document.getElementById('togDeadHourD');
+  if (desc) {
+    desc.textContent = CFG.deadHourEnabled
+      ? 'Açık — UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ' arası yeni işlem engellenir'
+      : 'Kapalı — sadece bilgi banner\'ı gösterilir';
+  }
+}
+
 function bindSafeUI() {
   var ids = {safeDaily: CFG.maxDailyLoss, safeDD: CFG.maxDrawdownPct, safeTrades: CFG.maxTradesPerDay,
-             safeStale: CFG.staleDataMs / 1000, safeSlip: CFG.slippageBps, safeSpread: CFG.spreadBps};
+             safeStale: CFG.staleDataMs / 1000, safeSlip: CFG.slippageBps, safeSpread: CFG.spreadBps,
+             deadHourStart: CFG.deadHourStart, deadHourEnd: CFG.deadHourEnd};
   Object.keys(ids).forEach(function(id) { var e = document.getElementById(id); if (e) e.value = ids[id]; });
+  updateDeadHourToggleUI();
+  
+  var togDH = document.getElementById('togDeadHour');
+  if (togDH) togDH.onclick = function() {
+    CFG.deadHourEnabled = !CFG.deadHourEnabled;
+    updateDeadHourToggleUI();
+    Store.save();
+    updateSignalUI();
+  };
   
   var save = document.getElementById('safeSave');
   if (save) save.onclick = function() {
@@ -3461,7 +3674,9 @@ function bindSafeUI() {
     CFG.staleDataMs = Math.max(10000, gv('safeStale', 90) * 1000);
     CFG.slippageBps = Math.max(0, gv('safeSlip', 2));
     CFG.spreadBps = Math.max(0, gv('safeSpread', 1));
-    Store.save(); renderRiskStatus(); notify('Safety limits saved', 'success');
+    CFG.deadHourStart = clampNum(Math.round(gv('deadHourStart', 2)), 0, 23);
+    CFG.deadHourEnd = clampNum(Math.round(gv('deadHourEnd', 6)), 0, 23);
+    Store.save(); renderRiskStatus(); updateSignalUI(); notify('Safety limits saved', 'success');
   };
   
   var kill = document.getElementById('safeKill');
@@ -3567,10 +3782,12 @@ window.__apexReady(function() {
   Store.load();
   TelegramStore.load();
   loadFocusState();
+  loadMarketMode(); // v8.2: FUTURES/SPOT modu + SPOT_CFG
   initChart();
   renderCoinList();
   readSettings();
   bindSafeUI();
+  bindSpotUI(); // v8.2: mod anahtari + spot EMA ayarlari
   updateTelegramUI();
   updateFocusUI();
   
@@ -3603,10 +3820,471 @@ window.__apexReady(function() {
     log('📱 Min pos: $' + MIN_POS_VAL + ' | Coins: ' + pairs.length, 'ok');
     log('⚡ New: Volume spike, pattern, momentum signals', 'ok');
     log('🔒 Focus Mode: ' + (focusModeOn ? 'ON' : 'OFF'), 'ok');
+    log('🏦 Market: ' + marketMode + (marketMode === 'SPOT' ? ' | Pine EMA stack ' + SPOT_CFG.emaShort + '/' + SPOT_CFG.emaMid + '/' + SPOT_CFG.emaLong + ' ×' + SPOT_CFG.lenMult + ' @' + SPOT_CFG.tf : ''), 'ok');
     log('🔄 Tracker: ' + (CFG.trackerMs || 500) + 'ms', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 200);
 });
+
+/* ---- 17-spot-mode.js ---- */
+/* ============================================================
+   SPOT MODE — v8.2
+   ─────────────────────────────────────────────────────────────
+   FUTURES/SPOT piyasa modu anahtari + kullanicinin Pine Script'i
+   "Trend & Swing Signal Suite w/ Auto-Fib" (v5) sinyal mantiginin
+   birebir portu.
+
+   Pine kaynagi (ilgili bolum):
+     sLen = max(1, round(shortLen * lenMult))   // 9  × mult
+     mLen = max(1, round(midLen   * lenMult))   // 21 × mult
+     lLen = max(1, round(longLen  * lenMult))   // 55 × mult
+     emaS = ta.ema(close, sLen)
+     emaM = ta.ema(close, mLen)
+     emaL = ta.ema(close, lLen)
+     trendUp   = emaS > emaM and emaM > emaL
+     trendDown = emaS < emaM and emaM < emaL
+     buyCond   = ta.crossover(emaS, emaM)  and trendUp
+     sellCond  = ta.crossunder(emaS, emaM) and trendDown
+
+   Pine semantigi korunuyor:
+   - ta.crossover(a,b)  => a[1] <= b[1] AND a[0] > b[0]
+   - ta.crossunder(a,b) => a[1] >= b[1] AND a[0] < b[0]
+   - trendUp/trendDown SINYAL BARININ kendi degerleriyle olculur
+     (Pine'daki gibi: cross ani + tam yigin hizasi ayni barda).
+   - Sinyaller yalnizca KAPANMIS mumlarda degerlendirilir (repaint
+     yok; codebase'in closedCandles() konvansiyonuyla ayni).
+   - Ayni bar'da sinyal bir kez islenir (barState kilidi) — Pine'in
+     "bar close'da bir kez tetiklenir" davranisinin karsiligi.
+
+   Porta ALINMAYANLAR (grafik gorseli / canli emre uygun degil):
+   - Swing AL/SAT: ta.pivothigh/low(swingLen) pivotlari ancak
+     swingLen bar SONRA kesinlesir; gercek zamanli emir tetiklemek
+     icin kullanilamaz (gecmise bakan etiket/backtest ogesidir).
+   - Auto-Fib seviyeleri ve backtest tablosu: overlay gorselleri.
+
+   SPOT'ta SHORT yoktur: buyCond = AL (USDT -> coin), sellCond /
+   SL / TP = SAT (coin -> USDT; worker /spot/close tum eldeki
+   miktari satar). Kaldirac her zaman 1x.
+   ============================================================ */
+
+/* ── Pine port: crossover / crossunder ── */
+function pineCrossover(fastArr, slowArr) {
+  var n = fastArr.length - 1;
+  if (n < 1) return false;
+  var f0 = fastArr[n], f1 = fastArr[n - 1];
+  var s0 = slowArr[n], s1 = slowArr[n - 1];
+  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
+  return f1 <= s1 && f0 > s0;
+}
+function pineCrossunder(fastArr, slowArr) {
+  var n = fastArr.length - 1;
+  if (n < 1) return false;
+  var f0 = fastArr[n], f1 = fastArr[n - 1];
+  var s0 = slowArr[n], s1 = slowArr[n - 1];
+  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
+  return f1 >= s1 && f0 < s0;
+}
+
+/* Pine: sLen = math.max(1, int(math.round(shortLen * lenMult))) */
+function spotEffLengths() {
+  var m = num(SPOT_CFG.lenMult, 1) || 1;
+  return {
+    s: Math.max(1, Math.round(num(SPOT_CFG.emaShort, 9)  * m)),
+    m: Math.max(1, Math.round(num(SPOT_CFG.emaMid,  21)  * m)),
+    l: Math.max(1, Math.round(num(SPOT_CFG.emaLong, 55)  * m))
+  };
+}
+
+/* ── SPOT sinyal analizi (futures analyze()'in spot karsiligi) ──
+   pData[sym].an ile ayni sekle sahip bir obje doner ki mevcut UI
+   (sinyal karti, skor tablosu, engine) degisiklik olmadan calissin. */
+function spotAnalyze(sym) {
+  var pd = pData[sym];
+  var L = spotEffLengths();
+  var base = {
+    pair: sym, price: pd ? Number(pd.price) : 0, signal: 'WAIT', exitNow: false,
+    score: 0, tier: 'C', strategy: 'EMA_STACK', reasons: [], vr: 1, adx: 20,
+    sl: 0, tp: 0, posVal: 0, leverage: 1, atrPct: 0,
+    trendUp: false, trendDown: false,
+    emaS: null, emaM: null, emaL: null, barT: 0, lens: L
+  };
+  if (!pd) return base;
+
+  var tfKey = SPOT_CFG.tf === '15m' ? 'kl15m' : SPOT_CFG.tf === '1h' ? 'kl1h' : 'kl5m';
+  var kl = pd[tfKey] || pd.kl5m || [];
+  var need = Math.max(L.l + 2, 30);
+  if (kl.length < need) { base.reasons.push('DATA<' + need); return base; }
+
+  // Pine: sigSource varsayilani close
+  var closes = kl.map(function(k) { return k.c; });
+  var emaS = calcEMA(closes, L.s);
+  var emaM = calcEMA(closes, L.m);
+  var emaL = calcEMA(closes, L.l);
+  var n = closes.length - 1;
+  var lastBar = kl[kl.length - 1];
+  var price = Number(pd.price) || lastBar.c;
+
+  base.price = price;
+  base.barT = lastBar.t;
+  base.emaS = emaS[n]; base.emaM = emaM[n]; base.emaL = emaL[n];
+  base.adx = calcADX(kl, 14);
+  base.vr = calcVolRatio(kl);
+  var atr = calcATR(kl, 14);
+  base.atrPct = price > 0 ? (atr / price) * 100 : 0;
+
+  if (base.emaS == null || base.emaM == null || base.emaL == null) {
+    base.reasons.push('EMA_NULL'); return base;
+  }
+
+  // Pine: trendUp / trendDown (sinyal barinin degerleri)
+  var trendUp   = base.emaS > base.emaM && base.emaM > base.emaL;
+  var trendDown = base.emaS < base.emaM && base.emaM < base.emaL;
+  base.trendUp = trendUp; base.trendDown = trendDown;
+
+  var crossUp = pineCrossover(emaS, emaM);
+  var crossDn = pineCrossunder(emaS, emaM);
+
+  // Pine: buyCond / sellCond
+  var buyCond  = crossUp && trendUp;
+  var sellCond = crossDn && trendDown;
+
+  if (sellCond) {
+    base.exitNow = true;
+    base.reasons.push('S↓M+STACK↓ (' + L.s + '/' + L.m + '/' + L.l + ')');
+  } else if (crossDn && !trendDown) {
+    // Bilgi amacli: cross var ama yigin hizasi yok -> Pine'da sinyal YOK
+    base.reasons.push('S↓M ama L filtresi tutmadı');
+  }
+
+  if (buyCond) {
+    base.signal = 'LONG'; // spot'ta LONG == BUY
+    base.reasons.push('S↑M+STACK↑ (' + L.s + '/' + L.m + '/' + L.l + ')');
+    // Skor: buyCond kesinligi taban + trend gucu (ADX) + hacim katkisi.
+    var score = 60; // yigin filtresi jenerik cross'tan daha secici -> taban yuksek
+    if (base.adx >= 25) { score += 12; base.reasons.push('ADX' + Math.round(base.adx)); }
+    else if (base.adx >= 20) { score += 6; }
+    if (base.vr >= 1.2) { score += 10; base.reasons.push('VOL×' + base.vr.toFixed(1)); }
+    var slopeVal = emaSlope(emaL, 4); // uzun EMA egimi yukariysa ekstra guven
+    if (slopeVal > 0) { score += 8; base.reasons.push('L-SLOPE+'); }
+    base.score = Math.min(95, Math.round(score));
+    base.tier = tierOf(base.score);
+
+    base.posVal = maxPosSize > 0 ? maxPosSize : Math.max(MIN_POS_VAL, num(SPOT_CFG.buyUsd, 10));
+    base.sl = price * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
+    base.tp = price * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
+  } else if (crossUp && !trendUp) {
+    base.reasons.push('S↑M ama L filtresi tutmadı');
+  }
+  return base;
+}
+
+/* ── SpotEngine: veri, bakiye, emir ve engine dongusu ── */
+var SpotEngine = {
+  barState: {},    // 'buy:PAIR' / 'exit:PAIR' -> son islenen bar timestamp'i
+  holdings: [],
+  _lastBalSync: 0,
+
+  /* Canli spot piyasa verisi: /spot/price + /spot/klines.
+     Futures /snapshot'in spot karsiligi worker'da yok; pair basina
+     paralel cekiyoruz. Worker /spot/klines'i zaten [t,o,h,l,c,v]
+     sirasina normalize edip t'yi ms'e cevirmis durumda. */
+  fetchMarket: async function() {
+    if (!WORKER) return;
+    var okCount = 0;
+    var specs = [
+      {tf: '5m',  limit: 200, key: 'kl5m'},
+      {tf: '15m', limit: 120, key: 'kl15m'},
+      {tf: '1h',  limit: 80,  key: 'kl1h'}
+    ];
+    await Promise.all(pairs.map(async function(sym) {
+      if (!pData[sym]) pData[sym] = {};
+      var priceOk = false, candleOk = false;
+      try {
+        var d = await Http.get('/spot/price?symbol=' + encodeURIComponent(sym));
+        var src = d && (d.data || d);
+        var pr = Number(src && (src.lastPrice != null ? src.lastPrice : src.price));
+        if (pr > 0) {
+          prevPx[sym] = pData[sym].price || pr;
+          pData[sym].price = pr;
+          if (!pxState[sym]) pxState[sym] = {price: pr, vel: 0};
+          pxState[sym].price = pr;
+          priceOk = true;
+        }
+      } catch(e) {}
+      await Promise.all(specs.map(async function(s) {
+        try {
+          var d = await Http.get('/spot/klines?symbol=' + encodeURIComponent(sym) + '&interval=' + s.tf + '&limit=' + s.limit);
+          var rows = d && (Array.isArray(d.data) ? d.data : null);
+          if (rows && rows.length) {
+            pData[sym][s.key] = closedCandles(rows.map(ApiCompat.normalizeCandle).filter(function(k) { return k.t && k.c; }), s.tf, Date.now());
+            if (pData[sym][s.key].length > 0) candleOk = true;
+          }
+        } catch(e) {}
+      }));
+      if (priceOk || candleOk) {
+        pData[sym].dataUpdatedAt = Date.now();
+        pData[sym].source = candleOk ? 'live-spot' : 'live-nocandles';
+        okCount++;
+      }
+    }));
+    if (okCount === 0) throw new Error('Spot verisi alınamadı');
+    analyzeAll();
+    return {success: true, spot: true, count: okCount};
+  },
+
+  /* Acik spot pozisyonlarin fiyatini hizli tazele (tracker icin). */
+  refreshOpenPrices: function(symbols) {
+    return Promise.all(symbols.map(function(sym) {
+      return Http.request(WORKER + '/spot/price?symbol=' + encodeURIComponent(sym), {}, 1800)
+        .then(function(d) {
+          var raw = d && d.data ? d.data : (d || {});
+          var price = Number(raw.lastPrice || raw.price);
+          if (!Number.isFinite(price) || price <= 0) return false;
+          if (!pData[sym]) pData[sym] = {};
+          prevPx[sym] = Number(pData[sym].price) || price;
+          pData[sym].price = price;
+          pData[sym].priceUpdatedAt = Date.now();
+          pData[sym].dataUpdatedAt = Date.now();
+          pData[sym].source = 'live-spot';
+          return true;
+        })
+        .catch(function() { return false; });
+    }));
+  },
+
+  /* /spot/balance: USDT bakiyesi + eldeki coin'ler.
+     Ayrica dis mudahale senkronu: yerelde OPEN gorunen bir spot
+     pozisyonun base coin'i cuzdanda artik yoksa (kullanici borsadan
+     elle satmistir), pozisyonu mevcut fiyattan kapali sayariz —
+     futures'taki EXCHANGE_CLOSED auto-resolve'un spot karsiligi. */
+  syncBalance: async function(force) {
+    if (appMode !== 'live' || !WORKER) return;
+    var now = Date.now();
+    if (!force && now - SpotEngine._lastBalSync < 2500) return {success: true, skipped: true};
+    SpotEngine._lastBalSync = now;
+    var d = await Http.get('/spot/balance');
+    if (!d || d.success === false) throw new Error((d && d.error) || 'Spot balance failed');
+    var usdt = Number(d.balance);
+    if (Number.isFinite(usdt)) {
+      futBal = usdt; balance = usdt;
+      peakBal = Math.max(peakBal, balance);
+    }
+    SpotEngine.holdings = Array.isArray(d.holdings) ? d.holdings : [];
+    SpotEngine.renderHoldings();
+
+    positions.filter(function(p) { return p.market === 'SPOT' && p.state === POSITION_STATE.OPEN; })
+      .forEach(function(p) {
+        var baseCoin = p.pair.split('_')[0];
+        var h = SpotEngine.holdings.find(function(x) { return x.currency === baseCoin; });
+        var have = h ? Number(h.available) + Number(h.locked || 0) : 0;
+        if (have < p.qty * 0.05) { // %95'i gitmis: dis satis varsay
+          var exitGuess = Number(pData[p.pair] && pData[p.pair].price) || p.entry;
+          logPos('[SPOT-SYNC] ' + baseCoin + ' cüzdanda yok — pozisyon dışarıda satılmış, senkronize ediliyor', 'info');
+          Execution.finalizeClose(p, exitGuess, 'EXTERNAL_SELL', null);
+        }
+      });
+
+    Runtime.lastReconcileAt = Date.now();
+    updateBalUI();
+    return d;
+  },
+
+  renderHoldings: function() {
+    var box = document.getElementById('spotHoldingsBox');
+    if (!box) return;
+    if (marketMode !== 'SPOT' || appMode !== 'live' || !SpotEngine.holdings.length) {
+      box.style.display = 'none'; box.textContent = ''; return;
+    }
+    box.style.display = 'block';
+    box.textContent = '💰 ' + SpotEngine.holdings.map(function(h) {
+      var amt = Number(h.available) + Number(h.locked || 0);
+      return h.currency + ':' + (amt >= 1 ? amt.toFixed(3) : amt.toPrecision(3));
+    }).join('  ');
+  },
+
+  /* Engine tick'i (runEngine'in spot dali):
+     1) Eldeki her spot pozisyonun pair'inde sellCond varsa SAT
+        (Pine: crossunder(S,M) AND trendDown).
+     2) Focus/limitler uygunsa en iyi buyCond'da AL
+        (Pine: crossover(S,M) AND trendUp). */
+  engineTick: function() {
+    // 1) EXIT taramasi — focus modundan BAGIMSIZ (cikislar her zaman calisir)
+    positions.filter(function(p) { return p.market === 'SPOT' && p.state === POSITION_STATE.OPEN; })
+      .forEach(function(p) {
+        var an = pData[p.pair] && pData[p.pair].an;
+        if (!an || !an.exitNow || !an.barT) return;
+        var key = 'exit:' + p.pair;
+        if (SpotEngine.barState[key] === an.barT) return; // bu barda islendi
+        SpotEngine.barState[key] = an.barT;
+        logPos('[SELL] ' + p.pair.replace('_USDT','') + ' sellCond (S↓M + stack↓) — satılıyor', 'info');
+        Execution.close(p.id, 'SELL_SIGNAL');
+      });
+
+    var sigEl = document.getElementById('eSig');
+
+    // 2) ENTRY taramasi
+    if (focusModeOn && positions.length > 0) {
+      if (sigEl) {
+        sigEl.textContent = '🔒 FOCUS: ' + positions.map(function(p) { return p.pair.replace('_USDT',''); }).join(',');
+        sigEl.style.color = 'var(--warn)';
+      }
+      return;
+    }
+    var best = null, bestScore = -1;
+    for (var i = 0; i < pairs.length; i++) {
+      var s = pairs[i];
+      var an = pData[s] && pData[s].an;
+      if (!an || an.signal !== 'LONG' || an.score < minScore) continue;
+      if (SpotEngine.barState['buy:' + s] === an.barT) continue; // ayni barda tekrar alma
+      if (positions.some(function(p) { return p.pair === s && p.state !== POSITION_STATE.CLOSED; })) continue;
+      if (an.score > bestScore) { bestScore = an.score; best = {sym: s, an: an}; }
+    }
+    if (sigEl) sigEl.style.color = 'var(--acc)';
+    if (!best) {
+      if (sigEl) {
+        var L = spotEffLengths();
+        sigEl.textContent = 'Scanning (EMA ' + L.s + '/' + L.m + '/' + L.l + ')...';
+      }
+      return;
+    }
+    if (sigEl) sigEl.textContent = best.sym.replace('_USDT','') + ' BUY (' + best.an.score + '%)';
+
+    if (autonomousMode && autoTrade && positions.length < 4) {
+      SpotEngine.barState['buy:' + best.sym] = best.an.barT;
+      Execution.open(best.sym, 'LONG', true);
+    }
+    updateAutoStats();
+  },
+
+  /* Manuel SELL: currentPair icin yerel pozisyon varsa kapat;
+     yoksa (canlida) cuzdandaki coin'i dogrudan /spot/close ile sat. */
+  sellCurrent: async function() {
+    var pos = positions.find(function(p) { return p.pair === currentPair && p.state !== POSITION_STATE.CLOSED; });
+    if (pos) { Execution.close(pos.id, 'MANUAL_SELL'); return; }
+    if (appMode !== 'live' || !WORKER) { notify('Satılacak pozisyon yok', 'error'); return; }
+    try {
+      var r = await Http.post('/spot/close', {symbol: currentPair});
+      if (!r || !r.success) throw new Error((r && r.error) || 'Satış reddedildi');
+      var got = Number(r.filledQuote) || 0;
+      notify(currentPair.replace('_USDT','') + ' satıldı' + (got ? ' (+$' + got.toFixed(2) + ')' : ''), 'success');
+      sendTelegram('💱 SPOT SELL\n' + currentPair + (r.fillPrice ? '\nFiyat: $' + fp(Number(r.fillPrice)) : ''));
+      SpotEngine.syncBalance(true).catch(function() {});
+    } catch(e) {
+      notify('Satış hatası: ' + e.message, 'error');
+    }
+  }
+};
+
+/* ── Mod anahtari (FUTURES/SPOT) ── */
+function setMarketMode(mode) {
+  mode = mode === 'SPOT' ? 'SPOT' : 'FUTURES';
+  if (mode === marketMode) { applyMarketModeUI(); return; }
+  var openPos = positions.filter(function(p) { return p.state !== POSITION_STATE.CLOSED; });
+  if (openPos.length) { notify('Önce açık pozisyonları kapatın (' + openPos.length + ' açık)', 'error'); return; }
+  if (mode === 'SPOT' && appMode === 'live' && Runtime.capabilities.spot === false) {
+    notify('Bağlı worker SPOT desteklemiyor (v17.0+ gerekli)', 'error'); return;
+  }
+  marketMode = mode;
+  SpotEngine.barState = {};
+  saveMarketMode();
+  applyMarketModeUI();
+  analyzeAll();
+  updateSignalUI(); updateCoinScoreTable();
+  var L = spotEffLengths();
+  log('[MODE] Piyasa modu: ' + marketMode + (marketMode === 'SPOT' ? ' (Pine EMA stack ' + L.s + '/' + L.m + '/' + L.l + ', 1x, long-only)' : ''), 'ok');
+  notify('Mod: ' + marketMode, 'success');
+  if (appMode === 'live') {
+    if (marketMode === 'SPOT') SpotEngine.syncBalance(true).catch(function(e) { notify('Spot bakiye: ' + e.message, 'error'); });
+    else Execution.reconcile(true);
+    MarketData.fetchLive().catch(function() {});
+  }
+}
+
+function applyMarketModeUI() {
+  var isSpot = marketMode === 'SPOT';
+  var bF = document.getElementById('btnModeFut');
+  var bS = document.getElementById('btnModeSpot');
+  if (bF) bF.className = 'btn btn-sm ' + (isSpot ? 'btn-out' : 'btn-gold');
+  if (bS) bS.className = 'btn btn-sm ' + (isSpot ? 'btn-gold' : 'btn-out');
+  var bdg = document.getElementById('bdgMarket');
+  if (bdg) { bdg.textContent = isSpot ? 'SPOT' : 'FUT'; bdg.className = 'bdg' + (isSpot ? ' gold' : ''); }
+  var btnL = document.getElementById('btnL');
+  var btnS = document.getElementById('btnS');
+  if (btnL) btnL.textContent = isSpot ? 'BUY' : 'LONG';
+  if (btnS) btnS.textContent = isSpot ? 'SELL' : 'SHORT';
+  var note = document.getElementById('manNote');
+  if (note) note.textContent = isSpot ? 'SPOT: BUY alır, SELL eldeki coini satar (1x, short yok)' : 'Emergency only';
+  var lev = document.getElementById('showLev');
+  if (lev) lev.textContent = isSpot ? '1x (SPOT)' : 'Auto';
+  var spotCfgCard = document.getElementById('spotCfgCard');
+  if (spotCfgCard) spotCfgCard.style.display = isSpot ? 'block' : 'none';
+  SpotEngine.renderHoldings();
+}
+
+function readSpotSettings() {
+  function gv(id, fb, lo, hi) {
+    var e = document.getElementById(id); if (!e) return fb;
+    var n = num(e.value, fb); return clampNum(n, lo, hi);
+  }
+  // Pine input siniri yok ama mantiksal sira: short < mid < long
+  var s = Math.round(gv('spotEmaShort', 9,  1, 200));
+  var m = Math.round(gv('spotEmaMid',  21,  2, 400));
+  var l = Math.round(gv('spotEmaLong', 55,  3, 600));
+  if (!(s < m && m < l)) {
+    notify('EMA sırası short < mid < long olmalı', 'error');
+    if (m <= s) m = s + 1;
+    if (l <= m) l = m + 1;
+    var em = document.getElementById('spotEmaMid');  if (em) em.value = m;
+    var el = document.getElementById('spotEmaLong'); if (el) el.value = l;
+  }
+  SPOT_CFG.emaShort = s;
+  SPOT_CFG.emaMid = m;
+  SPOT_CFG.emaLong = l;
+  SPOT_CFG.lenMult = gv('spotLenMult', 1.0, 0.1, 10);
+  SPOT_CFG.slPct  = gv('spotSlPct', 1.5, 0.1, 50);
+  SPOT_CFG.tpPct  = gv('spotTpPct', 3.0, 0.1, 200);
+  SPOT_CFG.buyUsd = gv('spotBuyUsd', 10, 0.1, 100000);
+  var tfEl = document.getElementById('spotTf');
+  if (tfEl && ['5m','15m','1h'].indexOf(tfEl.value) !== -1) SPOT_CFG.tf = tfEl.value;
+  SpotEngine.barState = {};
+  saveMarketMode();
+  if (marketMode === 'SPOT') { analyzeAll(); updateSignalUI(); }
+}
+
+function saveMarketMode() {
+  try {
+    window.__apexStorage.setItem('apex-market-mode-v82', JSON.stringify({
+      marketMode: marketMode, spotCfg: SPOT_CFG, updatedAt: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function loadMarketMode() {
+  try {
+    var raw = window.__apexStorage.getItem('apex-market-mode-v82');
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    if (data.marketMode === 'SPOT' || data.marketMode === 'FUTURES') marketMode = data.marketMode;
+    if (data.spotCfg && typeof data.spotCfg === 'object') {
+      Object.keys(SPOT_CFG).forEach(function(k) {
+        if (data.spotCfg[k] != null) SPOT_CFG[k] = data.spotCfg[k];
+      });
+    }
+  } catch(e) {}
+}
+
+function bindSpotUI() {
+  var ids = {spotEmaShort: SPOT_CFG.emaShort, spotEmaMid: SPOT_CFG.emaMid,
+             spotEmaLong: SPOT_CFG.emaLong, spotLenMult: SPOT_CFG.lenMult,
+             spotSlPct: SPOT_CFG.slPct, spotTpPct: SPOT_CFG.tpPct, spotBuyUsd: SPOT_CFG.buyUsd};
+  Object.keys(ids).forEach(function(id) {
+    var e = document.getElementById(id);
+    if (e) { e.value = ids[id]; e.onchange = readSpotSettings; }
+  });
+  var tfEl = document.getElementById('spotTf');
+  if (tfEl) { tfEl.value = SPOT_CFG.tf; tfEl.onchange = readSpotSettings; }
+  applyMarketModeUI();
+}
 </script>
 </body>
 </html>
