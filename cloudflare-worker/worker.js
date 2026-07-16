@@ -1,7 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// APEX Worker v16.3 — Gate.io Futures USDT
+// APEX Worker v17.0 — Gate.io Futures USDT + Spot
 //
-// v16.3 FIX:
+// v17.0 (bu surum): SPOT piyasa destegi
+//   Yeni endpoint'ler: /spot/price, /spot/klines, /spot/tickers,
+//   /spot/balance, /spot/order, /spot/close. Ayni GATE_API_KEY/SECRET
+//   kullanilir; key'de "Spot Trading" izni acik olmalidir.
+//   /ping artik features.spot=true doner (frontend mod anahtari bunu okur).
+//
+// v16.3 FIX (korundu):
 //   /order hata yanitinda minNotionalUsd alani kayboluyordu (err() helper
 //   sadece {success:false, error} donduruyordu, executeOrder'in hesapladigi
 //   minNotionalUsd sessizce atiliyordu). Artik frontend, "pozisyon cok kucuk"
