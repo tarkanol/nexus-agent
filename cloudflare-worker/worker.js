@@ -35,6 +35,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 const GATE_BASE   = "https://api.gateio.ws/api/v4/futures/usdt";
+const SPOT_BASE   = "https://api.gateio.ws/api/v4/spot";
+const SPOT_API_V4 = "/api/v4/spot";
 const GATE_API_V4 = "/api/v4/futures/usdt";
 
 const TICKER_CACHE_TTL = 3;
@@ -57,12 +59,13 @@ export default {
     // ── /ping ─────────────────────────────────────────────────
     if (p === "/ping" || p === "/health") {
       return ok({
-        status: "APEX Worker v16.3 (Gate.io Futures USDT)",
-        version: "16.3",
+        status: "APEX Worker v17.0 (Gate.io Futures + Spot)",
+        version: "17.0",
         features: {
           snapshot: true,
           batchPrices: true,
-          gateioTickers: true,   // v16.2: yeni
+          gateioTickers: true,
+          spot: true,   // v17.0: yeni — spot piyasa destegi
           state: false,
           riskUpdate: false,
           kill: false
@@ -71,7 +74,9 @@ export default {
           "/ping","/health","/price","/klines","/scan",
           "/snapshot","/batch-prices","/gateio_tickers",
           "/balance","/open_positions","/order","/close",
-          "/partial-close","/update_tpsl","/sync-positions"
+          "/partial-close","/update_tpsl","/sync-positions",
+          "/spot/price","/spot/klines","/spot/tickers",
+          "/spot/balance","/spot/order","/spot/close"
         ]
       });
     }
@@ -114,6 +119,63 @@ export default {
           last: t.last,
           volume_24h_quote: parseFloat(t.volume_24h_quote || 0),
           volume_24h_base: parseFloat(t.volume_24h_base || 0),
+          change_percentage: parseFloat(t.change_percentage || 0)
+        }));
+        return ok({ data });
+      } catch(e) { return err(e.message); }
+    }
+
+    // ── /spot/price ──────────────────────────────────────────
+    // v17.0: Spot ticker fiyati. Futures'tan farkli endpoint (/spot/tickers).
+    if (p === "/spot/price") {
+      const sym = toGate(url.searchParams.get("symbol") || "BTC_USDT");
+      try {
+        const res = await fetch(`${SPOT_BASE}/tickers?currency_pair=${sym}`);
+        const raw = await safeJson(res, "spot/price");
+        const row = Array.isArray(raw) ? raw[0] : null;
+        if (!row) return err("Fiyat alınamadı: " + sym);
+        const price = parseFloat(row.last);
+        return ok({ data: { symbol: sym, lastPrice: price, price } });
+      } catch(e) { return err(e.message); }
+    }
+
+    // ── /spot/klines ─────────────────────────────────────────
+    // v17.0: ONEMLI — Gate.io spot candlesticks futures'tan FARKLI dizi
+    // sirasinda doner: [timestamp, volume, close, high, low, open].
+    // Futures'ta oldugu gibi {t,o,h,l,c,v} objeye burada normalize ediyoruz
+    // ki frontend hangi piyasadan geldigini bilmeden ayni sekilde kullansin.
+    if (p === "/spot/klines") {
+      const sym      = toGate(url.searchParams.get("symbol") || "BTC_USDT");
+      const interval = url.searchParams.get("interval") || "5m";
+      const limit    = url.searchParams.get("limit") || "200";
+      try {
+        const res = await fetch(`${SPOT_BASE}/candlesticks?currency_pair=${sym}&interval=${interval}&limit=${limit}`);
+        const raw = await safeJson(res, "spot/klines");
+        const data = raw.map(arr => {
+          const t = parseInt(arr[0]) * 1000;
+          const v = parseFloat(arr[1]);
+          const c = parseFloat(arr[2]);
+          const h = parseFloat(arr[3]);
+          const l = parseFloat(arr[4]);
+          const o = parseFloat(arr[5]);
+          return [t, o, h, l, c, v];
+        });
+        return ok({ data });
+      } catch(e) { return err(e.message); }
+    }
+
+    // ── /spot/tickers ────────────────────────────────────────
+    if (p === "/spot/tickers") {
+      try {
+        const res = await fetch(`${SPOT_BASE}/tickers`);
+        const raw = await safeJson(res, "spot/tickers");
+        const data = raw.map(t => ({
+          contract: t.currency_pair,
+          symbol: t.currency_pair,
+          last_price: parseFloat(t.last || 0),
+          last: t.last,
+          volume_24h_quote: parseFloat(t.quote_volume || 0),
+          volume_24h_base: parseFloat(t.base_volume || 0),
           change_percentage: parseFloat(t.change_percentage || 0)
         }));
         return ok({ data });
@@ -196,6 +258,49 @@ export default {
           data: { availableBalance: avail, totalWalletBalance: total, walletBalance: total, asset: "USDT" }
         });
       } catch(e) { return err("Balance hatası: " + e.message); }
+    }
+
+    // ── /spot/balance ────────────────────────────────────────
+    // v17.0: futures /balance'tan farkli — spot'ta "bakiye" tek bir
+    // sayı değil, elinizdeki TUM coin'lerin toplami. USDT + varsa
+    // elde tutulan coin'leri (holdings) ayri ayri donuyoruz.
+    if (p === "/spot/balance") {
+      try {
+        const accounts = await callGateSpot(env, "GET", "/accounts", {});
+        const nonZero = (Array.isArray(accounts) ? accounts : [])
+          .filter(a => parseFloat(a.available) > 0 || parseFloat(a.locked) > 0)
+          .map(a => ({ currency: a.currency, available: parseFloat(a.available), locked: parseFloat(a.locked) }));
+        const usdt = nonZero.find(a => a.currency === "USDT");
+        return ok({
+          balance: usdt ? usdt.available : 0,
+          holdings: nonZero,
+          data: { availableBalance: usdt ? usdt.available : 0, asset: "USDT" }
+        });
+      } catch(e) { return err("Spot balance hatası: " + e.message); }
+    }
+
+    // ── /spot/order ──────────────────────────────────────────
+    if (p === "/spot/order" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch(e) { return err("JSON hatası"); }
+      try {
+        const result = await executeSpotOrder(env, body);
+        if (!result.success) return err(result.error, { minNotionalUsd: result.minNotionalUsd });
+        return ok(result);
+      } catch(e) { return err(e.message); }
+    }
+
+    // ── /spot/close ──────────────────────────────────────────
+    // Spot'ta "pozisyon kapatma" kavramı yok — elinizdeki coin'i geri
+    // USDT'ye satmak demektir. Elde tuttugunuz TUM miktari satar.
+    if (p === "/spot/close" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch(e) { return err("JSON hatası"); }
+      try {
+        const result = await closeSpotPosition(env, body.symbol);
+        if (!result.success) return err(result.error);
+        return ok(result);
+      } catch(e) { return err(e.message); }
     }
 
     // ── /open_positions ──────────────────────────────────────
@@ -340,6 +445,135 @@ async function fetchPrice(gSym, env) {
     }).catch(() => {});
   }
   return price;
+}
+
+// ─────────────────────────────────────────────────────────────
+// executeSpotOrder — v17.0 (yeni)
+// ─────────────────────────────────────────────────────────────
+// KRITIK: Gate.io spot market emirlerinde "amount" alaninin anlami
+// side'a gore DEGISIR:
+//   side=buy  -> amount = QUOTE para birimi miktari (BTC_USDT icin USDT)
+//   side=sell -> amount = BASE para birimi miktari (BTC_USDT icin BTC)
+// Bu, futures'taki (her zaman kontrat/coin miktari) mantigindan farkli.
+// Yanlis yorumlanirsa ya cok fazla ya da cok az emir verilir.
+async function executeSpotOrder(env, body) {
+  const { symbol, side, usdAmount } = body || {};
+  if (!symbol || !side) return { success: false, error: "symbol/side eksik" };
+  if (!usdAmount) return { success: false, error: "usdAmount gerekli" };
+
+  const gSym = toGate(symbol);
+  const sideLower = String(side).toLowerCase();
+  if (sideLower !== "buy" && sideLower !== "sell") {
+    return { success: false, error: "side BUY veya SELL olmalı" };
+  }
+
+  let pairInfo;
+  try { pairInfo = await callGateSpot(env, "GET", `/currency_pairs/${gSym}`, {}); }
+  catch(e) { return { success: false, error: `Sembol bulunamadı: ${gSym} — ${e.message}` }; }
+
+  if (pairInfo.trade_status && pairInfo.trade_status !== "tradable") {
+    return { success: false, error: `${gSym} şu an işlem görmüyor (${pairInfo.trade_status})` };
+  }
+
+  const minBase          = parseFloat(pairInfo.min_base_amount  || 0);
+  const minQuote         = parseFloat(pairInfo.min_quote_amount || 0);
+  const amountPrecision  = Number.isFinite(parseInt(pairInfo.amount_precision)) ? parseInt(pairInfo.amount_precision) : 6;
+
+  let currentPrice = 0;
+  try {
+    const tkRes = await fetch(`${SPOT_BASE}/tickers?currency_pair=${gSym}`);
+    const tk    = await safeJson(tkRes, "spot ticker");
+    currentPrice = parseFloat(tk?.[0]?.last || 0);
+  } catch(e) {}
+  if (!currentPrice) return { success: false, error: "Fiyat alınamadı" };
+
+  let orderAmount;
+  if (sideLower === "buy") {
+    orderAmount = parseFloat(usdAmount);
+    if (minQuote && orderAmount < minQuote) {
+      return {
+        success: false,
+        error: `Minimum işlem tutarı $${minQuote} (girilen: $${orderAmount.toFixed(2)})`,
+        minNotionalUsd: minQuote
+      };
+    }
+  } else {
+    const rawAmount = parseFloat(usdAmount) / currentPrice;
+    const step = Math.pow(10, -amountPrecision);
+    orderAmount = Math.floor(rawAmount / step) * step;
+    const minFromQuote  = minQuote ? minQuote / currentPrice : 0;
+    const effectiveMin  = Math.max(minBase, minFromQuote);
+    if (orderAmount < effectiveMin) {
+      const minUsd = effectiveMin * currentPrice;
+      return {
+        success: false,
+        error: `Minimum satış miktarı ${effectiveMin} ${gSym.split("_")[0]} (~$${minUsd.toFixed(2)})`,
+        minNotionalUsd: minUsd
+      };
+    }
+  }
+
+  let order;
+  try {
+    order = await callGateSpot(env, "POST", "/orders", {}, {
+      currency_pair: gSym, type: "market", account: "spot",
+      side: sideLower, amount: String(orderAmount), time_in_force: "ioc"
+    });
+  } catch(e) { return { success: false, error: `Order gönderilemedi: ${e.message}` }; }
+
+  if (order.label) return { success: false, error: "Order hatası: " + (order.message || order.label) };
+
+  const fillPrice   = parseFloat(order.avg_deal_price || 0) || currentPrice;
+  const filledBase  = parseFloat(order.filled_amount || (sideLower === "sell" ? orderAmount : 0)) || 0;
+  const filledQuote = parseFloat(order.filled_total  || (sideLower === "buy"  ? orderAmount : 0)) || 0;
+
+  return {
+    success: true, order, orderId: order.id || null,
+    side: sideLower.toUpperCase(), symbol: gSym,
+    fillPrice, price: fillPrice, filledBase, filledQuote
+  };
+}
+
+// closeSpotPosition — spot'ta "kapatma" = elde tutulan coin'i geri
+// USDT'ye satmak. Futures'taki gibi ayri bir "pozisyon" kaydı yok,
+// gercek kaynak her zaman Gate.io'daki gercek bakiyedir.
+async function closeSpotPosition(env, symbol) {
+  const gSym = toGate(symbol);
+  const base = gSym.split("_")[0];
+
+  let accounts;
+  try { accounts = await callGateSpot(env, "GET", "/accounts", { currency: base }); }
+  catch(e) { return { success: false, error: `Bakiye alınamadı: ${e.message}` }; }
+
+  const acct = Array.isArray(accounts) ? accounts.find(a => a.currency === base) : null;
+  const available = acct ? parseFloat(acct.available) : 0;
+  if (!available || available <= 0) return { success: false, error: `Elinizde ${base} bulunmuyor` };
+
+  let pairInfo = {};
+  try { pairInfo = await callGateSpot(env, "GET", `/currency_pairs/${gSym}`, {}); } catch(e) {}
+  const amountPrecision = Number.isFinite(parseInt(pairInfo.amount_precision)) ? parseInt(pairInfo.amount_precision) : 6;
+  const step = Math.pow(10, -amountPrecision);
+  const sellAmount = Math.floor(available / step) * step;
+
+  if (sellAmount <= 0) return { success: false, error: "Satılabilir miktar çok küçük" };
+
+  let order;
+  try {
+    order = await callGateSpot(env, "POST", "/orders", {}, {
+      currency_pair: gSym, type: "market", account: "spot",
+      side: "sell", amount: String(sellAmount), time_in_force: "ioc"
+    });
+  } catch(e) { return { success: false, error: `Satış emri başarısız: ${e.message}` }; }
+
+  if (order.label) return { success: false, error: "Order hatası: " + (order.message || order.label) };
+
+  const fillPrice   = parseFloat(order.avg_deal_price || 0) || null;
+  const filledQuote = parseFloat(order.filled_total || 0) || 0;
+
+  return {
+    success: true, order, closedAmount: sellAmount,
+    fillPrice, price: fillPrice, filledQuote, currency: base
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -632,6 +866,34 @@ async function callGate(env, method, path, params = {}, body = null) {
   const requestUrl = GATE_BASE + path + (queryString ? "?" + queryString : "");
   const res        = await fetch(requestUrl, { method, headers, body: bodyStr || undefined });
   return safeJson(res, path);
+}
+
+// v17.0: callGate'in spot piyasa karsiligi. Imzalama semasi (HMAC-SHA512)
+// futures ile birebir ayni, sadece path prefix'i (SPOT_API_V4) ve base URL
+// (SPOT_BASE) farkli. Ayni GATE_API_KEY/GATE_SECRET kullanilir — ANCAK
+// Gate.io'daki API key'inizde "Spot Trading" izninin de acik olmasi
+// gerekir (futures-only izinli bir key spot'ta 401/403 doner).
+async function callGateSpot(env, method, path, params = {}, body = null) {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const fullPath  = SPOT_API_V4 + path;
+  let queryString = "";
+  if ((method === "GET" || method === "DELETE") && params && Object.keys(params).length) {
+    queryString = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+  }
+  const bodyStr         = body ? JSON.stringify(body) : "";
+  const hashedBody      = await sha512hex(bodyStr);
+  const signatureString = [method.toUpperCase(), fullPath, queryString, hashedBody, timestamp].join("\n");
+  const signature       = await hmacSha512(env.GATE_SECRET, signatureString);
+  const headers = {
+    "Accept":    "application/json",
+    "KEY":       env.GATE_API_KEY,
+    "SIGN":      signature,
+    "Timestamp": timestamp
+  };
+  if (bodyStr) headers["Content-Type"] = "application/json";
+  const requestUrl = SPOT_BASE + path + (queryString ? "?" + queryString : "");
+  const res        = await fetch(requestUrl, { method, headers, body: bodyStr || undefined });
+  return safeJson(res, "spot" + path);
 }
 
 async function sha512hex(message) {
