@@ -6,12 +6,20 @@ function connectLive() {
   if (!url) { notify('Enter Worker URL', 'error'); return; }
   WORKER = url.replace(/\/+$/, '');
   Runtime.apiMode = 'unknown';
-  Runtime.capabilities = {snapshot: null, state: null, riskUpdate: null, kill: null};
+  Runtime.capabilities = {snapshot: null, state: null, riskUpdate: null, kill: null, spot: null};
   Runtime.compatNotified = false;
   Http.get('/ping').then(function(d) {
     if (!d || !d.success) throw new Error('Worker not responding');
     ApiCompat.applyPing(d);
     appMode = 'live';
+    // v8.2: SPOT modu secili ama worker spot bilmiyorsa (v17.0 oncesi)
+    // sessiz bozulma yerine FUTURES'a dusuyoruz.
+    if (marketMode === 'SPOT' && Runtime.capabilities.spot === false) {
+      notify('Worker SPOT desteklemiyor (v17.0+ gerekli) — FUTURES moduna geçildi', 'error');
+      marketMode = 'FUTURES';
+      saveMarketMode();
+      applyMarketModeUI();
+    }
     document.getElementById('bdgConn').textContent = 'LIVE';
     document.getElementById('bdgConn').className = 'bdg live';
     return Execution.reconcile(true).then(function() {

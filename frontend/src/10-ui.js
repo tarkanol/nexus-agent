@@ -291,7 +291,7 @@ function updatePosUI() {
       var btnLabel = closing ? 'CLOSING...' : pos.state === POSITION_STATE.ERROR ? 'RETRY' : 'CLOSE';
       html += '<div class="pos-card ' + pos.side.toLowerCase() + '">' +
         '<div class="pos-hd"><span class="pos-sym">' + pos.pair.replace('_USDT', '') + autoTag + tTag + '</span>' +
-        '<span class="pos-side ' + pos.side + '">' + pos.side + ' ' + (pos.leverage || 1) + 'x</span>' +
+        '<span class="pos-side ' + pos.side + '">' + (pos.market === 'SPOT' ? 'SPOT BUY' : pos.side + ' ' + (pos.leverage || 1) + 'x') + '</span>' +
         '<span class="pos-pnl ' + (pnl >= 0 ? 'up' : 'dn') + '">' + (pnl >= 0 ? '+' : '') + ' $' + pnl.toFixed(4) + '</span></div>' +
         '<div class="pos-grid">' +
           '<div class="pgc"><div class="pgc-l">ENTRY</div><div class="pgc-v">' + fp(pos.entry) + '</div></div>' +

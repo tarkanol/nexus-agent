@@ -89,7 +89,10 @@ function fetchTopCoins() {
   if (!WORKER) { document.getElementById('fetchStatus').textContent = '⚠️ Live required.'; return; }
   var btn = document.getElementById('btnFetch'), status = document.getElementById('fetchStatus');
   btn.disabled = true; status.textContent = 'Loading...';
-  Http.get('/gateio_tickers').then(function(d) {
+  // v8.2: spot modunda hacim listesi spot piyasasindan gelir (worker
+  // her ikisini de ayni alan adlariyla normalize ediyor).
+  var tickerEP = marketMode === 'SPOT' ? '/spot/tickers' : '/gateio_tickers';
+  Http.get(tickerEP).then(function(d) {
     btn.disabled = false;
     if (d && d.success && Array.isArray(d.data)) {
       var list = d.data.filter(function(c) { return (c.contract || c.symbol || '').indexOf('_USDT') !== -1; });

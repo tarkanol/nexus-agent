@@ -48,6 +48,7 @@ var ApiCompat = {
       Runtime.capabilities.state = !!(f.state || f.reconcile);
       Runtime.capabilities.riskUpdate = !!f.riskUpdate;
       Runtime.capabilities.kill = !!f.kill;
+      Runtime.capabilities.spot = !!f.spot; // v17.0+ worker
       Runtime.apiMode = Runtime.capabilities.snapshot ? 'modern' : 'legacy';
       return;
     }
@@ -180,6 +181,9 @@ var MarketData = {
   },
   fetchLive: async function() {
     if (!WORKER) return;
+    // v8.2: SPOT modunda /snapshot futures verisi doner; spot fiyat ve
+    // mumlar /spot/price + /spot/klines'tan gelir.
+    if (marketMode === 'SPOT') return SpotEngine.fetchMarket();
     if (Runtime.capabilities.snapshot !== false) {
       try {
         var qs = encodeURIComponent(pairs.join(','));
@@ -229,7 +233,11 @@ var MarketData = {
       }));
     }
     var request;
-    if (Runtime.capabilities.snapshot !== false) {
+    if (marketMode === 'SPOT') {
+      // v8.2: spot icin batch endpoint yok; pair basina /spot/price.
+      request = SpotEngine.refreshOpenPrices(symbols)
+        .then(function(results) { return results.some(Boolean); });
+    } else if (Runtime.capabilities.snapshot !== false) {
       request = Http.request(WORKER + '/batch-prices?symbols=' + encodeURIComponent(symbols.join(',')), {}, 1800)
         .then(function(res) {
           if (!res || !res.success || !res.prices) throw new Error('batch-prices unavailable');

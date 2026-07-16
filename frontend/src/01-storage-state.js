@@ -22,7 +22,22 @@
 /* ============================================================
    GLOBAL STATE
    ============================================================ */
-var APP_VERSION = '8.1';
+var APP_VERSION = '8.2';
+/* v8.2: FUTURES/SPOT piyasa modu. SPOT modunda sinyaller Pine Script
+   EMA-crossover portundan gelir (bkz 17-spot-mode.js), emirler
+   worker'in /spot/* endpoint'lerine yonlenir, kaldirac sabit 1x'tir. */
+var marketMode = 'FUTURES'; // 'FUTURES' | 'SPOT'
+var SPOT_CFG = {
+  // Pine: "Trend & Swing Signal Suite w/ Auto-Fib" girdileri
+  emaShort: 9,   // Pine: shortLen
+  emaMid:   21,  // Pine: midLen
+  emaLong:  55,  // Pine: longLen (trend filtresi)
+  lenMult:  1.0, // Pine: lenMult — uzunluklari birlikte olcekler
+  tf: '5m',      // sinyal zaman dilimi (5m | 15m | 1h)
+  slPct: 1.5,    // koruyucu stop (%) — asil cikis sellCond'dur
+  tpPct: 3.0,    // kar al (%)
+  buyUsd: 10     // Max Size ($) bos/0 ise islem basina USDT
+};
 var START_BAL = 50;
 var leverage = 2;
 var engineOn = false;
@@ -93,7 +108,7 @@ var Runtime = {
   scanBusy: false,
   tests: [],
   apiMode: 'unknown',
-  capabilities: {snapshot: null, state: null, riskUpdate: null, kill: null},
+  capabilities: {snapshot: null, state: null, riskUpdate: null, kill: null, spot: null},
   compatNotified: false,
   posListWarnedOnce: false
 };

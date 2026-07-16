@@ -28,6 +28,10 @@ function runEngine() {
   var eo = document.getElementById('eOpen'); 
   if (eo) eo.textContent = positions.length;
   
+  // v8.2: SPOT modu — EMA crossover al / crossunder sat dongusu.
+  // Cikis taramasi focus modundan etkilenmez (SpotEngine icinde).
+  if (marketMode === 'SPOT') { SpotEngine.engineTick(); return; }
+  
   if (focusModeOn && positions.length > 0) {
     var sigEl = document.getElementById('eSig');
     if (sigEl) {

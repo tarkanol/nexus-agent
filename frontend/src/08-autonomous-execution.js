@@ -78,6 +78,11 @@ var Execution = {
   
   open: async function(sym, side, auto, manualTargetUsd, manualRiskUsd) {
     try { sym = validSymbol(sym); } catch(e) { notify(e.message, 'error'); return; }
+    // v8.2 SPOT: short yok; manuel SELL eldeki coini satmaya yonlenir.
+    if (marketMode === 'SPOT' && side === 'SHORT') {
+      SpotEngine.sellCurrent();
+      return;
+    }
     var pd = pData[sym], an = pd && pd.an && pd.an.signal !== 'WAIT' ? pd.an : null;
     var price = an ? Number(an.price) : Number(pd && pd.price);
     if (!price) { notify('Price unavailable', 'error'); return; }
@@ -122,19 +127,44 @@ var Execution = {
       return;
     }
     
+    if (marketMode === 'SPOT') lev = 1; // spot'ta kaldirac yok
+    
     var cOrderId = orderId('open', sym);
     var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0, lev);
+    if (marketMode === 'SPOT') pos.market = 'SPOT';
     Runtime.openingLocks[sym] = true;
     updateSignalUI();
     try {
       if (appMode === 'live') {
-        var r = await Http.post('/order', {
-          symbol: sym, side: side, usdAmount: posVal, leverage: lev, sl: sl, tp: tp,
-          clientOrderId: cOrderId, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
-        });
+        var r;
+        if (pos.market === 'SPOT') {
+          // v8.2: Gate.io spot market BUY — worker /spot/order, amount =
+          // QUOTE (USDT) miktari. SL/TP borsaya gonderilmez; client-side
+          // tracker izler (spot'ta worker tarafinda trigger emri yok).
+          r = await Http.post('/spot/order', {
+            symbol: sym, side: 'BUY', usdAmount: posVal, clientOrderId: cOrderId
+          });
+        } else {
+          r = await Http.post('/order', {
+            symbol: sym, side: side, usdAmount: posVal, leverage: lev, sl: sl, tp: tp,
+            clientOrderId: cOrderId, maxSlippageBps: CFG.slippageBps + CFG.spreadBps
+          });
+        }
         if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'Order rejected');
         pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
         if (r.fillPrice) pos.entry = Number(r.fillPrice);
+        if (pos.market === 'SPOT') {
+          // Gerceklesen dolum: qty = alinan coin (filledBase),
+          // posVal = harcanan USDT (filledQuote). SL/TP'yi gercek
+          // giris fiyatina gore yeniden hizala.
+          if (Number(r.filledBase) > 0)  pos.qty = Number(r.filledBase);
+          if (Number(r.filledQuote) > 0) pos.posVal = Number(r.filledQuote);
+          if (r.fillPrice && !manualTargetUsd) {
+            pos.sl = pos.entry * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
+            pos.tp = pos.entry * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
+          }
+          if (auto) autonomousTrades++;
+        }
         StateMachine.transition(pos, POSITION_STATE.OPEN);
         positions.push(pos);
         Store.save();
@@ -211,12 +241,21 @@ var Execution = {
     try {
       if (appMode === 'live') {
         var cid = orderId('close', pos.pair);
-        var r = await Http.post('/close', {
-          symbol: pos.pair, 
-          side: pos.side, 
-          clientOrderId: cid, 
-          reason: reason || 'MANUAL'
-        });
+        var r;
+        if (pos.market === 'SPOT') {
+          // v8.2: spot'ta "kapatma" = eldeki base coin'in tamamini
+          // USDT'ye geri satmak (worker /spot/close).
+          r = await Http.post('/spot/close', {
+            symbol: pos.pair, clientOrderId: cid, reason: reason || 'MANUAL'
+          });
+        } else {
+          r = await Http.post('/close', {
+            symbol: pos.pair, 
+            side: pos.side, 
+            clientOrderId: cid, 
+            reason: reason || 'MANUAL'
+          });
+        }
         if (!r || !(r.success || r.ok)) {
           throw new Error((r && r.error) || 'Close rejected');
         }
@@ -252,7 +291,9 @@ var Execution = {
       // Artik bu spesifik durumda pozisyonu basarili kapanmis sayip yerel
       // kaydi (bakiye, PnL, trade gecmisi) elimizdeki en guncel fiyatla
       // sonlandiriyoruz.
-      var noPositionOnExchange = /açık pozisyon yok|acik pozisyon yok|no open position/i.test(String(e.message || ''));
+      // v8.2: spot karsiligi — "Elinizde X bulunmuyor" da borsada zaten
+      // satilmis demektir (kullanici disaridan satmis olabilir).
+      var noPositionOnExchange = /açık pozisyon yok|acik pozisyon yok|no open position|elinizde .* bulunmuyor/i.test(String(e.message || ''));
       if (appMode === 'live' && noPositionOnExchange) {
         var exitGuess = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
         logPos('[AUTO-RESOLVE] ' + pos.pair.replace('_USDT','') + ' borsada zaten kapanmis, yerel kayit senkronize ediliyor', 'info');
@@ -403,6 +444,12 @@ var Execution = {
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
     Runtime.liveReconcileBusy = true;
     try {
+      // v8.2 SPOT: futures /state spot pozisyonlarini bilmez; oraya
+      // gidersek reconcilePayload yerel spot pozisyonlarini SILER.
+      // Spot modunda gercek kaynak /spot/balance + eldeki coin'lerdir.
+      if (marketMode === 'SPOT') {
+        return await SpotEngine.syncBalance(force);
+      }
       if (Runtime.capabilities.state === false) {
         return await ApiCompat.syncLegacyBalance(force);
       }

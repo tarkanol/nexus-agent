@@ -10,10 +10,12 @@ window.__apexReady(function() {
   Store.load();
   TelegramStore.load();
   loadFocusState();
+  loadMarketMode(); // v8.2: FUTURES/SPOT modu + SPOT_CFG
   initChart();
   renderCoinList();
   readSettings();
   bindSafeUI();
+  bindSpotUI(); // v8.2: mod anahtari + spot EMA ayarlari
   updateTelegramUI();
   updateFocusUI();
   
@@ -46,6 +48,7 @@ window.__apexReady(function() {
     log('📱 Min pos: $' + MIN_POS_VAL + ' | Coins: ' + pairs.length, 'ok');
     log('⚡ New: Volume spike, pattern, momentum signals', 'ok');
     log('🔒 Focus Mode: ' + (focusModeOn ? 'ON' : 'OFF'), 'ok');
+    log('🏦 Market: ' + marketMode + (marketMode === 'SPOT' ? ' | Pine EMA stack ' + SPOT_CFG.emaShort + '/' + SPOT_CFG.emaMid + '/' + SPOT_CFG.emaLong + ' ×' + SPOT_CFG.lenMult + ' @' + SPOT_CFG.tf : ''), 'ok');
     log('🔄 Tracker: ' + (CFG.trackerMs || 500) + 'ms', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 200);
