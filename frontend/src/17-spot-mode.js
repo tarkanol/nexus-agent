@@ -38,6 +38,15 @@
    miktari satar). Kaldirac her zaman 1x.
    ============================================================ */
 
+/* v8.2 FIX: spotAnalyze WAIT durumlarinda failReason/rrActual hic
+   set etmiyordu. updateSignalUI()'daki meta satiri
+   "an.rrActual != null" kosuluna bagli oldugu icin sinyal GERCEKTEN
+   ateslense bile alt yazi hep "Awaiting signal..." gosteriyordu —
+   kullaniciya "sinyal yok gibi" hissi veren asil sebep buydu.
+   Ayrica coin skor tablosundaki "reason" alani her zaman sabit
+   'EMA_STACK' gosteriyordu, WAIT sebebini (veri yetersiz mi, cross
+   var ama trend filtresi mi tutmadi) hic ayirt etmiyordu. */
+
 /* ── Pine port: crossover / crossunder ── */
 function pineCrossover(fastArr, slowArr) {
   var n = fastArr.length - 1;
@@ -75,16 +84,20 @@ function spotAnalyze(sym) {
   var base = {
     pair: sym, price: pd ? Number(pd.price) : 0, signal: 'WAIT', exitNow: false,
     score: 0, tier: 'C', strategy: 'EMA_STACK', reasons: [], vr: 1, adx: 20,
-    sl: 0, tp: 0, posVal: 0, leverage: 1, atrPct: 0,
+    sl: 0, tp: 0, posVal: 0, leverage: 1, atrPct: 0, rrActual: null, failReason: null,
     trendUp: false, trendDown: false,
     emaS: null, emaM: null, emaL: null, barT: 0, lens: L
   };
-  if (!pd) return base;
+  if (!pd) { base.failReason = 'NO_DATA'; return base; }
 
   var tfKey = SPOT_CFG.tf === '15m' ? 'kl15m' : SPOT_CFG.tf === '1h' ? 'kl1h' : 'kl5m';
   var kl = pd[tfKey] || pd.kl5m || [];
   var need = Math.max(L.l + 2, 30);
-  if (kl.length < need) { base.reasons.push('DATA<' + need); return base; }
+  if (kl.length < need) {
+    base.reasons.push('DATA<' + need);
+    base.failReason = 'DATA_WARMUP (' + kl.length + '/' + need + ')';
+    return base;
+  }
 
   // Pine: sigSource varsayilani close
   var closes = kl.map(function(k) { return k.c; });
@@ -104,7 +117,9 @@ function spotAnalyze(sym) {
   base.atrPct = price > 0 ? (atr / price) * 100 : 0;
 
   if (base.emaS == null || base.emaM == null || base.emaL == null) {
-    base.reasons.push('EMA_NULL'); return base;
+    base.reasons.push('EMA_NULL');
+    base.failReason = 'EMA_WARMUP';
+    return base;
   }
 
   // Pine: trendUp / trendDown (sinyal barinin degerleri)
@@ -143,8 +158,18 @@ function spotAnalyze(sym) {
     base.posVal = maxPosSize > 0 ? maxPosSize : Math.max(MIN_POS_VAL, num(SPOT_CFG.buyUsd, 10));
     base.sl = price * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
     base.tp = price * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
+    // v8.2 FIX: rrActual artik her zaman set ediliyor ki updateSignalUI()
+    // meta satirini dogru dalda gostersin (asil bug buradaydi).
+    base.rrActual = num(SPOT_CFG.tpPct, 3) / Math.max(0.0001, num(SPOT_CFG.slPct, 1.5));
   } else if (crossUp && !trendUp) {
     base.reasons.push('S↑M ama L filtresi tutmadı');
+  }
+
+  // v8.2 FIX: WAIT durumunda da anlamli bir failReason birak (skor
+  // tablosunda "EMA_STACK" yerine gercek durum gorunsun).
+  if (base.signal === 'WAIT' && !base.failReason) {
+    base.failReason = base.reasons.length ? base.reasons[base.reasons.length - 1]
+      : (trendUp ? 'TREND_UP_NO_CROSS' : trendDown ? 'TREND_DOWN_NO_CROSS' : 'NO_TREND');
   }
   return base;
 }
