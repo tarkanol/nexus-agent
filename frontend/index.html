@@ -2649,7 +2649,6 @@ function updateAutoStats() {
   if (autoCountEl) autoCountEl.textContent = autonomousTrades;
 }
 
-/* ---- 10-ui.js ---- */
 /* ============================================================
    UI - TÜM GÜNCELLEME FONKSİYONLARI
    ============================================================ */
@@ -2750,7 +2749,20 @@ function updateSignalUI() {
   
   var meta = document.getElementById('sigMeta');
   if (meta) {
-    if (an && sig !== 'WAIT' && an.rrActual != null) {
+    if (marketMode === 'SPOT' && an) {
+      // v8.3: SPOT modunda EMA yigininin anlik degerlerini her zaman
+      // goster (sinyal WAIT olsa da) — "ne durumda oldugu" hep gorunsun.
+      var emaTxt = (an.emaS != null && an.emaM != null && an.emaL != null)
+        ? 'EMA' + (an.lens ? an.lens.s : '9') + ':' + fp(an.emaS) +
+          '  EMA' + (an.lens ? an.lens.m : '21') + ':' + fp(an.emaM) +
+          '  EMA' + (an.lens ? an.lens.l : '55') + ':' + fp(an.emaL)
+        : 'EMA hesaplanıyor...';
+      var trendTxt = an.trendUp ? '📈 TREND:UP' : an.trendDown ? '📉 TREND:DOWN' : '➖ TREND:FLAT';
+      var stateTxt = sig !== 'WAIT'
+        ? ('SCORE:' + an.score + '%  TIER:' + an.tier)
+        : (an.failReason ? 'BEKLİYOR: ' + an.failReason : 'Bekleniyor...');
+      meta.innerHTML = emaTxt + '<br>' + trendTxt + '  ' + stateTxt;
+    } else if (an && sig !== 'WAIT' && an.rrActual != null) {
       meta.textContent = 'SCORE:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  RR:1:' + an.rrActual.toFixed(2) +
         '  TIER:' + an.tier + (an.leverage ? '  LEV:' + an.leverage + 'x' : '') + (an.strategy ? '  MOD:' + an.strategy : '');
     } else if (an && an.failReason) {
@@ -2847,7 +2859,7 @@ function updateSignalUI() {
   var dsEl = document.getElementById('bannerDataSrc');
   if (dsEl) {
     var pdSrc = pd && pd.source;
-    var goodSources = {live: 1, 'live-legacy': 1};
+    var goodSources = {live: 1, 'live-legacy': 1, 'live-spot': 1};
     var showWarn = appMode === 'live' && pdSrc && !goodSources[pdSrc];
     if (showWarn) { dsEl.style.display = 'block'; dsEl.textContent = '⚠️ ' + currentPair.replace('_USDT', '') + ' canlı fiyat yerine yedek veri kullanıyor (' + pdSrc + ') — LOG sekmesine bak'; }
     else dsEl.style.display = 'none';
@@ -2919,7 +2931,17 @@ function updateCoinScoreTable() {
     var sc = an ? an.score : 0;
     var price = pd.price || DEMO_BASE[sym] || 0;
     var tier = an && an.tier ? '[' + an.tier + ']' : '';
-    var reason = an && an.failReason ? an.failReason : (an && an.strategy ? an.strategy : '');
+    var reason;
+    if (marketMode === 'SPOT' && an) {
+      // v8.3: SPOT modunda "reason" sutununda EMA yigininin anlik
+      // degerlerini goster — hangi coin'in ne durumda oldugu tek
+      // bakista gorulsun.
+      reason = (an.emaS != null)
+        ? 'S:' + fp(an.emaS) + ' M:' + fp(an.emaM) + ' L:' + fp(an.emaL) + ' ' + (an.trendUp ? '↑' : an.trendDown ? '↓' : '–')
+        : (an.failReason || 'DATA_WARMUP');
+    } else {
+      reason = an && an.failReason ? an.failReason : (an && an.strategy ? an.strategy : '');
+    }
     rows += '<div class="score-row"><span style="min-width:32px;font-size:7px">' + sym.replace('_USDT', '') + '</span><span style="color:var(--dim2);font-size:6px">$' + fp(price) + '</span><span class="signal ' + sig + '" style="min-width:32px;text-align:center">' + sig + ' ' + tier + '</span><span style="color:var(--acc);font-size:6px">' + (sc > 0 ? sc + '%' : '--') + '</span><span style="color:var(--dim2);font-size:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:right">' + reason + '</span></div>';
   }
   el.innerHTML = rows || '<div style="color:var(--dim2);padding:4px 0;font-family:var(--mono);font-size:8px">Warming...</div>';
@@ -2969,6 +2991,7 @@ function updatePosUI() {
   }
   document.getElementById('histBox').innerHTML = hh || '<div style="color:var(--dim2);font-family:var(--mono);font-size:7px">--</div>';
 }
+
 
 /* ---- 11-charts.js ---- */
 /* ============================================================
