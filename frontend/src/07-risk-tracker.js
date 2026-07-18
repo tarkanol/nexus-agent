@@ -44,12 +44,9 @@ function isDeadHour() {
 }
 
 function analyzeAll() {
-  // v8.2: SPOT modunda sinyal kaynagi Pine EMA-crossover portu,
-  // FUTURES modunda mevcut cok-stratejili analyze().
-  var fn = (typeof marketMode !== 'undefined' && marketMode === 'SPOT') ? spotAnalyze : analyze;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
-    try { pData[s].an = fn(s); } catch(e) { log('Err ' + s, 'err'); }
+    try { pData[s].an = analyze(s); } catch(e) { log('Err ' + s, 'err'); }
   }
 }
 
@@ -136,6 +133,12 @@ function runTracker() {
   for (var i = 0; i < positions.length; i++) {
     var pos = positions[i];
     if (!pos || pos.state !== POSITION_STATE.OPEN) continue;
+    // v8.3 FIX: bu blok futures pozisyonlari icin tasarlandi (1h
+    // MACD/EMA/RSI zayiflik skoru). SPOT pozisyonlar Pine Script'in
+    // KENDI cikis mantigini (sellCond: crossunder + trend dönüşü,
+    // SpotEngine.engineTick() icinde) kullaniyor — bu alakasiz
+    // futures sezgisi spot pozisyonlari erken ve gerekce dışı kapatiyordu.
+    if (pos.market === 'SPOT') continue;
     if (!pos.lastWeaknessCheck) pos.lastWeaknessCheck = 0;
     if (now - pos.lastWeaknessCheck < 300000) continue;
     pos.lastWeaknessCheck = now;
