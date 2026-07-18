@@ -289,13 +289,24 @@ var SpotEngine = {
     var box = document.getElementById('spotHoldingsBox');
     if (!box) return;
     if (marketMode !== 'SPOT' || appMode !== 'live' || !SpotEngine.holdings.length) {
-      box.style.display = 'none'; box.textContent = ''; return;
+      box.style.display = 'none'; box.innerHTML = ''; return;
     }
     box.style.display = 'block';
-    box.textContent = '💰 ' + SpotEngine.holdings.map(function(h) {
+    var parts = SpotEngine.holdings.map(function(h) {
       var amt = Number(h.available) + Number(h.locked || 0);
-      return h.currency + ':' + (amt >= 1 ? amt.toFixed(3) : amt.toPrecision(3));
-    }).join('  ');
+      var sym = h.currency + '_USDT';
+      var label = h.currency + ':' + (amt >= 1 ? amt.toFixed(3) : amt.toPrecision(3));
+      var tracked = positions.some(function(p) { return p.pair === sym && p.market === 'SPOT' && p.state !== POSITION_STATE.CLOSED; });
+      if (tracked) {
+        label += ' ✓';
+      } else if (pairs.indexOf(sym) !== -1 && h.currency !== 'USDT') {
+        // v8.3: bu coin cuzdanda var ama uygulama izlemiyor (elle
+        // alinmis ya da eski bir pozisyon). Tikla-izle butonu ekle.
+        label += ' <span style="text-decoration:underline;cursor:pointer;color:var(--acc)" onclick="adoptSpotHoldingPrompt(\'' + sym + '\')">[izle]</span>';
+      }
+      return label;
+    });
+    box.innerHTML = '💰 ' + parts.join('&nbsp;&nbsp;');
   },
 
   /* Engine tick'i (runEngine'in spot dali):
@@ -480,4 +491,71 @@ function bindSpotUI() {
   var tfEl = document.getElementById('spotTf');
   if (tfEl) { tfEl.value = SPOT_CFG.tf; tfEl.onchange = readSpotSettings; }
   applyMarketModeUI();
+}
+
+/* ── Mevcut (uygulama dışında alınmış) coin'i izlemeye alma ──
+   Worker /spot/balance'ta gorunen ama positions[]'ta karsiligi
+   olmayan bir bakiyeyi, normal bir SPOT pozisyonu gibi sisteme
+   dahil eder. Bundan sonra sellCond (S↓M + trend dönüşü) ve
+   SL/TP onu da normal pozisyon gibi izler/kapatir. Gercek alis
+   fiyatini bilmiyoruz — kullanicidan sorulur, bos birakilirsa
+   güncel fiyat entry olarak kullanilir (PnL o zaman sifirdan baslar,
+   ama cikis mantigi ayni sekilde calisir). */
+async function adoptSpotHoldingPrompt(sym) {
+  var label = sym.replace('_USDT', '');
+  var input = window.prompt(
+    label + ' için gerçek alış fiyatınızı girin (bilmiyorsanız boş bırakın, güncel fiyat kullanılır):', ''
+  );
+  if (input === null) return; // iptal
+  var entryOverride = input.trim() ? parseFloat(input.trim()) : 0;
+  await adoptSpotHolding(sym, entryOverride);
+}
+
+async function adoptSpotHolding(sym, entryOverride) {
+  if (positions.some(function(p) { return p.pair === sym && p.state !== POSITION_STATE.CLOSED; })) {
+    notify(sym.replace('_USDT', '') + ' zaten izleniyor', 'info');
+    return;
+  }
+  var baseCoin = sym.split('_')[0];
+  var h = SpotEngine.holdings.find(function(x) { return x.currency === baseCoin; });
+  var amount = h ? Number(h.available) + Number(h.locked || 0) : 0;
+  if (!amount || amount <= 0) {
+    notify(baseCoin + ' bakiyesi bulunamadı — önce Spot balance senkronize olsun', 'error');
+    return;
+  }
+
+  var price = Number(pData[sym] && pData[sym].price);
+  if (!price) {
+    try { await spotFetchLiveSingle(sym); price = Number(pData[sym] && pData[sym].price); } catch(e) {}
+  }
+  if (!price) { notify(baseCoin + ' için fiyat alınamadı', 'error'); return; }
+
+  var entry = (Number.isFinite(entryOverride) && entryOverride > 0) ? entryOverride : price;
+  var sl = entry * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
+  var tp = entry * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
+
+  var pos = Execution.makePosition(sym, 'LONG', entry, amount * entry, amount, sl, tp,
+    false, orderId('adopt', sym), 0, 0, 1);
+  pos.market = 'SPOT';
+  pos.entryFee = 0; // zaten daha once alinmis, tekrar komisyon dusmuyoruz
+  try { StateMachine.transition(pos, POSITION_STATE.OPEN); } catch(e) { pos.state = POSITION_STATE.OPEN; }
+  positions.push(pos);
+  Store.save();
+  startTracker();
+  updatePosUI(); updateSignalUI();
+  logPos('[ADOPT] ' + baseCoin + ' izlemeye alındı — giriş: $' + fp(entry) + ' miktar: ' + amount.toFixed(6), 'ok');
+  notify(baseCoin + ' izlemeye alındı (giriş: $' + fp(entry) + ')', 'success');
+  sendTelegram('👁 İZLEMEYE ALINDI\n' + sym + '\nMiktar: ' + amount.toFixed(6) + '\nGiriş: $' + fp(entry) + '\nSL: $' + fp(sl) + '  TP: $' + fp(tp));
+}
+
+/* Tek coin icin hizli fiyat/mum cekimi — adoptSpotHolding fiyati
+   bulamadiginda kullanilan yedek yol (SpotEngine.fetchMarket tum
+   pairs'i birden ceker, burada sadece tek sembol gerekiyor). */
+async function spotFetchLiveSingle(sym) {
+  if (!WORKER) return;
+  if (!pData[sym]) pData[sym] = {};
+  var d = await Http.get('/spot/price?symbol=' + encodeURIComponent(sym));
+  var src = d && (d.data || d);
+  var pr = Number(src && (src.lastPrice != null ? src.lastPrice : src.price));
+  if (pr > 0) { pData[sym].price = pr; pData[sym].dataUpdatedAt = Date.now(); }
 }
