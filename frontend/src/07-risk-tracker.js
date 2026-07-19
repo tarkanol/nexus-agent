@@ -44,9 +44,12 @@ function isDeadHour() {
 }
 
 function analyzeAll() {
+  // v8.2: SPOT modunda sinyal kaynagi Pine EMA-crossover portu,
+  // FUTURES modunda mevcut cok-stratejili analyze().
+  var fn = (typeof marketMode !== 'undefined' && marketMode === 'SPOT') ? spotAnalyze : analyze;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
-    try { pData[s].an = analyze(s); } catch(e) { log('Err ' + s, 'err'); }
+    try { pData[s].an = fn(s); } catch(e) { log('Err ' + s, 'err'); }
   }
 }
 
