@@ -74,6 +74,16 @@ function spotEffLengths() {
     l: Math.max(1, Math.round(num(SPOT_CFG.emaLong, 55)  * m))
   };
 }
+function renderModeBanner() {
+  var el = document.getElementById('modeBanner');
+  if (!el) return;
+  if (marketMode === 'SPOT') {
+    var L = spotEffLengths();
+    el.textContent = 'SPOT | TF:' + SPOT_CFG.tf + ' | EMA ' + L.s + '/' + L.m + '/' + L.l + ' ×' + SPOT_CFG.lenMult;
+  } else {
+    el.textContent = 'FUTURES | multi-indicator score';
+  }
+}
 
 /* ── SPOT sinyal analizi (futures analyze()'in spot karsiligi) ──
    pData[sym].an ile ayni sekle sahip bir obje doner ki mevcut UI
