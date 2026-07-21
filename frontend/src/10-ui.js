@@ -79,6 +79,7 @@ function sMTF(id, val) { var el = document.getElementById(id); if (el) { el.text
 
 function updateSignalUI() {
   updateBalUI();
+  renderModeBanner();
   var pd = pData[currentPair], an = pd && pd.an;
   var sig = an && an.signal !== 'WAIT' ? an.signal : 'WAIT';
   
