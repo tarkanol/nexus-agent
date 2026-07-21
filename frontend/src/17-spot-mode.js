@@ -111,6 +111,10 @@ function spotAnalyze(sym) {
   base.price = price;
   base.barT = lastBar.t;
   base.emaS = emaS[n]; base.emaM = emaM[n]; base.emaL = emaL[n];
+  base.gapSM = (base.emaS != null && base.emaM != null && price > 0)
+    ? ((base.emaS - base.emaM) / price * 100) : null;
+  base.gapML = (base.emaM != null && base.emaL != null && price > 0)
+    ? ((base.emaM - base.emaL) / price * 100) : null;
   base.adx = calcADX(kl, 14);
   base.vr = calcVolRatio(kl);
   var atr = calcATR(kl, 14);
