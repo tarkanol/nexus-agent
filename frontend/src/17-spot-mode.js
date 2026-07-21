@@ -86,7 +86,7 @@ function spotAnalyze(sym) {
     score: 0, tier: 'C', strategy: 'EMA_STACK', reasons: [], vr: 1, adx: 20,
     sl: 0, tp: 0, posVal: 0, leverage: 1, atrPct: 0, rrActual: null, failReason: null,
     trendUp: false, trendDown: false,
-    emaS: null, emaM: null, emaL: null, barT: 0, lens: L
+    emaS: null, emaM: null, emaL: null, gapSM: null, gapML: null, barT: 0, lens: L
   };
   if (!pd) { base.failReason = 'NO_DATA'; return base; }
 
