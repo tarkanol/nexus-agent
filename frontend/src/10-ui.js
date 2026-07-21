@@ -109,7 +109,9 @@ function updateSignalUI() {
       var trendTxt = an.trendUp ? '📈 TREND:UP' : an.trendDown ? '📉 TREND:DOWN' : '➖ TREND:FLAT';
       var stateTxt = sig !== 'WAIT'
         ? ('SCORE:' + an.score + '%  TIER:' + an.tier)
-        : (an.failReason ? 'BEKLİYOR: ' + an.failReason : 'Bekleniyor...');
+        : ('S/M:' + (an.gapSM != null ? an.gapSM.toFixed(3) + '%' : '--') +
+           '  M/L:' + (an.gapML != null ? an.gapML.toFixed(3) + '%' : '--') +
+           '  ' + (an.failReason || 'Bekleniyor...'));
       meta.innerHTML = emaTxt + '<br>' + trendTxt + '  ' + stateTxt;
     } else if (an && sig !== 'WAIT' && an.rrActual != null) {
       meta.textContent = 'SCORE:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  RR:1:' + an.rrActual.toFixed(2) +
