@@ -336,6 +336,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
         <div class="sig-badge WAIT" id="sigBadge">WAIT</div>
         <div style="margin-top:2px"><span class="conf-tier" id="confTier" style="display:none">A-GRADE</span></div>
         <div class="sig-meta" id="sigMeta">Awaiting analysis...</div>
+        <div style="font:6px var(--mono);color:var(--dim2);text-align:center;margin-top:2px" id="modeBanner"></div>
+      </div>
       </div>
 
       <div class="regime-box" id="regimeBox">
@@ -2736,6 +2738,7 @@ function sMTF(id, val) { var el = document.getElementById(id); if (el) { el.text
 
 function updateSignalUI() {
   updateBalUI();
+  renderModeBanner();
   var pd = pData[currentPair], an = pd && pd.an;
   var sig = an && an.signal !== 'WAIT' ? an.signal : 'WAIT';
   
@@ -2766,7 +2769,9 @@ function updateSignalUI() {
       var trendTxt = an.trendUp ? '📈 TREND:UP' : an.trendDown ? '📉 TREND:DOWN' : '➖ TREND:FLAT';
       var stateTxt = sig !== 'WAIT'
         ? ('SCORE:' + an.score + '%  TIER:' + an.tier)
-        : (an.failReason ? 'BEKLİYOR: ' + an.failReason : 'Bekleniyor...');
+        : ('S/M:' + (an.gapSM != null ? an.gapSM.toFixed(3) + '%' : '--') +
+           '  M/L:' + (an.gapML != null ? an.gapML.toFixed(3) + '%' : '--') +
+           '  ' + (an.failReason || 'Bekleniyor...'));
       meta.innerHTML = emaTxt + '<br>' + trendTxt + '  ' + stateTxt;
     } else if (an && sig !== 'WAIT' && an.rrActual != null) {
       meta.textContent = 'SCORE:' + an.score + '%  VOL:' + an.vr.toFixed(2) + 'x  RR:1:' + an.rrActual.toFixed(2) +
@@ -2997,8 +3002,6 @@ function updatePosUI() {
   }
   document.getElementById('histBox').innerHTML = hh || '<div style="color:var(--dim2);font-family:var(--mono);font-size:7px">--</div>';
 }
-
-
 /* ---- 11-charts.js ---- */
 /* ============================================================
    CHARTS
@@ -3854,7 +3857,7 @@ window.__apexReady(function() {
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 200);
 });
-/* ============================================================
+  /* ============================================================
    SPOT MODE — v8.2
    ─────────────────────────────────────────────────────────────
    FUTURES/SPOT piyasa modu anahtari + kullanicinin Pine Script'i
@@ -3930,6 +3933,16 @@ function spotEffLengths() {
     l: Math.max(1, Math.round(num(SPOT_CFG.emaLong, 55)  * m))
   };
 }
+function renderModeBanner() {
+  var el = document.getElementById('modeBanner');
+  if (!el) return;
+  if (marketMode === 'SPOT') {
+    var L = spotEffLengths();
+    el.textContent = 'SPOT | TF:' + SPOT_CFG.tf + ' | EMA ' + L.s + '/' + L.m + '/' + L.l + ' ×' + SPOT_CFG.lenMult;
+  } else {
+    el.textContent = 'FUTURES | multi-indicator score';
+  }
+}
 
 /* ── SPOT sinyal analizi (futures analyze()'in spot karsiligi) ──
    pData[sym].an ile ayni sekle sahip bir obje doner ki mevcut UI
@@ -3942,7 +3955,7 @@ function spotAnalyze(sym) {
     score: 0, tier: 'C', strategy: 'EMA_STACK', reasons: [], vr: 1, adx: 20,
     sl: 0, tp: 0, posVal: 0, leverage: 1, atrPct: 0, rrActual: null, failReason: null,
     trendUp: false, trendDown: false,
-    emaS: null, emaM: null, emaL: null, barT: 0, lens: L
+    emaS: null, emaM: null, emaL: null, gapSM: null, gapML: null, barT: 0, lens: L
   };
   if (!pd) { base.failReason = 'NO_DATA'; return base; }
 
@@ -4419,6 +4432,7 @@ async function spotFetchLiveSingle(sym) {
   var pr = Number(src && (src.lastPrice != null ? src.lastPrice : src.price));
   if (pr > 0) { pData[sym].price = pr; pData[sym].dataUpdatedAt = Date.now(); }
 }
+
 </script>
 </body>
 </html>
