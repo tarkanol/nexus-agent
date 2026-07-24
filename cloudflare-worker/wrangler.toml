@@ -1,0 +1,15 @@
+name = "nexus-agent-backend"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# GATE_API_KEY ve GATE_SECRET buraya YAZMAYIN — secret olarak eklenmeli:
+#   wrangler secret put GATE_API_KEY
+#   wrangler secret put GATE_SECRET
+#
+# KV cache kullanmak isterseniz (opsiyonel, fiyat cache'i icin):
+#   wrangler kv:namespace create APEX_KV
+# ciktida donen id'yi asagiya yapistirip yorumu kaldirin:
+#
+# [[kv_namespaces]]
+# binding = "APEX_KV"
+# id = "buraya-gelen-id"
