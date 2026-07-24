@@ -4611,7 +4611,6 @@ var TarkanEngine = {
     tarkanBarState[lockKey] = dvf.barT;
 
     var pos = TarkanEngine.findOpenPos(sym);
-
     if (dvf.turnedBullish) {
       if (pos && pos.side === 'SHORT') {
         TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → LONG');
