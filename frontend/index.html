@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V8.2.2 - MOBİL</title>
+<title>APEX SCALP V8.2.1 - MOBİL</title>
 <style>
 :root {
   --bg: #060a12;
@@ -263,7 +263,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <div id="appRoot">
 
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP</span><span class="version">v8.2.2</span><span class="autonomous">⚡</span></div>
+  <div class="logo">APEX<span> // SCALP</span><span class="version">v8.2</span><span class="autonomous">⚡</span></div>
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
     <span class="bdg" id="bdgMarket">FUT</span>
@@ -271,7 +271,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <span class="bdg" id="bdgEng">ENG:OFF</span>
     <span class="bdg" id="bdgPos">0</span>
     <span class="bdg gold" id="bdgStreak" style="display:none">🔥</span>
-    <span class="bdg telegram" id="bdgTelegram">📨</span>
+    <span class="bdg telegram" id="bdgTelegram" onclick="toggleTelegram()">📨</span>
   </div>
 </header>
 
@@ -297,17 +297,18 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <div class="page active" id="pg-signal">
   <div class="scroll">
     <div class="card" style="border-color:rgba(0,255,136,0.15);background:rgba(0,255,136,0.02)">
-      <button class="auto-btn" id="autoBtn"><span id="autoBtnText">▶ START</span>
+      <button class="auto-btn" id="autoBtn" onclick="toggleAutonomous()">
+        <span id="autoBtnText">▶ START</span>
         <div class="sub" id="autoBtnSub">Full autonomous trading</div>
         <div class="stats" id="autoBtnStats">Status: Idle</div>
       </button>
     </div>
 
     <div class="quick-actions">
-      <button class="qa-btn" id="qaAuto"><span class="icon">⚡</span>AUTO</button>
-      <button class="qa-btn" id="qaTelegram"><span class="icon">📨</span>TG</button>
+      <button class="qa-btn" onclick="toggleAutonomous()" id="qaAuto"><span class="icon">⚡</span>AUTO</button>
+      <button class="qa-btn" onclick="toggleTelegram()" id="qaTelegram"><span class="icon">📨</span>TG</button>
       <button class="qa-btn" onclick="document.getElementById('telegramSettingsCard').scrollIntoView({behavior:'smooth'})"><span class="icon">⚙</span>SET</button>
-      <button class="qa-btn" id="qaPos"><span class="icon">📊</span>POS</button>
+      <button class="qa-btn" onclick="swPage('pos')"><span class="icon">📊</span>POS</button>
     </div>
 
     <div id="bannerDead" style="display:none" class="banner-dead">🔒 UTC 02-06</div>
@@ -319,7 +320,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <!-- FOCUS MODE TOGGLE -->
     <div class="card" style="border-color:rgba(0,212,255,0.1)">
       <div class="tog-row">
-        <div class="tog on" id="togFocus"></div>
+        <div class="tog on" id="togFocus" onclick="toggleFocus()"></div>
         <div>
           <div class="tog-title">🔒 Focus Mode</div>
           <div class="tog-desc" id="togFocusD">On — scan stops when position open</div>
@@ -405,7 +406,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="btn-row">
         <button class="btn btn-telegram" onclick="saveTelegramMobile()">💾 KAYDET</button>
         <button class="btn btn-out" onclick="testTelegramMobile()">📨 TEST</button>
-        <button class="btn btn-out" id="tgToggleBtn">AÇ/KAPA</button>
+        <button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button>
       </div>
       <div id="telegramStatusMobile" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
@@ -474,7 +475,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="eng-row">
         <div><div class="eng-title" id="engTxt">ENGINE OFF</div><div class="eng-sub">5m+15m+1h+4h | ATR trail</div></div>
-        <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:50px">START</button>
+        <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:50px" onclick="toggleEng()">START</button>
       </div>
       <div class="eng-stats" id="engStats" style="display:none">
         <div><span>SCAN:</span><strong id="eLast">--</strong></div>
@@ -490,8 +491,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="card-title">AUTONOMOUS</div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max Size ($)</span><input type="number" id="autoMaxSize" value="0" step="10" min="0"></div><div class="inp-wrap"><span class="inp-label">Max Lev</span><input type="number" id="autoMaxLeverage" value="0" step="1" min="0"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Min Score (%)</span><input type="number" id="autoMinScore" value="50" step="5" min="10" max="90"></div><div class="inp-wrap"><span class="inp-label">Scan (s)</span><select id="selInt"><option value="10">10</option><option value="20">20</option><option value="30" selected>30</option><option value="60">60</option></select></div></div>
-      <div class="tog-row"><div class="tog on" id="togAutoTrade"></div><div><div class="tog-title">Auto Trade</div><div class="tog-desc" id="togAutoTradeD">On</div></div></div>
-      <div class="tog-row"><div class="tog on" id="togTrail"></div><div><div class="tog-title">Trailing Stop</div><div class="tog-desc" id="togTrailD">On</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togAutoTrade" onclick="toggleAutoTrade()"></div><div><div class="tog-title">Auto Trade</div><div class="tog-desc" id="togAutoTradeD">On</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togTrail" onclick="toggleTrail()"></div><div><div class="tog-title">Trailing Stop</div><div class="tog-desc" id="togTrailD">On</div></div></div>
     </div>
 
     <div class="card">
@@ -509,7 +510,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       </div>
       <div class="manual-row">
         <div class="inp-wrap"><span class="inp-label">SL ($)</span><input type="number" id="tarkanSL" value="0.12" step="0.01" min="0.01"></div>
-        <div class="inp-wrap" style="display:flex;align-items:flex-end"><button class="btn btn-gold btn-sm" id="btnTarkan" style="width:100%">🎯 TARKAN BAŞLAT</button></div>
+        <div class="inp-wrap" style="display:flex;align-items:flex-end"><button class="btn btn-gold btn-sm" id="btnTarkan" style="width:100%" onclick="toggleTarkan()">🎯 TARKAN BAŞLAT</button></div>
       </div>
       <div id="tarkanStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);text-align:center;margin-top:2px">Kapalı</div>
       <div style="font-size:6px;color:var(--dim2);font-family:var(--mono);margin-top:3px">Not: Gate.io API 10dk mumu desteklemiyor (10s/30s/1m/5m/15m/30m/1h/... enum'u) — bu yüzden 1/5/15dk sunulur.</div>
@@ -533,7 +534,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramToken" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div><div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatId" placeholder="-100..." type="text" autocomplete="off"></div></div>
-      <div class="btn-row"><button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE</button><button class="btn btn-out" id="tgToggleBtn2">AÇ/KAPA</button></div>
+      <div class="btn-row"><button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE</button><button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button></div>
       <div id="telegramStatus" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
   </div>
@@ -545,8 +546,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="card-title">CONNECTION</div>
       <div class="fr"><span class="inp-label">WORKER URL</span><input id="wUrl" placeholder="https://xxx.workers.dev" type="url" autocomplete="off" style="font-size:8px;min-height:28px"></div>
-      <div class="btn-row" style="margin-bottom:3px"><button class="btn btn-gold btn-sm" id="btnModeFut" style="flex:1">FUTURES</button><button class="btn btn-out btn-sm" id="btnModeSpot" style="flex:1">SPOT</button></div>
-      <div class="btn-row"><button class="btn btn-acc btn-sm" id="btnConnectLive" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" id="btnStartDemo" style="flex:1">DEMO</button></div>
+      <div class="btn-row" style="margin-bottom:3px"><button class="btn btn-gold btn-sm" id="btnModeFut" onclick="setMarketMode('FUTURES')" style="flex:1">FUTURES</button><button class="btn btn-out btn-sm" id="btnModeSpot" onclick="setMarketMode('SPOT')" style="flex:1">SPOT</button></div>
+      <div class="btn-row"><button class="btn btn-acc btn-sm" onclick="connectLive()" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO</button></div>
       <div id="connStatus" style="font-size:7px;color:var(--dim2);text-align:center;font-family:var(--mono);padding:2px;border-radius:3px;background:rgba(0,0,0,.3)">Demo mode</div>
       <div id="spotHoldingsBox" style="display:none;font-size:7px;color:var(--gold);font-family:var(--mono);text-align:center;padding:2px;margin-top:2px;border-radius:3px;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.15)"></div>
     </div>
@@ -555,7 +556,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="card-title">COINS</div>
       <div id="coinList" style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px"></div>
       <div style="display:flex;gap:3px;margin-bottom:4px"><input id="newCoin" placeholder="BTC_USDT" style="flex:1;font-size:8px;min-height:28px"><button class="btn btn-out btn-sm" onclick="addCoin()" style="min-width:36px">ADD</button></div>
-      <button class="btn btn-acc btn-sm" id="btnFetch" style="width:100%">⚡ TOP VOLUME</button>
+      <button class="btn btn-acc btn-sm" id="btnFetch" onclick="fetchTopCoins()" style="width:100%">⚡ TOP VOLUME</button>
       <div id="fetchStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);margin-top:2px;min-height:12px"></div>
     </div>
 
@@ -570,10 +571,10 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 
 <!-- ===================== NAVIGATION ===================== -->
 <nav class="nav">
-  <button class="nb active" data-page="signal"><span class="ni">📡</span>Sig</button>
-  <button class="nb" data-page="pos"><span class="ni">📁</span>Pos</button>
-  <button class="nb" data-page="engine"><span class="ni">⚙</span>Eng</button>
-  <button class="nb" data-page="settings"><span class="ni">🔧</span>Set</button>
+  <button class="nb active" data-page="signal" onclick="swPage('signal')"><span class="ni">📡</span>Sig</button>
+  <button class="nb" data-page="pos" onclick="swPage('pos')"><span class="ni">📁</span>Pos</button>
+  <button class="nb" data-page="engine" onclick="swPage('engine')"><span class="ni">⚙</span>Eng</button>
+  <button class="nb" data-page="settings" onclick="swPage('settings')"><span class="ni">🔧</span>Set</button>
 </nav>
 
 </div>
@@ -581,7 +582,16 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <script>
 'use strict';
 
+/* ============================================================
+   APEX SCALP V8.2 - MOBİL
+   OTOMATIK BUILD: bu blok src/*.js dosyalarindan birlestirilir.
+   BURAYI ELLE DUZENLEMEYIN — degisiklikler bir sonraki build'de
+   silinir. src/ klasorundaki ilgili dosyayi duzenleyip commit edin.
+   ============================================================ */
 /* ---- 01-storage-state.js ---- */
+/* ============================================================
+   STORAGE
+   ============================================================ */
 (function() {
   var memory = {};
   var fallback = {
@@ -603,17 +613,21 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 /* ============================================================
    GLOBAL STATE
    ============================================================ */
-var APP_VERSION = '8.2.2';
-var marketMode = 'FUTURES';
+var APP_VERSION = '8.2';
+/* v8.2: FUTURES/SPOT piyasa modu. SPOT modunda sinyaller Pine Script
+   EMA-crossover portundan gelir (bkz 17-spot-mode.js), emirler
+   worker'in /spot/* endpoint'lerine yonlenir, kaldirac sabit 1x'tir. */
+var marketMode = 'FUTURES'; // 'FUTURES' | 'SPOT'
 var SPOT_CFG = {
-  emaShort: 9,
-  emaMid: 21,
-  emaLong: 55,
-  lenMult: 1.0,
-  tf: '5m',
-  slPct: 1.5,
-  tpPct: 3.0,
-  buyUsd: 10
+  // Pine: "Trend & Swing Signal Suite w/ Auto-Fib" girdileri
+  emaShort: 9,   // Pine: shortLen
+  emaMid:   21,  // Pine: midLen
+  emaLong:  55,  // Pine: longLen (trend filtresi)
+  lenMult:  1.0, // Pine: lenMult — uzunluklari birlikte olcekler
+  tf: '5m',      // sinyal zaman dilimi (5m | 15m | 1h)
+  slPct: 1.5,    // koruyucu stop (%) — asil cikis sellCond'dur
+  tpPct: 3.0,    // kar al (%)
+  buyUsd: 10     // Max Size ($) bos/0 ise islem basina USDT
 };
 var START_BAL = 50;
 var leverage = 2;
@@ -635,9 +649,11 @@ var pxState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null;
 var TRACKER_INTERVAL = null;
 var trackerTick = 0, tpSlHits = 0;
+
+/* ── TARKAN MODE — DVF pine portu ile scalp otomasyonu ── */
 var tarkanMode = false;
 var TARKAN_CFG = { tf: '5m', noiseMult: 2.0, lookback: 20, snapSpeed: 0.3, tpUsd: 0.20, slUsd: 0.12 };
-var tarkanBarState = {};
+var tarkanBarState = {}; // 'PAIR:tf' -> son islenen kapanmis bar zamani (ms)
 var winStreak = 0, loseStreak = 0;
 var chartCtx = null, eqCtx = null, lastCW = 0, chartRAF = null;
 var closingNow = {};
@@ -669,6 +685,10 @@ var CFG = {
   persistKey: 'apex-scalp-v81-mobile',
   dayKey: new Date().toISOString().slice(0, 10),
   recoveryMode: false,
+  // v16.5: UTC "olu saat" araligi artik sabit 02-06 degil, kullanici
+  // tarafindan ayarlanabilir. deadHourEnabled=false iken banner sadece
+  // bilgi amaclidir (eskisi gibi); true iken RiskManager.gate() bu
+  // saatlerde yeni islem acilmasini fiilen engeller.
   deadHourEnabled: false,
   deadHourStart: 2,
   deadHourEnd: 6
@@ -689,6 +709,9 @@ var Runtime = {
   posListWarnedOnce: false
 };
 
+/* ============================================================
+   FOCUS MODE
+   ============================================================ */
 var focusModeOn = true;
 
 function toggleFocus() {
@@ -777,6 +800,9 @@ function loadFocusState() {
 }
 
 /* ---- 02-telegram.js ---- */
+/* ============================================================
+   TELEGRAM
+   ============================================================ */
 var TELEGRAM = {
   enabled: false,
   token: '',
@@ -884,6 +910,9 @@ function testTelegramMobile() {
 }
 
 /* ---- 03-utils-persistence.js ---- */
+/* ============================================================
+   UTILS
+   ============================================================ */
 function clampNum(n, a, b) { return Math.max(a, Math.min(b, n)); }
 function num(v, d) { var n = Number(v); return Number.isFinite(n) ? n : (d || 0); }
 function uid(prefix) { return (prefix || 'apx') + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
@@ -914,6 +943,9 @@ function fp(p) {
   return p.toFixed(6);
 }
 
+/* ============================================================
+   PERSISTENCE
+   ============================================================ */
 var Store = {
   load: function() {
     try {
@@ -952,6 +984,9 @@ var Store = {
 };
 
 /* ---- 04-indicators.js ---- */
+/* ============================================================
+   MATH / INDICATORS
+   ============================================================ */
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.map(function(){return null;}) : [];
   var k = 2/(p+1), out = [], e = 0, i;
@@ -1002,11 +1037,28 @@ function calcATR(kl, p) {
   return sum / p;
 }
 
+/* ============================================================
+   DYNAMIC VOLATILITY FILTER — Pine port (QuantAlgo, TARKAN modu)
+   ─────────────────────────────────────────────────────────────
+   Pine kaynagi:
+     atr = ta.atr(lookback); threshold = atr * noiseMult
+     var float dvf_line = na
+     if na(dvf_line): dvf_line := src
+     else:
+       diff = src - dvf_line
+       if abs(diff) > threshold: dvf_line := dvf_line + diff*snapSpeed
+       else: dvf_line := dvf_line (degismez)
+     trend_dir = dvf_line>dvf_line[1] ? 1 : dvf_line<dvf_line[1] ? -1 : trend_dir(onceki)
+   `var` degiskenler bar bar taşındığı icin bu port tum KAPANMIS mum
+   dizisini bastan tarayip son bar'daki dvf_line/trend_dir degerini
+   (ve flip olup olmadigini) hesaplar. ATR, mevcut calcATR ile ayni
+   basit-ortalama yaklasimini kullanir (kod tabanindaki konvansiyon).
+   Donen: {line, trend, prevTrend, turnedBullish, turnedBearish, barT} */
 function calcDVF(kl, noiseMult, lookback, snapSpeed) {
   noiseMult = noiseMult || 2.0; lookback = Math.max(1, lookback || 20); snapSpeed = snapSpeed || 0.3;
   var n = kl.length;
   if (n < lookback + 3) return null;
-  var trs = new Array(n);
+  var trs = new Array(n); // trs[i] = bar i'nin true range'i (i=0 hesaplanamaz)
   var i, pc;
   for (i = 1; i < n; i++) {
     pc = kl[i - 1].c;
@@ -1015,7 +1067,7 @@ function calcDVF(kl, noiseMult, lookback, snapSpeed) {
   var line = new Array(n), trend = new Array(n);
   line[0] = kl[0].c; trend[0] = 0;
   for (i = 1; i < n; i++) {
-    if (i < lookback) {
+    if (i < lookback) { // ATR henuz gecerli degil -> dvf_line degismez (Pine ile ayni)
       line[i] = line[i - 1]; trend[i] = 0; continue;
     }
     var sum = 0, j; for (j = i - lookback + 1; j <= i; j++) sum += trs[j];
@@ -1201,6 +1253,9 @@ function detectRegime(kl5, kl15, kl1h) {
 }
 
 /* ---- 05-demo-engine.js ---- */
+/* ============================================================
+   DEMO PRICE ENGINE
+   ============================================================ */
 function initTrendState(sym) {
   trendState[sym] = {
     trend: Math.random() > 0.5 ? 1 : -1,
@@ -1322,6 +1377,9 @@ function demoRefresh() {
 }
 
 /* ---- 06-accounting-analyze.js ---- */
+/* ============================================================
+   ACCOUNTING
+   ============================================================ */
 var Accounting = {
   entryFee: function(notional, rate) { return Math.abs(notional) * num(rate, CFG.feeRate); },
   exitFee: function(qty, exitPrice, rate) { return Math.abs(qty * exitPrice) * num(rate, CFG.feeRate); },
@@ -1356,6 +1414,9 @@ var Accounting = {
   }
 };
 
+/* ============================================================
+   ANALYZE
+   ============================================================ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
 }
@@ -1755,6 +1816,9 @@ function lossMultiplier() {
 }
 
 /* ---- 07-risk-tracker.js ---- */
+/* ============================================================
+   RISK MANAGER
+   ============================================================ */
 var RiskManager = {
   todayTrades: function() { return trades.filter(function(t) { return sameDay(t.closedAt || Date.now()); }).length; },
   drawdownPct: function() { return peakBal ? Math.max(0, (peakBal - balance) / peakBal * 100) : 0; },
@@ -1792,12 +1856,14 @@ function isDeadHour() {
   var h = new Date().getUTCHours();
   var s = num(CFG.deadHourStart, 2), e = num(CFG.deadHourEnd, 6);
   s = clampNum(Math.round(s), 0, 23); e = clampNum(Math.round(e), 0, 23);
-  if (s === e) return false;
+  if (s === e) return false; // 0 saatlik aralik = kapali
   if (s < e) return h >= s && h < e;
-  return h >= s || h < e;
+  return h >= s || h < e; // gece yarisini gecen araliklar (orn. 22-04)
 }
 
 function analyzeAll() {
+  // v8.2: SPOT modunda sinyal kaynagi Pine EMA-crossover portu,
+  // FUTURES modunda mevcut cok-stratejili analyze().
   var fn = (typeof marketMode !== 'undefined' && marketMode === 'SPOT') ? spotAnalyze : analyze;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
@@ -1805,6 +1871,9 @@ function analyzeAll() {
   }
 }
 
+/* ============================================================
+   TRACKER - DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ
+   ============================================================ */
 function startTracker() {
   if (TRACKER_INTERVAL) {
     clearInterval(TRACKER_INTERVAL);
@@ -1834,6 +1903,7 @@ function stopTracker() {
 }
 
 function runTracker() {
+  // Kapalı pozisyonları temizle
   positions = positions.filter(function(p) {
     if (p.state === POSITION_STATE.CLOSED) {
       delete closingNow[p.id];
@@ -1884,6 +1954,11 @@ function runTracker() {
   for (var i = 0; i < positions.length; i++) {
     var pos = positions[i];
     if (!pos || pos.state !== POSITION_STATE.OPEN) continue;
+    // v8.3 FIX: bu blok futures pozisyonlari icin tasarlandi (1h
+    // MACD/EMA/RSI zayiflik skoru). SPOT pozisyonlar Pine Script'in
+    // KENDI cikis mantigini (sellCond: crossunder + trend dönüşü,
+    // SpotEngine.engineTick() icinde) kullaniyor — bu alakasiz
+    // futures sezgisi spot pozisyonlari erken ve gerekce dışı kapatiyordu.
     if (pos.market === 'SPOT') continue;
     if (!pos.lastWeaknessCheck) pos.lastWeaknessCheck = 0;
     if (now - pos.lastWeaknessCheck < 300000) continue;
@@ -1974,6 +2049,10 @@ function processTrackedPositions() {
   for (var i = 0; i < openPositions.length; i++) {
     var pos = openPositions[i];
     if (!pos || closingNow[pos.id]) continue;
+    // v16.4: bir onceki kapama denemesi basarisiz oldugunda (state=ERROR),
+    // her tracker tick'inde (500ms) hemen tekrar denemek yerine 5sn soguma
+    // uyguluyoruz. Boylece kalici bir hata (ornegin borsada pozisyon zaten
+    // yokken tekrar tekrar /close cagirmak) siki bir donguye donusmuyor.
     if (pos.state === POSITION_STATE.ERROR && (trackNow - (pos.stateUpdatedAt || 0)) < 5000) continue;
     
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
@@ -2004,6 +2083,13 @@ var TrailService = {
     if (grossPnl > pos.highPnl) pos.highPnl = grossPnl;
     var high = pos.highPnl || 0;
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
+    // v16.5 FIX: refTarget bir DOLAR PnL hedefi olmali (high de dolar PnL).
+    // Eski kod `pos.entry * 0.008 * leverage` kullaniyordu — bu bir FIYAT
+    // buyuklugu, pozisyon boyutuyla (posVal/qty) hicbir ilgisi yok. Sonuc:
+    // BTC/ETH gibi pahali coinlerde refTarget gercekci olmayan sekilde
+    // buyuyup (orn. $50000*0.008*3=$1200) trailing HICBIR ZAMAN
+    // aktiflesmiyordu; ucuz coinlerde ise ters yonde cok erken tetikleniyordu.
+    // Dogrusu: pozisyonun DOLAR buyuklugune (posVal) gore olcmek.
     var refTarget = Math.abs(pos.posVal * 0.008 * (pos.leverage || 1));
     var activation = Math.max(refTarget * 0.25, roundTrip * 1.2);
     if (high < activation) return;
@@ -2044,6 +2130,9 @@ function weaknessScore(pos, currentData) {
 }
 
 /* ---- 08-autonomous-execution.js ---- */
+/* ============================================================
+   AUTONOMOUS MODE
+   ============================================================ */
 function toggleAutonomous() {
   autonomousMode = !autonomousMode;
   var btn = document.getElementById('autoBtn');
@@ -2083,6 +2172,9 @@ function toggleAutonomous() {
   updateSignalUI();
 }
 
+/* ============================================================
+   EXECUTION - DÜZELTİLMİŞ VERSİYON
+   ============================================================ */
 var StateMachine = {
   allowed: {
     PENDING_OPEN: ['OPEN', 'ERROR'],
@@ -2109,7 +2201,6 @@ var Execution = {
       sl: sl, tp: tp, initialSL: sl, initialTP: tp,
       feeRate: CFG.feeRate, entryFee: Accounting.entryFee(posVal, CFG.feeRate),
       openTime: Date.now(), highPnl: 0, trailActive: false, auto: !!auto,
-      tarkan: false,
       state: POSITION_STATE.PENDING_OPEN, stateUpdatedAt: Date.now(),
       clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live',
       score: score || 0, entryAtr: entryAtr || 0, leverage: leverageUsed || 1,
@@ -2119,6 +2210,7 @@ var Execution = {
   
   open: async function(sym, side, auto, manualTargetUsd, manualRiskUsd) {
     try { sym = validSymbol(sym); } catch(e) { notify(e.message, 'error'); return; }
+    // v8.2 SPOT: short yok; manuel SELL eldeki coini satmaya yonlenir.
     if (marketMode === 'SPOT' && side === 'SHORT') {
       SpotEngine.sellCurrent();
       return;
@@ -2167,7 +2259,7 @@ var Execution = {
       return;
     }
     
-    if (marketMode === 'SPOT') lev = 1;
+    if (marketMode === 'SPOT') lev = 1; // spot'ta kaldirac yok
     
     var cOrderId = orderId('open', sym);
     var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0, lev);
@@ -2178,6 +2270,9 @@ var Execution = {
       if (appMode === 'live') {
         var r;
         if (pos.market === 'SPOT') {
+          // v8.2: Gate.io spot market BUY — worker /spot/order, amount =
+          // QUOTE (USDT) miktari. SL/TP borsaya gonderilmez; client-side
+          // tracker izler (spot'ta worker tarafinda trigger emri yok).
           r = await Http.post('/spot/order', {
             symbol: sym, side: 'BUY', usdAmount: posVal, clientOrderId: cOrderId
           });
@@ -2191,6 +2286,9 @@ var Execution = {
         pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
         if (r.fillPrice) pos.entry = Number(r.fillPrice);
         if (pos.market === 'SPOT') {
+          // Gerceklesen dolum: qty = alinan coin (filledBase),
+          // posVal = harcanan USDT (filledQuote). SL/TP'yi gercek
+          // giris fiyatina gore yeniden hizala.
           if (Number(r.filledBase) > 0)  pos.qty = Number(r.filledBase);
           if (Number(r.filledQuote) > 0) pos.posVal = Number(r.filledQuote);
           if (r.fillPrice && !manualTargetUsd) {
@@ -2225,6 +2323,10 @@ var Execution = {
       startTracker();
     } catch(e) {
       try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch(_) {}
+      // v16.3: worker "pozisyon cok kucuk" hatasinda gercek min notional'i
+      // e.data.minNotionalUsd icinde donuyor (bkz Http.request). Bunu
+      // ogrenip MIN_POS_VAL'i yukseltiyoruz ki ayni coin icin bir sonraki
+      // otomatik islem denemesi ayni sebeple bosuna tekrar reddedilmesin.
       var minUsd = e.data && Number(e.data.minNotionalUsd);
       if (Number.isFinite(minUsd) && minUsd > MIN_POS_VAL) {
         var oldMin = MIN_POS_VAL;
@@ -2273,6 +2375,8 @@ var Execution = {
         var cid = orderId('close', pos.pair);
         var r;
         if (pos.market === 'SPOT') {
+          // v8.2: spot'ta "kapatma" = eldeki base coin'in tamamini
+          // USDT'ye geri satmak (worker /spot/close).
           r = await Http.post('/spot/close', {
             symbol: pos.pair, clientOrderId: cid, reason: reason || 'MANUAL'
           });
@@ -2310,6 +2414,17 @@ var Execution = {
       }
     } catch(e) {
       delete closingNow[id];
+      // v16.4 FIX (kok sebep): worker "Acik pozisyon yok" hatasi donuyorsa,
+      // bu genelde borsanin KENDI SL/TP tetikleyici emrinin bizden once
+      // pozisyonu zaten kapatmis oldugu anlamina gelir (worker acilista
+      // hem client-side hem exchange-side SL/TP kuruyor - iki katmanli
+      // koruma). Eskiden bu durum ERROR olarak isaretlenip her tracker
+      // tick'inde (500ms) tekrar deneniyordu -> sonsuz "kapanamadi" dongusu.
+      // Artik bu spesifik durumda pozisyonu basarili kapanmis sayip yerel
+      // kaydi (bakiye, PnL, trade gecmisi) elimizdeki en guncel fiyatla
+      // sonlandiriyoruz.
+      // v8.2: spot karsiligi — "Elinizde X bulunmuyor" da borsada zaten
+      // satilmis demektir (kullanici disaridan satmis olabilir).
       var noPositionOnExchange = /açık pozisyon yok|acik pozisyon yok|no open position|elinizde .* bulunmuyor/i.test(String(e.message || ''));
       if (appMode === 'live' && noPositionOnExchange) {
         var exitGuess = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
@@ -2461,6 +2576,9 @@ var Execution = {
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
     Runtime.liveReconcileBusy = true;
     try {
+      // v8.2 SPOT: futures /state spot pozisyonlarini bilmez; oraya
+      // gidersek reconcilePayload yerel spot pozisyonlarini SILER.
+      // Spot modunda gercek kaynak /spot/balance + eldeki coin'lerdir.
       if (marketMode === 'SPOT') {
         return await SpotEngine.syncBalance(force);
       }
@@ -2530,6 +2648,9 @@ var Execution = {
 };
 
 /* ---- 09-engine.js ---- */
+/* ============================================================
+   ENGINE
+   ============================================================ */
 function toggleEng() {
   engineOn = !engineOn;
   var elBtn = document.getElementById('btnEng'); if (elBtn) elBtn.textContent = engineOn ? 'STOP' : 'START';
@@ -2551,18 +2672,18 @@ function startCountdown() {
 }
 
 function runEngine() {
-  // TARKAN MODE KONTROLÜ - EN BAŞTA
-  if (tarkanMode) { 
-    TarkanEngine.tick(); 
-    return; 
-  }
-  
   if (!engineOn) return;
   var el = document.getElementById('eLast'); 
   if (el) el.textContent = new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'});
   var eo = document.getElementById('eOpen'); 
   if (eo) eo.textContent = positions.length;
   
+  // TARKAN modu — DVF pine-port flip sinyaliyle tek pair scalp.
+  // FUTURES/SPOT ayrimindan bagimsiz, mevcut mod neyse onda calisir.
+  if (tarkanMode) { TarkanEngine.tick(); return; }
+
+  // v8.2: SPOT modu — EMA crossover al / crossunder sat dongusu.
+  // Cikis taramasi focus modundan etkilenmez (SpotEngine icinde).
   if (marketMode === 'SPOT') { SpotEngine.engineTick(); return; }
   
   if (focusModeOn && positions.length > 0) {
@@ -2618,6 +2739,9 @@ function updateAutoStats() {
 }
 
 /* ---- 10-ui.js ---- */
+/* ============================================================
+   UI - TÜM GÜNCELLEME FONKSİYONLARI
+   ============================================================ */
 function updateWRStrip() {
   var wins = 0, losses = 0, totalW = 0, totalL = 0;
   var returns = [];
@@ -2717,6 +2841,8 @@ function updateSignalUI() {
   var meta = document.getElementById('sigMeta');
   if (meta) {
     if (marketMode === 'SPOT' && an) {
+      // v8.3: SPOT modunda EMA yigininin anlik degerlerini her zaman
+      // goster (sinyal WAIT olsa da) — "ne durumda oldugu" hep gorunsun.
       var emaTxt = (an.emaS != null && an.emaM != null && an.emaL != null)
         ? 'EMA' + (an.lens ? an.lens.s : '9') + ':' + fp(an.emaS) +
           '  EMA' + (an.lens ? an.lens.m : '21') + ':' + fp(an.emaM) +
@@ -2884,7 +3010,7 @@ function updateTicker() {
 
 function selPair(s) {
   currentPair = s; updatePairRow(); updateSignalUI(); drawChart();
-  tarkanBarState = {};
+  tarkanBarState = {}; // farkli pair -> TARKAN bar kilidini sifirla
   var lbl = document.getElementById('tarkanPairLabel'); if (lbl) lbl.textContent = s.replace('_USDT', '');
   if (typeof applyTarkanUI === 'function') applyTarkanUI();
 }
@@ -2905,6 +3031,9 @@ function updateCoinScoreTable() {
     var tier = an && an.tier ? '[' + an.tier + ']' : '';
     var reason;
     if (marketMode === 'SPOT' && an) {
+      // v8.3: SPOT modunda "reason" sutununda EMA yigininin anlik
+      // degerlerini goster — hangi coin'in ne durumda oldugu tek
+      // bakista gorulsun.
       reason = (an.emaS != null)
         ? 'S:' + fp(an.emaS) + ' M:' + fp(an.emaM) + ' L:' + fp(an.emaL) + ' ' + (an.trendUp ? '↑' : an.trendDown ? '↓' : '–')
         : (an.failReason || 'DATA_WARMUP');
@@ -2963,6 +3092,9 @@ function updatePosUI() {
 }
 
 /* ---- 11-charts.js ---- */
+/* ============================================================
+   CHARTS
+   ============================================================ */
 function initChart() {
   var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d');
   var e = document.getElementById('equityChart'); if (e) eqCtx = e.getContext('2d');
@@ -3052,6 +3184,9 @@ function drawEquity() {
 }
 
 /* ---- 12-http-marketdata.js ---- */
+/* ============================================================
+   HTTP / API COMPAT / MARKET DATA
+   ============================================================ */
 var Http = {
   request: function(url, options, timeoutMs) {
     options = options || {};
@@ -3099,7 +3234,7 @@ var ApiCompat = {
       Runtime.capabilities.state = !!(f.state || f.reconcile);
       Runtime.capabilities.riskUpdate = !!f.riskUpdate;
       Runtime.capabilities.kill = !!f.kill;
-      Runtime.capabilities.spot = !!f.spot;
+      Runtime.capabilities.spot = !!f.spot; // v17.0+ worker
       Runtime.apiMode = Runtime.capabilities.snapshot ? 'modern' : 'legacy';
       return;
     }
@@ -3232,10 +3367,14 @@ var MarketData = {
   },
   fetchLive: async function() {
     if (!WORKER) return;
+    // v8.2: SPOT modunda /snapshot futures verisi doner; spot fiyat ve
+    // mumlar /spot/price + /spot/klines'tan gelir.
     if (marketMode === 'SPOT') return SpotEngine.fetchMarket();
     if (Runtime.capabilities.snapshot !== false) {
       try {
         var qs = encodeURIComponent(pairs.join(','));
+        // TARKAN 1m TF'i icin worker'in varsayilan tfs listesine (5m,15m,1h)
+        // 1m ekleniyor; worker eksik/parse edemezse mevcut davranista kalir.
         var snap = await Http.get('/snapshot?symbols=' + qs + '&tfs=' + encodeURIComponent('1m,5m,15m,1h,4h'));
         if (!snap || !snap.success || !snap.market) throw new Error('Invalid snapshot response');
         Runtime.capabilities.snapshot = true;
@@ -3283,6 +3422,7 @@ var MarketData = {
     }
     var request;
     if (marketMode === 'SPOT') {
+      // v8.2: spot icin batch endpoint yok; pair basina /spot/price.
       request = SpotEngine.refreshOpenPrices(symbols)
         .then(function(results) { return results.some(Boolean); });
     } else if (Runtime.capabilities.snapshot !== false) {
@@ -3365,6 +3505,9 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
 };
 
 /* ---- 13-connect-mainloop.js ---- */
+/* ============================================================
+   CONNECT / DEMO
+   ============================================================ */
 function connectLive() {
   var url = document.getElementById('wUrl').value.trim();
   if (!url) { notify('Enter Worker URL', 'error'); return; }
@@ -3376,6 +3519,8 @@ function connectLive() {
     if (!d || !d.success) throw new Error('Worker not responding');
     ApiCompat.applyPing(d);
     appMode = 'live';
+    // v8.2: SPOT modu secili ama worker spot bilmiyorsa (v17.0 oncesi)
+    // sessiz bozulma yerine FUTURES'a dusuyoruz.
     if (marketMode === 'SPOT' && Runtime.capabilities.spot === false) {
       notify('Worker SPOT desteklemiyor (v17.0+ gerekli) — FUTURES moduna geçildi', 'error');
       marketMode = 'FUTURES';
@@ -3385,6 +3530,13 @@ function connectLive() {
     document.getElementById('bdgConn').textContent = 'LIVE';
     document.getElementById('bdgConn').className = 'bdg live';
     return Execution.reconcile(true).then(function() {
+      // v16.4 FIX: canliya baglanildiginda peakBal'i demo'nun sabit $50
+      // varsayimina degil, GERCEK bakiyeye gore sifirliyoruz. Aksi halde
+      // kullanici futures cuzdanini bilerek dusuk bir limitle (orn. $21)
+      // fonlamissa, uygulama bunu kalici bir "drawdown" saniyor ve DD%
+      // gostergesi hicbir zaman duzelmiyor; hatta gereksiz yere
+      // kill-switch'i tetikleyebiliyor. Gercek sermaye artik yeni baslangic
+      // noktasi.
       if (Number.isFinite(balance) && balance > 0) {
         var oldPeak = peakBal;
         peakBal = balance;
@@ -3429,6 +3581,9 @@ function startDemo() {
   sendTelegram('🔄 DEMO MODE V' + APP_VERSION);
 }
 
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
 async function mainLoop() {
   if (Runtime.scanBusy) { loopTimer = setTimeout(mainLoop, 1000); return; }
   Runtime.scanBusy = true;
@@ -3445,6 +3600,9 @@ async function mainLoop() {
 }
 
 /* ---- 14-settings-helpers.js ---- */
+/* ============================================================
+   SETTINGS / UI HELPERS
+   ============================================================ */
 function readSettings() {
   targetMult = parseFloat(document.getElementById('selTargetMult').value);
   riskMult = parseFloat(document.getElementById('selRiskMult').value);
@@ -3533,6 +3691,8 @@ function fetchTopCoins() {
   if (!WORKER) { document.getElementById('fetchStatus').textContent = '⚠️ Live required.'; return; }
   var btn = document.getElementById('btnFetch'), status = document.getElementById('fetchStatus');
   btn.disabled = true; status.textContent = 'Loading...';
+  // v8.2: spot modunda hacim listesi spot piyasasindan gelir (worker
+  // her ikisini de ayni alan adlariyla normalize ediyor).
   var tickerEP = marketMode === 'SPOT' ? '/spot/tickers' : '/gateio_tickers';
   Http.get(tickerEP).then(function(d) {
     btn.disabled = false;
@@ -3671,6 +3831,9 @@ function bindSafeUI() {
 }
 
 /* ---- 15-backtest-testsuite.js ---- */
+/* ============================================================
+   BACKTEST & TEST SUITE
+   ============================================================ */
 var Backtester = {
   run: function(sym) {
     var pd = pData[sym]; if (!pd || !pd.masterKlines || pd.masterKlines.length < 100) throw new Error('Not enough history');
@@ -3730,6 +3893,9 @@ var TestSuite = {
 };
 
 /* ---- 16-init.js ---- */
+/* ============================================================
+   INIT
+   ============================================================ */
 window.__apexReady = function(fn) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, {once: true});
   else setTimeout(fn, 0);
@@ -3739,13 +3905,13 @@ window.__apexReady(function() {
   Store.load();
   TelegramStore.load();
   loadFocusState();
-  loadMarketMode();
+  loadMarketMode(); // v8.2: FUTURES/SPOT modu + SPOT_CFG
   initChart();
   renderCoinList();
   readSettings();
   bindSafeUI();
-  bindSpotUI();
-  bindTarkanUI();
+  bindSpotUI(); // v8.2: mod anahtari + spot EMA ayarlari
+  bindTarkanUI(); // TARKAN: DVF pine port scalp modu
   updateTelegramUI();
   updateFocusUI();
   
@@ -3769,43 +3935,6 @@ window.__apexReady(function() {
     };
   }
   
-  // ============================================================
-  // NAV BUTONLARI İÇİN EVENT LISTENER - CSP GÜVENLİ
-  // ============================================================
-  document.querySelectorAll('.nb').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var pageName = btn.getAttribute('data-page');
-      if (pageName) {
-        swPage(pageName);
-      }
-    });
-  });
-  
-  // ============================================================
-  // DİĞER BUTONLAR İÇİN EVENT LISTENER'LAR
-  // ============================================================
-  // AUTO butonu
-  document.getElementById('autoBtn').addEventListener('click', toggleAutonomous);
-  document.getElementById('qaAuto').addEventListener('click', toggleAutonomous);
-  
-  // TELEGRAM butonları
-  document.getElementById('bdgTelegram').addEventListener('click', toggleTelegram);
-  document.getElementById('tgToggleBtn').addEventListener('click', toggleTelegram);
-  document.getElementById('tgToggleBtn2').addEventListener('click', toggleTelegram);
-  
-  // POS butonu
-  document.getElementById('qaPos').addEventListener('click', function() { swPage('pos'); });
-  
-  // ENGINE butonu
-  document.getElementById('btnEng').addEventListener('click', toggleEng);
-  
-  // TARKAN butonu
-  document.getElementById('btnTarkan').addEventListener('click', toggleTarkan);
-  
-  // LIVE / DEMO butonları
-  document.getElementById('btnConnectLive').addEventListener('click', connectLive);
-  document.getElementById('btnStartDemo').addEventListener('click', startDemo);
-  
   startDemo();
   
   setTimeout(function() {
@@ -3822,22 +3951,9 @@ window.__apexReady(function() {
 });
 
 /* ---- 17-spot-mode.js ---- */
-function pineCrossover(fastArr, slowArr) {
-  var n = fastArr.length - 1;
-  if (n < 1) return false;
-  var f0 = fastArr[n], f1 = fastArr[n - 1];
-  var s0 = slowArr[n], s1 = slowArr[n - 1];
-  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
-  return f1 <= s1 && f0 > s0;
-}
-function pineCrossunder(fastArr, slowArr) {
-  var n = fastArr.length - 1;
-  if (n < 1) return false;
-  var f0 = fastArr[n], f1 = fastArr[n - 1];
-  var s0 = slowArr[n], s1 = slowArr[n - 1];
-  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
-  return f1 >= s1 && f0 < s0;
-}
+/* ============================================================
+   SPOT MODE — v8.2
+   ============================================================ */
 
 function spotEffLengths() {
   var m = num(SPOT_CFG.lenMult, 1) || 1;
@@ -3847,15 +3963,40 @@ function spotEffLengths() {
     l: Math.max(1, Math.round(num(SPOT_CFG.emaLong, 55)  * m))
   };
 }
+
 function renderModeBanner() {
   var el = document.getElementById('modeBanner');
-  if (!el) return;
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'modeBanner';
+    el.style.cssText = 'font-size:6px;color:var(--dim2);font-family:var(--mono);text-align:center;padding:1px 0;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--brd)';
+    var ref = document.getElementById('tickerEl');
+    if (ref && ref.parentNode) ref.parentNode.insertBefore(el, ref.nextSibling);
+  }
   if (marketMode === 'SPOT') {
     var L = spotEffLengths();
     el.textContent = 'SPOT | TF:' + SPOT_CFG.tf + ' | EMA ' + L.s + '/' + L.m + '/' + L.l + ' ×' + SPOT_CFG.lenMult;
   } else {
     el.textContent = 'FUTURES | multi-indicator score';
   }
+}
+
+function pineCrossover(fastArr, slowArr) {
+  var n = fastArr.length - 1;
+  if (n < 1) return false;
+  var f0 = fastArr[n], f1 = fastArr[n - 1];
+  var s0 = slowArr[n], s1 = slowArr[n - 1];
+  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
+  return f1 <= s1 && f0 > s0;
+}
+
+function pineCrossunder(fastArr, slowArr) {
+  var n = fastArr.length - 1;
+  if (n < 1) return false;
+  var f0 = fastArr[n], f1 = fastArr[n - 1];
+  var s0 = slowArr[n], s1 = slowArr[n - 1];
+  if (f0 == null || f1 == null || s0 == null || s1 == null) return false;
+  return f1 >= s1 && f0 < s0;
 }
 
 function spotAnalyze(sym) {
@@ -4301,18 +4442,24 @@ async function spotFetchLiveSingle(sym) {
   if (pr > 0) { pData[sym].price = pr; pData[sym].dataUpdatedAt = Date.now(); }
 }
 
-/* ---- 18-tarkan-mode.js (DÜZELTİLMİŞ) ---- */
+/* ---- 18-tarkan-mode.js ---- */
+/* ============================================================
+   TARKAN MODE — DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ VERSİYON
+   ============================================================ */
+
 var TarkanEngine = {
   klKey: function(tf) { 
     return tf === '1m' ? 'kl1m' : tf === '15m' ? 'kl15m' : 'kl5m'; 
   },
 
+  // Pozisyon açma - manual TP/SL ile
   openTarkanPos: async function(sym, side) {
     if (Runtime.openingLocks[sym]) {
       logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' açılıyor zaten, bekle', 'info');
       return;
     }
     
+    // Aynı yönde açık pozisyon var mı kontrol et
     var existing = positions.find(function(p) { 
       return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && p.tarkan; 
     });
@@ -4321,20 +4468,24 @@ var TarkanEngine = {
       return;
     }
 
+    // Ters yönde pozisyon varsa önce kapat (flip)
     var opposite = positions.find(function(p) { 
       return p.pair === sym && p.side !== side && p.state !== POSITION_STATE.CLOSED && p.tarkan; 
     });
     if (opposite) {
       logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ters pozisyon kapatılıyor (' + opposite.side + ' → ' + side + ')', 'info');
       await Execution.close(opposite.id, 'TARKAN FLIP');
+      // Kapanma işlemi tamamlansın diye bekle
       await new Promise(function(resolve) { setTimeout(resolve, 300); });
     }
 
+    // Yeni pozisyon aç
     logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ' + side + ' açılıyor (TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd + ')', 'ok');
     
     try {
       await Execution.open(sym, side, true, TARKAN_CFG.tpUsd, TARKAN_CFG.slUsd);
       
+      // Açılan pozisyonu TARKAN olarak işaretle
       var mine = positions.filter(function(p) {
         return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && !p.tarkan;
       }).sort(function(a, b) { return b.openTime - a.openTime; })[0];
@@ -4349,18 +4500,21 @@ var TarkanEngine = {
     }
   },
 
+  // Pozisyon kapatma
   closeTarkanPos: function(pos, reason) {
     if (!pos || closingNow[pos.id]) return;
     logPos('[TARKAN] Kapatılıyor: ' + pos.pair.replace('_USDT', '') + ' ' + pos.side + ' — ' + reason, 'info');
     Execution.close(pos.id, reason || 'TARKAN CLOSE');
   },
 
+  // TARKAN pozisyonu bul
   findOpenPos: function(sym) {
     return positions.find(function(p) { 
       return p.pair === sym && p.tarkan && p.state === POSITION_STATE.OPEN; 
     }) || null;
   },
 
+  // Ana tick fonksiyonu - her scan döngüsünde çağrılır
   tick: function() {
     if (!tarkanMode) return;
     
@@ -4381,12 +4535,14 @@ var TarkanEngine = {
       return;
     }
 
+    // DVF hesapla
     var dvf = calcDVF(kl, TARKAN_CFG.noiseMult, TARKAN_CFG.lookback, TARKAN_CFG.snapSpeed);
     if (!dvf) return;
 
     var lockKey = sym + ':' + TARKAN_CFG.tf;
     var alreadyProcessed = tarkanBarState[lockKey] === dvf.barT;
 
+    // UI'da durumu göster
     var sigEl3 = document.getElementById('eSig');
     if (sigEl3) {
       var dirTxt = dvf.trend === 1 ? '📈 BULLISH' : dvf.trend === -1 ? '📉 BEARISH' : '➖ FLAT';
@@ -4396,55 +4552,80 @@ var TarkanEngine = {
       sigEl3.style.color = dvf.trend === 1 ? 'var(--long)' : dvf.trend === -1 ? 'var(--short)' : 'var(--dim2)';
     }
 
+    // Aynı bar zaten işlendiyse tekrarlama
     if (alreadyProcessed) return;
+    
+    // Bu bar işlendi olarak işaretle
     tarkanBarState[lockKey] = dvf.barT;
 
     var pos = TarkanEngine.findOpenPos(sym);
     
+    // v8.3 FIX: Anlık trend yönüne göre işlem yap
+    // BULLISH -> LONG aç (SHORT varsa kapat)
     if (dvf.trend === 1) {
       if (pos && pos.side === 'SHORT') {
+        // SHORT'u kapat, LONG aç
         TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → LONG');
+        // Kapanma sonrası açmak için kısa gecikme
         setTimeout(function() { 
           TarkanEngine.openTarkanPos(sym, 'LONG'); 
         }, 500);
       } else if (!pos) {
+        // Hiç pozisyon yoksa LONG aç
         TarkanEngine.openTarkanPos(sym, 'LONG');
       }
+      // Zaten LONG varsa bir şey yapma
     }
+    // BEARISH -> SHORT aç (LONG varsa kapat) - SPOT'ta sadece LONG'dan çık
     else if (dvf.trend === -1) {
       if (marketMode === 'SPOT') {
+        // SPOT: sadece LONG'dan çık, SHORT açma
         if (pos && pos.side === 'LONG') {
           TarkanEngine.closeTarkanPos(pos, 'TARKAN TREND DOWN → EXIT (SPOT)');
         }
       } else {
+        // FUTURES: SHORT aç / LONG'dan dön
         if (pos && pos.side === 'LONG') {
+          // LONG'u kapat, SHORT aç
           TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → SHORT');
           setTimeout(function() { 
             TarkanEngine.openTarkanPos(sym, 'SHORT'); 
           }, 500);
         } else if (!pos) {
+          // Hiç pozisyon yoksa SHORT aç
           TarkanEngine.openTarkanPos(sym, 'SHORT');
         }
+        // Zaten SHORT varsa bir şey yapma
       }
     }
+    // FLAT/NEUTRAL -> eğer pozisyon varsa kapat (isteğe bağlı)
+    else if (dvf.trend === 0 && pos) {
+      // İsteğe bağlı: trend nötre dönerse pozisyonu kapat
+      // Not: Bazı stratejilerde bu istenmez, yorum satırı olarak bırakıyorum
+      // TarkanEngine.closeTarkanPos(pos, 'TARKAN NEUTRAL → EXIT');
+    }
+    
     updateAutoStats();
   }
 };
 
+/* ── TARKAN toggle ── */
 function toggleTarkan() {
   tarkanMode = !tarkanMode;
   
   if (tarkanMode) {
     readTarkanSettings();
-    tarkanBarState = {};
+    tarkanBarState = {}; // Bar kilidini sıfırla
     logPos('[TARKAN] 🎯 Aktif — ' + currentPair.replace('_USDT', '') + ' / ' + TARKAN_CFG.tf + ' | TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd, 'ok');
     notify('🎯 TARKAN AKTİF (' + currentPair.replace('_USDT', '') + ', ' + TARKAN_CFG.tf + ')', 'success');
     sendTelegram('🎯 TARKAN AKTİF\n' + currentPair + ' ' + TARKAN_CFG.tf + '\nTP: $' + TARKAN_CFG.tpUsd + ' SL: $' + TARKAN_CFG.slUsd);
     
+    // Engine zaten çalışmıyorsa başlat
     if (!engineOn) {
       toggleEng();
     }
   } else {
+    // TARKAN kapatılırken açık pozisyonları kapat (opsiyonel)
     var openTarkan = positions.filter(function(p) { return p.tarkan && p.state !== POSITION_STATE.CLOSED; });
     if (openTarkan.length > 0) {
       logPos('[TARKAN] ' + openTarkan.length + ' pozisyon kapatılıyor...', 'info');
@@ -4461,12 +4642,13 @@ function toggleTarkan() {
   updateSignalUI();
 }
 
+/* ── TARKAN ayarlarını oku ── */
 function readTarkanSettings() {
   var tfEl = document.getElementById('tarkanTf');
   if (tfEl && ['1m', '5m', '15m'].indexOf(tfEl.value) !== -1) {
     if (tfEl.value !== TARKAN_CFG.tf) {
       TARKAN_CFG.tf = tfEl.value;
-      tarkanBarState = {};
+      tarkanBarState = {}; // TF değişti -> bar kilidini sıfırla
     }
   }
   
@@ -4479,13 +4661,15 @@ function readTarkanSettings() {
   if (Number.isFinite(tp) && tp > 0) TARKAN_CFG.tpUsd = tp;
   if (Number.isFinite(sl) && sl > 0) TARKAN_CFG.slUsd = sl;
   
+  // TP ve SL kontrolü
   if (TARKAN_CFG.tpUsd <= TARKAN_CFG.slUsd) {
-    logPos('[TARKAN] ⚠️ TP ($' + TARKAN_CFG.tpUsd + ') SL ($' + TARKAN_CFG.slUsd + ')' + ' — TP SL'den büyük olmalı!', 'warn');
+    logPos('[TARKAN] ⚠️ TP ($' + TARKAN_CFG.tpUsd + ') SL ($' + TARKAN_CFG.slUsd + ')' + ' — TP SL\'den büyük olmalı!', 'warn');
   }
   
   applyTarkanUI();
 }
 
+/* ── TARKAN UI güncelleme ── */
 function applyTarkanUI() {
   var btn = document.getElementById('btnTarkan');
   if (btn) {
@@ -4508,6 +4692,7 @@ function applyTarkanUI() {
   }
 }
 
+/* ── TARKAN UI bağlama ── */
 function bindTarkanUI() {
   var tfEl = document.getElementById('tarkanTf');
   if (tfEl) { 
@@ -4532,133 +4717,6 @@ function bindTarkanUI() {
   
   applyTarkanUI();
 }
-
-// ============================================================
-// ACİL DÜZELTME: TÜM BUTONLAR İÇİN EVENT LISTENER
-// ============================================================
-(function() {
-  // Sayfa tamamen yüklendiğinde çalıştır
-  function initButtons() {
-    console.log('[BUTTON INIT] Başlatılıyor...');
-    
-    // 1. NAV BUTONLARI
-    var navBtns = document.querySelectorAll('.nb');
-    console.log('[BUTTON INIT] Nav buton bulundu:', navBtns.length);
-    navBtns.forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        var page = this.getAttribute('data-page');
-        console.log('[NAV CLICK] Sayfa:', page);
-        if (page && typeof swPage === 'function') {
-          swPage(page);
-        } else {
-          console.error('[NAV CLICK] swPage fonksiyonu bulunamadı!');
-        }
-      });
-    });
-    
-    // 2. AUTO BUTONU
-    var autoBtn = document.getElementById('autoBtn');
-    if (autoBtn) {
-      autoBtn.addEventListener('click', function(e) {
-        console.log('[AUTO CLICK]');
-        if (typeof toggleAutonomous === 'function') {
-          toggleAutonomous();
-        }
-      });
-    }
-    
-    // 3. QA AUTO
-    var qaAuto = document.getElementById('qaAuto');
-    if (qaAuto) {
-      qaAuto.addEventListener('click', function(e) {
-        console.log('[QA AUTO CLICK]');
-        if (typeof toggleAutonomous === 'function') {
-          toggleAutonomous();
-        }
-      });
-    }
-    
-    // 4. TELEGRAM BUTONLARI
-    var tgBtns = document.querySelectorAll('#bdgTelegram, #tgToggleBtn, #tgToggleBtn2');
-    tgBtns.forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        console.log('[TELEGRAM CLICK]');
-        if (typeof toggleTelegram === 'function') {
-          toggleTelegram();
-        }
-      });
-    });
-    
-    // 5. POS BUTONU
-    var qaPos = document.getElementById('qaPos');
-    if (qaPos) {
-      qaPos.addEventListener('click', function(e) {
-        console.log('[POS CLICK]');
-        if (typeof swPage === 'function') {
-          swPage('pos');
-        }
-      });
-    }
-    
-    // 6. ENGINE BUTONU
-    var btnEng = document.getElementById('btnEng');
-    if (btnEng) {
-      btnEng.addEventListener('click', function(e) {
-        console.log('[ENGINE CLICK]');
-        if (typeof toggleEng === 'function') {
-          toggleEng();
-        }
-      });
-    }
-    
-    // 7. TARKAN BUTONU
-    var btnTarkan = document.getElementById('btnTarkan');
-    if (btnTarkan) {
-      btnTarkan.addEventListener('click', function(e) {
-        console.log('[TARKAN CLICK]');
-        if (typeof toggleTarkan === 'function') {
-          toggleTarkan();
-        }
-      });
-    }
-    
-    // 8. LIVE / DEMO BUTONLARI
-    var btnLive = document.getElementById('btnConnectLive');
-    if (btnLive) {
-      btnLive.addEventListener('click', function(e) {
-        console.log('[LIVE CLICK]');
-        if (typeof connectLive === 'function') {
-          connectLive();
-        }
-      });
-    }
-    
-    var btnDemo = document.getElementById('btnStartDemo');
-    if (btnDemo) {
-      btnDemo.addEventListener('click', function(e) {
-        console.log('[DEMO CLICK]');
-        if (typeof startDemo === 'function') {
-          startDemo();
-        }
-      });
-    }
-    
-    console.log('[BUTTON INIT] Tüm butonlar bağlandı!');
-  }
-  
-  // Sayfa yüklendiğinde çalıştır
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initButtons);
-  } else {
-    // Zaten yüklendiyse hemen çalıştır
-    setTimeout(initButtons, 100);
-  }
-  
-  // DOMContentLoaded olmazsa diye yedek
-  setTimeout(initButtons, 500);
-})();
-
-
 </script>
 </body>
 </html>
