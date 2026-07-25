@@ -271,7 +271,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <span class="bdg" id="bdgEng">ENG:OFF</span>
     <span class="bdg" id="bdgPos">0</span>
     <span class="bdg gold" id="bdgStreak" style="display:none">🔥</span>
-    <span class="bdg telegram" id="bdgTelegram" onclick="toggleTelegram()">📨</span>
+    <span class="bdg telegram" id="bdgTelegram">📨</span>
   </div>
 </header>
 
@@ -297,18 +297,17 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <div class="page active" id="pg-signal">
   <div class="scroll">
     <div class="card" style="border-color:rgba(0,255,136,0.15);background:rgba(0,255,136,0.02)">
-      <button class="auto-btn" id="autoBtn" onclick="toggleAutonomous()">
-        <span id="autoBtnText">▶ START</span>
+      <button class="auto-btn" id="autoBtn"><span id="autoBtnText">▶ START</span>
         <div class="sub" id="autoBtnSub">Full autonomous trading</div>
         <div class="stats" id="autoBtnStats">Status: Idle</div>
       </button>
     </div>
 
     <div class="quick-actions">
-      <button class="qa-btn" onclick="toggleAutonomous()" id="qaAuto"><span class="icon">⚡</span>AUTO</button>
-      <button class="qa-btn" onclick="toggleTelegram()" id="qaTelegram"><span class="icon">📨</span>TG</button>
+      <button class="qa-btn" id="qaAuto"><span class="icon">⚡</span>AUTO</button>
+      <button class="qa-btn" id="qaTelegram"><span class="icon">📨</span>TG</button>
       <button class="qa-btn" onclick="document.getElementById('telegramSettingsCard').scrollIntoView({behavior:'smooth'})"><span class="icon">⚙</span>SET</button>
-      <button class="qa-btn" onclick="swPage('pos')"><span class="icon">📊</span>POS</button>
+      <button class="qa-btn" id="qaPos"><span class="icon">📊</span>POS</button>
     </div>
 
     <div id="bannerDead" style="display:none" class="banner-dead">🔒 UTC 02-06</div>
@@ -320,7 +319,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <!-- FOCUS MODE TOGGLE -->
     <div class="card" style="border-color:rgba(0,212,255,0.1)">
       <div class="tog-row">
-        <div class="tog on" id="togFocus" onclick="toggleFocus()"></div>
+        <div class="tog on" id="togFocus"></div>
         <div>
           <div class="tog-title">🔒 Focus Mode</div>
           <div class="tog-desc" id="togFocusD">On — scan stops when position open</div>
@@ -406,7 +405,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="btn-row">
         <button class="btn btn-telegram" onclick="saveTelegramMobile()">💾 KAYDET</button>
         <button class="btn btn-out" onclick="testTelegramMobile()">📨 TEST</button>
-        <button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button>
+        <button class="btn btn-out" id="tgToggleBtn">AÇ/KAPA</button>
       </div>
       <div id="telegramStatusMobile" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
@@ -475,7 +474,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="eng-row">
         <div><div class="eng-title" id="engTxt">ENGINE OFF</div><div class="eng-sub">5m+15m+1h+4h | ATR trail</div></div>
-        <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:50px" onclick="toggleEng()">START</button>
+        <button class="btn btn-gold btn-sm" id="btnEng" style="min-width:50px">START</button>
       </div>
       <div class="eng-stats" id="engStats" style="display:none">
         <div><span>SCAN:</span><strong id="eLast">--</strong></div>
@@ -491,8 +490,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="card-title">AUTONOMOUS</div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Max Size ($)</span><input type="number" id="autoMaxSize" value="0" step="10" min="0"></div><div class="inp-wrap"><span class="inp-label">Max Lev</span><input type="number" id="autoMaxLeverage" value="0" step="1" min="0"></div></div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Min Score (%)</span><input type="number" id="autoMinScore" value="50" step="5" min="10" max="90"></div><div class="inp-wrap"><span class="inp-label">Scan (s)</span><select id="selInt"><option value="10">10</option><option value="20">20</option><option value="30" selected>30</option><option value="60">60</option></select></div></div>
-      <div class="tog-row"><div class="tog on" id="togAutoTrade" onclick="toggleAutoTrade()"></div><div><div class="tog-title">Auto Trade</div><div class="tog-desc" id="togAutoTradeD">On</div></div></div>
-      <div class="tog-row"><div class="tog on" id="togTrail" onclick="toggleTrail()"></div><div><div class="tog-title">Trailing Stop</div><div class="tog-desc" id="togTrailD">On</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togAutoTrade"></div><div><div class="tog-title">Auto Trade</div><div class="tog-desc" id="togAutoTradeD">On</div></div></div>
+      <div class="tog-row"><div class="tog on" id="togTrail"></div><div><div class="tog-title">Trailing Stop</div><div class="tog-desc" id="togTrailD">On</div></div></div>
     </div>
 
     <div class="card">
@@ -510,7 +509,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       </div>
       <div class="manual-row">
         <div class="inp-wrap"><span class="inp-label">SL ($)</span><input type="number" id="tarkanSL" value="0.12" step="0.01" min="0.01"></div>
-        <div class="inp-wrap" style="display:flex;align-items:flex-end"><button class="btn btn-gold btn-sm" id="btnTarkan" style="width:100%" onclick="toggleTarkan()">🎯 TARKAN BAŞLAT</button></div>
+        <div class="inp-wrap" style="display:flex;align-items:flex-end"><button class="btn btn-gold btn-sm" id="btnTarkan" style="width:100%">🎯 TARKAN BAŞLAT</button></div>
       </div>
       <div id="tarkanStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);text-align:center;margin-top:2px">Kapalı</div>
       <div style="font-size:6px;color:var(--dim2);font-family:var(--mono);margin-top:3px">Not: Gate.io API 10dk mumu desteklemiyor (10s/30s/1m/5m/15m/30m/1h/... enum'u) — bu yüzden 1/5/15dk sunulur.</div>
@@ -534,7 +533,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="card-title">📨 TELEGRAM</div>
       <div class="manual-row"><div class="inp-wrap"><span class="inp-label">Token</span><input id="telegramToken" placeholder="1234567890:ABC..." type="text" autocomplete="off"></div><div class="inp-wrap"><span class="inp-label">Chat ID</span><input id="telegramChatId" placeholder="-100..." type="text" autocomplete="off"></div></div>
-      <div class="btn-row"><button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE</button><button class="btn btn-out" onclick="toggleTelegram()">AÇ/KAPA</button></div>
+      <div class="btn-row"><button class="btn btn-telegram" onclick="saveTelegram()">💾 SAVE</button><button class="btn btn-out" id="tgToggleBtn2">AÇ/KAPA</button></div>
       <div id="telegramStatus" style="font-size:10px;color:var(--dim2);font-family:var(--mono);margin-top:6px;text-align:center">Not configured</div>
     </div>
   </div>
@@ -546,8 +545,8 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
     <div class="card">
       <div class="card-title">CONNECTION</div>
       <div class="fr"><span class="inp-label">WORKER URL</span><input id="wUrl" placeholder="https://xxx.workers.dev" type="url" autocomplete="off" style="font-size:8px;min-height:28px"></div>
-      <div class="btn-row" style="margin-bottom:3px"><button class="btn btn-gold btn-sm" id="btnModeFut" onclick="setMarketMode('FUTURES')" style="flex:1">FUTURES</button><button class="btn btn-out btn-sm" id="btnModeSpot" onclick="setMarketMode('SPOT')" style="flex:1">SPOT</button></div>
-      <div class="btn-row"><button class="btn btn-acc btn-sm" onclick="connectLive()" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" onclick="startDemo()" style="flex:1">DEMO</button></div>
+      <div class="btn-row" style="margin-bottom:3px"><button class="btn btn-gold btn-sm" id="btnModeFut" style="flex:1">FUTURES</button><button class="btn btn-out btn-sm" id="btnModeSpot" style="flex:1">SPOT</button></div>
+      <div class="btn-row"><button class="btn btn-acc btn-sm" id="btnConnectLive" style="flex:1">LIVE</button><button class="btn btn-out btn-sm" id="btnStartDemo" style="flex:1">DEMO</button></div>
       <div id="connStatus" style="font-size:7px;color:var(--dim2);text-align:center;font-family:var(--mono);padding:2px;border-radius:3px;background:rgba(0,0,0,.3)">Demo mode</div>
       <div id="spotHoldingsBox" style="display:none;font-size:7px;color:var(--gold);font-family:var(--mono);text-align:center;padding:2px;margin-top:2px;border-radius:3px;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.15)"></div>
     </div>
@@ -556,7 +555,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
       <div class="card-title">COINS</div>
       <div id="coinList" style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px"></div>
       <div style="display:flex;gap:3px;margin-bottom:4px"><input id="newCoin" placeholder="BTC_USDT" style="flex:1;font-size:8px;min-height:28px"><button class="btn btn-out btn-sm" onclick="addCoin()" style="min-width:36px">ADD</button></div>
-      <button class="btn btn-acc btn-sm" id="btnFetch" onclick="fetchTopCoins()" style="width:100%">⚡ TOP VOLUME</button>
+      <button class="btn btn-acc btn-sm" id="btnFetch" style="width:100%">⚡ TOP VOLUME</button>
       <div id="fetchStatus" style="font-size:7px;color:var(--dim2);font-family:var(--mono);margin-top:2px;min-height:12px"></div>
     </div>
 
@@ -571,10 +570,10 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 
 <!-- ===================== NAVIGATION ===================== -->
 <nav class="nav">
-  <button class="nb active" data-page="signal" onclick="swPage('signal')"><span class="ni">📡</span>Sig</button>
-  <button class="nb" data-page="pos" onclick="swPage('pos')"><span class="ni">📁</span>Pos</button>
-  <button class="nb" data-page="engine" onclick="swPage('engine')"><span class="ni">⚙</span>Eng</button>
-  <button class="nb" data-page="settings" onclick="swPage('settings')"><span class="ni">🔧</span>Set</button>
+  <button class="nb active" data-page="signal"><span class="ni">📡</span>Sig</button>
+  <button class="nb" data-page="pos"><span class="ni">📁</span>Pos</button>
+  <button class="nb" data-page="engine"><span class="ni">⚙</span>Eng</button>
+  <button class="nb" data-page="settings"><span class="ni">🔧</span>Set</button>
 </nav>
 
 </div>
@@ -3770,6 +3769,43 @@ window.__apexReady(function() {
     };
   }
   
+  // ============================================================
+  // NAV BUTONLARI İÇİN EVENT LISTENER - CSP GÜVENLİ
+  // ============================================================
+  document.querySelectorAll('.nb').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pageName = btn.getAttribute('data-page');
+      if (pageName) {
+        swPage(pageName);
+      }
+    });
+  });
+  
+  // ============================================================
+  // DİĞER BUTONLAR İÇİN EVENT LISTENER'LAR
+  // ============================================================
+  // AUTO butonu
+  document.getElementById('autoBtn').addEventListener('click', toggleAutonomous);
+  document.getElementById('qaAuto').addEventListener('click', toggleAutonomous);
+  
+  // TELEGRAM butonları
+  document.getElementById('bdgTelegram').addEventListener('click', toggleTelegram);
+  document.getElementById('tgToggleBtn').addEventListener('click', toggleTelegram);
+  document.getElementById('tgToggleBtn2').addEventListener('click', toggleTelegram);
+  
+  // POS butonu
+  document.getElementById('qaPos').addEventListener('click', function() { swPage('pos'); });
+  
+  // ENGINE butonu
+  document.getElementById('btnEng').addEventListener('click', toggleEng);
+  
+  // TARKAN butonu
+  document.getElementById('btnTarkan').addEventListener('click', toggleTarkan);
+  
+  // LIVE / DEMO butonları
+  document.getElementById('btnConnectLive').addEventListener('click', connectLive);
+  document.getElementById('btnStartDemo').addEventListener('click', startDemo);
+  
   startDemo();
   
   setTimeout(function() {
@@ -4266,10 +4302,6 @@ async function spotFetchLiveSingle(sym) {
 }
 
 /* ---- 18-tarkan-mode.js (DÜZELTİLMİŞ) ---- */
-/* ============================================================
-   TARKAN MODE — DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ
-   ============================================================ */
-
 var TarkanEngine = {
   klKey: function(tf) { 
     return tf === '1m' ? 'kl1m' : tf === '15m' ? 'kl15m' : 'kl5m'; 
@@ -4500,7 +4532,6 @@ function bindTarkanUI() {
   
   applyTarkanUI();
 }
-
 </script>
 </body>
 </html>
