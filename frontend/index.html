@@ -582,16 +582,7 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
 <script>
 'use strict';
 
-/* ============================================================
-   APEX SCALP V8.2 - MOBİL
-   OTOMATIK BUILD: bu blok src/*.js dosyalarindan birlestirilir.
-   BURAYI ELLE DUZENLEMEYIN — degisiklikler bir sonraki build'de
-   silinir. src/ klasorundeki ilgili dosyayi duzenleyip commit edin.
-   ============================================================ */
 /* ---- 01-storage-state.js ---- */
-/* ============================================================
-   STORAGE
-   ============================================================ */
 (function() {
   var memory = {};
   var fallback = {
@@ -614,20 +605,16 @@ canvas { display: block; width: 100%; border-radius: 3px; background: #010a10; b
    GLOBAL STATE
    ============================================================ */
 var APP_VERSION = '8.2';
-/* v8.2: FUTURES/SPOT piyasa modu. SPOT modunda sinyaller Pine Script
-   EMA-crossover portundan gelir (bkz 17-spot-mode.js), emirler
-   worker'in /spot/* endpoint'lerine yonlenir, kaldirac sabit 1x'tir. */
-var marketMode = 'FUTURES'; // 'FUTURES' | 'SPOT'
+var marketMode = 'FUTURES';
 var SPOT_CFG = {
-  // Pine: "Trend & Swing Signal Suite w/ Auto-Fib" girdileri
-  emaShort: 9,   // Pine: shortLen
-  emaMid:   21,  // Pine: midLen
-  emaLong:  55,  // Pine: longLen (trend filtresi)
-  lenMult:  1.0, // Pine: lenMult — uzunluklari birlikte olcekler
-  tf: '5m',      // sinyal zaman dilimi (5m | 15m | 1h)
-  slPct: 1.5,    // koruyucu stop (%) — asil cikis sellCond'dur
-  tpPct: 3.0,    // kar al (%)
-  buyUsd: 10     // Max Size ($) bos/0 ise islem basina USDT
+  emaShort: 9,
+  emaMid: 21,
+  emaLong: 55,
+  lenMult: 1.0,
+  tf: '5m',
+  slPct: 1.5,
+  tpPct: 3.0,
+  buyUsd: 10
 };
 var START_BAL = 50;
 var leverage = 2;
@@ -649,11 +636,9 @@ var pxState = {}, prevPx = {}, pData = {};
 var loopTimer = null, cdTimer = null;
 var TRACKER_INTERVAL = null;
 var trackerTick = 0, tpSlHits = 0;
-
-/* ── TARKAN MODE — DVF pine portu ile scalp otomasyonu ── */
 var tarkanMode = false;
 var TARKAN_CFG = { tf: '5m', noiseMult: 2.0, lookback: 20, snapSpeed: 0.3, tpUsd: 0.20, slUsd: 0.12 };
-var tarkanBarState = {}; // 'PAIR:tf' -> son islenen kapanmis bar zamani (ms)
+var tarkanBarState = {};
 var winStreak = 0, loseStreak = 0;
 var chartCtx = null, eqCtx = null, lastCW = 0, chartRAF = null;
 var closingNow = {};
@@ -685,10 +670,6 @@ var CFG = {
   persistKey: 'apex-scalp-v81-mobile',
   dayKey: new Date().toISOString().slice(0, 10),
   recoveryMode: false,
-  // v16.5: UTC "olu saat" araligi artik sabit 02-06 degil, kullanici
-  // tarafindan ayarlanabilir. deadHourEnabled=false iken banner sadece
-  // bilgi amaclidir (eskisi gibi); true iken RiskManager.gate() bu
-  // saatlerde yeni islem acilmasini fiilen engeller.
   deadHourEnabled: false,
   deadHourStart: 2,
   deadHourEnd: 6
@@ -709,9 +690,6 @@ var Runtime = {
   posListWarnedOnce: false
 };
 
-/* ============================================================
-   FOCUS MODE
-   ============================================================ */
 var focusModeOn = true;
 
 function toggleFocus() {
@@ -800,9 +778,6 @@ function loadFocusState() {
 }
 
 /* ---- 02-telegram.js ---- */
-/* ============================================================
-   TELEGRAM
-   ============================================================ */
 var TELEGRAM = {
   enabled: false,
   token: '',
@@ -910,9 +885,6 @@ function testTelegramMobile() {
 }
 
 /* ---- 03-utils-persistence.js ---- */
-/* ============================================================
-   UTILS
-   ============================================================ */
 function clampNum(n, a, b) { return Math.max(a, Math.min(b, n)); }
 function num(v, d) { var n = Number(v); return Number.isFinite(n) ? n : (d || 0); }
 function uid(prefix) { return (prefix || 'apx') + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
@@ -943,9 +915,6 @@ function fp(p) {
   return p.toFixed(6);
 }
 
-/* ============================================================
-   PERSISTENCE
-   ============================================================ */
 var Store = {
   load: function() {
     try {
@@ -984,9 +953,6 @@ var Store = {
 };
 
 /* ---- 04-indicators.js ---- */
-/* ============================================================
-   MATH / INDICATORS
-   ============================================================ */
 function calcEMA(arr, p) {
   if (!arr || arr.length < p) return arr ? arr.map(function(){return null;}) : [];
   var k = 2/(p+1), out = [], e = 0, i;
@@ -1037,28 +1003,11 @@ function calcATR(kl, p) {
   return sum / p;
 }
 
-/* ============================================================
-   DYNAMIC VOLATILITY FILTER — Pine port (QuantAlgo, TARKAN modu)
-   ─────────────────────────────────────────────────────────────
-   Pine kaynagi:
-     atr = ta.atr(lookback); threshold = atr * noiseMult
-     var float dvf_line = na
-     if na(dvf_line): dvf_line := src
-     else:
-       diff = src - dvf_line
-       if abs(diff) > threshold: dvf_line := dvf_line + diff*snapSpeed
-       else: dvf_line := dvf_line (degismez)
-     trend_dir = dvf_line>dvf_line[1] ? 1 : dvf_line<dvf_line[1] ? -1 : trend_dir(onceki)
-   `var` degiskenler bar bar taşındığı icin bu port tum KAPANMIS mum
-   dizisini bastan tarayip son bar'daki dvf_line/trend_dir degerini
-   (ve flip olup olmadigini) hesaplar. ATR, mevcut calcATR ile ayni
-   basit-ortalama yaklasimini kullanir (kod tabanindaki konvansiyon).
-   Donen: {line, trend, prevTrend, turnedBullish, turnedBearish, barT} */
 function calcDVF(kl, noiseMult, lookback, snapSpeed) {
   noiseMult = noiseMult || 2.0; lookback = Math.max(1, lookback || 20); snapSpeed = snapSpeed || 0.3;
   var n = kl.length;
   if (n < lookback + 3) return null;
-  var trs = new Array(n); // trs[i] = bar i'nin true range'i (i=0 hesaplanamaz)
+  var trs = new Array(n);
   var i, pc;
   for (i = 1; i < n; i++) {
     pc = kl[i - 1].c;
@@ -1067,7 +1016,7 @@ function calcDVF(kl, noiseMult, lookback, snapSpeed) {
   var line = new Array(n), trend = new Array(n);
   line[0] = kl[0].c; trend[0] = 0;
   for (i = 1; i < n; i++) {
-    if (i < lookback) { // ATR henuz gecerli degil -> dvf_line degismez (Pine ile ayni)
+    if (i < lookback) {
       line[i] = line[i - 1]; trend[i] = 0; continue;
     }
     var sum = 0, j; for (j = i - lookback + 1; j <= i; j++) sum += trs[j];
@@ -1253,9 +1202,6 @@ function detectRegime(kl5, kl15, kl1h) {
 }
 
 /* ---- 05-demo-engine.js ---- */
-/* ============================================================
-   DEMO PRICE ENGINE
-   ============================================================ */
 function initTrendState(sym) {
   trendState[sym] = {
     trend: Math.random() > 0.5 ? 1 : -1,
@@ -1377,9 +1323,6 @@ function demoRefresh() {
 }
 
 /* ---- 06-accounting-analyze.js ---- */
-/* ============================================================
-   ACCOUNTING
-   ============================================================ */
 var Accounting = {
   entryFee: function(notional, rate) { return Math.abs(notional) * num(rate, CFG.feeRate); },
   exitFee: function(qty, exitPrice, rate) { return Math.abs(qty * exitPrice) * num(rate, CFG.feeRate); },
@@ -1414,9 +1357,6 @@ var Accounting = {
   }
 };
 
-/* ============================================================
-   ANALYZE
-   ============================================================ */
 function costRate() {
   return (2 * CFG.feeRate) + (CFG.spreadBps + CFG.slippageBps) / 10000;
 }
@@ -1816,9 +1756,6 @@ function lossMultiplier() {
 }
 
 /* ---- 07-risk-tracker.js ---- */
-/* ============================================================
-   RISK MANAGER
-   ============================================================ */
 var RiskManager = {
   todayTrades: function() { return trades.filter(function(t) { return sameDay(t.closedAt || Date.now()); }).length; },
   drawdownPct: function() { return peakBal ? Math.max(0, (peakBal - balance) / peakBal * 100) : 0; },
@@ -1856,14 +1793,12 @@ function isDeadHour() {
   var h = new Date().getUTCHours();
   var s = num(CFG.deadHourStart, 2), e = num(CFG.deadHourEnd, 6);
   s = clampNum(Math.round(s), 0, 23); e = clampNum(Math.round(e), 0, 23);
-  if (s === e) return false; // 0 saatlik aralik = kapali
+  if (s === e) return false;
   if (s < e) return h >= s && h < e;
-  return h >= s || h < e; // gece yarisini gecen araliklar (orn. 22-04)
+  return h >= s || h < e;
 }
 
 function analyzeAll() {
-  // v8.2: SPOT modunda sinyal kaynagi Pine EMA-crossover portu,
-  // FUTURES modunda mevcut cok-stratejili analyze().
   var fn = (typeof marketMode !== 'undefined' && marketMode === 'SPOT') ? spotAnalyze : analyze;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
@@ -1871,9 +1806,6 @@ function analyzeAll() {
   }
 }
 
-/* ============================================================
-   TRACKER - DÜZELTİLMİŞ VE İYİLEŞTİRİLMİŞ
-   ============================================================ */
 function startTracker() {
   if (TRACKER_INTERVAL) {
     clearInterval(TRACKER_INTERVAL);
@@ -1903,7 +1835,6 @@ function stopTracker() {
 }
 
 function runTracker() {
-  // Kapalı pozisyonları temizle
   positions = positions.filter(function(p) {
     if (p.state === POSITION_STATE.CLOSED) {
       delete closingNow[p.id];
@@ -1954,11 +1885,6 @@ function runTracker() {
   for (var i = 0; i < positions.length; i++) {
     var pos = positions[i];
     if (!pos || pos.state !== POSITION_STATE.OPEN) continue;
-    // v8.3 FIX: bu blok futures pozisyonlari icin tasarlandi (1h
-    // MACD/EMA/RSI zayiflik skoru). SPOT pozisyonlar Pine Script'in
-    // KENDI cikis mantigini (sellCond: crossunder + trend dönüşü,
-    // SpotEngine.engineTick() icinde) kullaniyor — bu alakasiz
-    // futures sezgisi spot pozisyonlari erken ve gerekce dışı kapatiyordu.
     if (pos.market === 'SPOT') continue;
     if (!pos.lastWeaknessCheck) pos.lastWeaknessCheck = 0;
     if (now - pos.lastWeaknessCheck < 300000) continue;
@@ -2049,10 +1975,6 @@ function processTrackedPositions() {
   for (var i = 0; i < openPositions.length; i++) {
     var pos = openPositions[i];
     if (!pos || closingNow[pos.id]) continue;
-    // v16.4: bir onceki kapama denemesi basarisiz oldugunda (state=ERROR),
-    // her tracker tick'inde (500ms) hemen tekrar denemek yerine 5sn soguma
-    // uyguluyoruz. Boylece kalici bir hata (ornegin borsada pozisyon zaten
-    // yokken tekrar tekrar /close cagirmak) siki bir donguye donusmuyor.
     if (pos.state === POSITION_STATE.ERROR && (trackNow - (pos.stateUpdatedAt || 0)) < 5000) continue;
     
     var pr = Number(pData[pos.pair] && pData[pos.pair].price);
@@ -2083,13 +2005,6 @@ var TrailService = {
     if (grossPnl > pos.highPnl) pos.highPnl = grossPnl;
     var high = pos.highPnl || 0;
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    // v16.5 FIX: refTarget bir DOLAR PnL hedefi olmali (high de dolar PnL).
-    // Eski kod `pos.entry * 0.008 * leverage` kullaniyordu — bu bir FIYAT
-    // buyuklugu, pozisyon boyutuyla (posVal/qty) hicbir ilgisi yok. Sonuc:
-    // BTC/ETH gibi pahali coinlerde refTarget gercekci olmayan sekilde
-    // buyuyup (orn. $50000*0.008*3=$1200) trailing HICBIR ZAMAN
-    // aktiflesmiyordu; ucuz coinlerde ise ters yonde cok erken tetikleniyordu.
-    // Dogrusu: pozisyonun DOLAR buyuklugune (posVal) gore olcmek.
     var refTarget = Math.abs(pos.posVal * 0.008 * (pos.leverage || 1));
     var activation = Math.max(refTarget * 0.25, roundTrip * 1.2);
     if (high < activation) return;
@@ -2130,9 +2045,6 @@ function weaknessScore(pos, currentData) {
 }
 
 /* ---- 08-autonomous-execution.js ---- */
-/* ============================================================
-   AUTONOMOUS MODE
-   ============================================================ */
 function toggleAutonomous() {
   autonomousMode = !autonomousMode;
   var btn = document.getElementById('autoBtn');
@@ -2172,9 +2084,6 @@ function toggleAutonomous() {
   updateSignalUI();
 }
 
-/* ============================================================
-   EXECUTION - DÜZELTİLMİŞ VERSİYON
-   ============================================================ */
 var StateMachine = {
   allowed: {
     PENDING_OPEN: ['OPEN', 'ERROR'],
@@ -2201,6 +2110,7 @@ var Execution = {
       sl: sl, tp: tp, initialSL: sl, initialTP: tp,
       feeRate: CFG.feeRate, entryFee: Accounting.entryFee(posVal, CFG.feeRate),
       openTime: Date.now(), highPnl: 0, trailActive: false, auto: !!auto,
+      tarkan: false,
       state: POSITION_STATE.PENDING_OPEN, stateUpdatedAt: Date.now(),
       clientOrderId: cOrderId, exchangeOrderId: null, lastError: '', serverManaged: appMode === 'live',
       score: score || 0, entryAtr: entryAtr || 0, leverage: leverageUsed || 1,
@@ -2210,7 +2120,6 @@ var Execution = {
   
   open: async function(sym, side, auto, manualTargetUsd, manualRiskUsd) {
     try { sym = validSymbol(sym); } catch(e) { notify(e.message, 'error'); return; }
-    // v8.2 SPOT: short yok; manuel SELL eldeki coini satmaya yonlenir.
     if (marketMode === 'SPOT' && side === 'SHORT') {
       SpotEngine.sellCurrent();
       return;
@@ -2259,7 +2168,7 @@ var Execution = {
       return;
     }
     
-    if (marketMode === 'SPOT') lev = 1; // spot'ta kaldirac yok
+    if (marketMode === 'SPOT') lev = 1;
     
     var cOrderId = orderId('open', sym);
     var pos = Execution.makePosition(sym, side, price, posVal, qty, sl, tp, auto, cOrderId, an ? an.score : 0, an ? an.atrPct : 0, lev);
@@ -2270,9 +2179,6 @@ var Execution = {
       if (appMode === 'live') {
         var r;
         if (pos.market === 'SPOT') {
-          // v8.2: Gate.io spot market BUY — worker /spot/order, amount =
-          // QUOTE (USDT) miktari. SL/TP borsaya gonderilmez; client-side
-          // tracker izler (spot'ta worker tarafinda trigger emri yok).
           r = await Http.post('/spot/order', {
             symbol: sym, side: 'BUY', usdAmount: posVal, clientOrderId: cOrderId
           });
@@ -2286,9 +2192,6 @@ var Execution = {
         pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
         if (r.fillPrice) pos.entry = Number(r.fillPrice);
         if (pos.market === 'SPOT') {
-          // Gerceklesen dolum: qty = alinan coin (filledBase),
-          // posVal = harcanan USDT (filledQuote). SL/TP'yi gercek
-          // giris fiyatina gore yeniden hizala.
           if (Number(r.filledBase) > 0)  pos.qty = Number(r.filledBase);
           if (Number(r.filledQuote) > 0) pos.posVal = Number(r.filledQuote);
           if (r.fillPrice && !manualTargetUsd) {
@@ -2323,10 +2226,6 @@ var Execution = {
       startTracker();
     } catch(e) {
       try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch(_) {}
-      // v16.3: worker "pozisyon cok kucuk" hatasinda gercek min notional'i
-      // e.data.minNotionalUsd icinde donuyor (bkz Http.request). Bunu
-      // ogrenip MIN_POS_VAL'i yukseltiyoruz ki ayni coin icin bir sonraki
-      // otomatik islem denemesi ayni sebeple bosuna tekrar reddedilmesin.
       var minUsd = e.data && Number(e.data.minNotionalUsd);
       if (Number.isFinite(minUsd) && minUsd > MIN_POS_VAL) {
         var oldMin = MIN_POS_VAL;
@@ -2375,8 +2274,6 @@ var Execution = {
         var cid = orderId('close', pos.pair);
         var r;
         if (pos.market === 'SPOT') {
-          // v8.2: spot'ta "kapatma" = eldeki base coin'in tamamini
-          // USDT'ye geri satmak (worker /spot/close).
           r = await Http.post('/spot/close', {
             symbol: pos.pair, clientOrderId: cid, reason: reason || 'MANUAL'
           });
@@ -2414,17 +2311,6 @@ var Execution = {
       }
     } catch(e) {
       delete closingNow[id];
-      // v16.4 FIX (kok sebep): worker "Acik pozisyon yok" hatasi donuyorsa,
-      // bu genelde borsanin KENDI SL/TP tetikleyici emrinin bizden once
-      // pozisyonu zaten kapatmis oldugu anlamina gelir (worker acilista
-      // hem client-side hem exchange-side SL/TP kuruyor - iki katmanli
-      // koruma). Eskiden bu durum ERROR olarak isaretlenip her tracker
-      // tick'inde (500ms) tekrar deneniyordu -> sonsuz "kapanamadi" dongusu.
-      // Artik bu spesifik durumda pozisyonu basarili kapanmis sayip yerel
-      // kaydi (bakiye, PnL, trade gecmisi) elimizdeki en guncel fiyatla
-      // sonlandiriyoruz.
-      // v8.2: spot karsiligi — "Elinizde X bulunmuyor" da borsada zaten
-      // satilmis demektir (kullanici disaridan satmis olabilir).
       var noPositionOnExchange = /açık pozisyon yok|acik pozisyon yok|no open position|elinizde .* bulunmuyor/i.test(String(e.message || ''));
       if (appMode === 'live' && noPositionOnExchange) {
         var exitGuess = Number(pData[pos.pair] && pData[pos.pair].price) || pos.entry;
@@ -2576,9 +2462,6 @@ var Execution = {
     if (!force && Date.now() - Runtime.lastReconcileAt < CFG.reconcileMs) return;
     Runtime.liveReconcileBusy = true;
     try {
-      // v8.2 SPOT: futures /state spot pozisyonlarini bilmez; oraya
-      // gidersek reconcilePayload yerel spot pozisyonlarini SILER.
-      // Spot modunda gercek kaynak /spot/balance + eldeki coin'lerdir.
       if (marketMode === 'SPOT') {
         return await SpotEngine.syncBalance(force);
       }
@@ -2648,9 +2531,6 @@ var Execution = {
 };
 
 /* ---- 09-engine.js ---- */
-/* ============================================================
-   ENGINE
-   ============================================================ */
 function toggleEng() {
   engineOn = !engineOn;
   var elBtn = document.getElementById('btnEng'); if (elBtn) elBtn.textContent = engineOn ? 'STOP' : 'START';
@@ -2672,18 +2552,18 @@ function startCountdown() {
 }
 
 function runEngine() {
+  // TARKAN MODE KONTROLÜ - EN BAŞTA
+  if (tarkanMode) { 
+    TarkanEngine.tick(); 
+    return; 
+  }
+  
   if (!engineOn) return;
   var el = document.getElementById('eLast'); 
   if (el) el.textContent = new Date().toLocaleTimeString('en', {hour:'2-digit', minute:'2-digit'});
   var eo = document.getElementById('eOpen'); 
   if (eo) eo.textContent = positions.length;
   
-  // TARKAN modu — DVF pine-port flip sinyaliyle tek pair scalp.
-  // FUTURES/SPOT ayrimindan bagimsiz, mevcut mod neyse onda calisir.
-  if (tarkanMode) { TarkanEngine.tick(); return; }
-
-  // v8.2: SPOT modu — EMA crossover al / crossunder sat dongusu.
-  // Cikis taramasi focus modundan etkilenmez (SpotEngine icinde).
   if (marketMode === 'SPOT') { SpotEngine.engineTick(); return; }
   
   if (focusModeOn && positions.length > 0) {
@@ -2739,9 +2619,6 @@ function updateAutoStats() {
 }
 
 /* ---- 10-ui.js ---- */
-/* ============================================================
-   UI - TÜM GÜNCELLEME FONKSİYONLARI
-   ============================================================ */
 function updateWRStrip() {
   var wins = 0, losses = 0, totalW = 0, totalL = 0;
   var returns = [];
@@ -2841,8 +2718,6 @@ function updateSignalUI() {
   var meta = document.getElementById('sigMeta');
   if (meta) {
     if (marketMode === 'SPOT' && an) {
-      // v8.3: SPOT modunda EMA yigininin anlik degerlerini her zaman
-      // goster (sinyal WAIT olsa da) — "ne durumda oldugu" hep gorunsun.
       var emaTxt = (an.emaS != null && an.emaM != null && an.emaL != null)
         ? 'EMA' + (an.lens ? an.lens.s : '9') + ':' + fp(an.emaS) +
           '  EMA' + (an.lens ? an.lens.m : '21') + ':' + fp(an.emaM) +
@@ -3010,7 +2885,7 @@ function updateTicker() {
 
 function selPair(s) {
   currentPair = s; updatePairRow(); updateSignalUI(); drawChart();
-  tarkanBarState = {}; // farkli pair -> TARKAN bar kilidini sifirla
+  tarkanBarState = {};
   var lbl = document.getElementById('tarkanPairLabel'); if (lbl) lbl.textContent = s.replace('_USDT', '');
   if (typeof applyTarkanUI === 'function') applyTarkanUI();
 }
@@ -3031,9 +2906,6 @@ function updateCoinScoreTable() {
     var tier = an && an.tier ? '[' + an.tier + ']' : '';
     var reason;
     if (marketMode === 'SPOT' && an) {
-      // v8.3: SPOT modunda "reason" sutununda EMA yigininin anlik
-      // degerlerini goster — hangi coin'in ne durumda oldugu tek
-      // bakista gorulsun.
       reason = (an.emaS != null)
         ? 'S:' + fp(an.emaS) + ' M:' + fp(an.emaM) + ' L:' + fp(an.emaL) + ' ' + (an.trendUp ? '↑' : an.trendDown ? '↓' : '–')
         : (an.failReason || 'DATA_WARMUP');
@@ -3092,9 +2964,6 @@ function updatePosUI() {
 }
 
 /* ---- 11-charts.js ---- */
-/* ============================================================
-   CHARTS
-   ============================================================ */
 function initChart() {
   var c = document.getElementById('chart'); if (c) chartCtx = c.getContext('2d');
   var e = document.getElementById('equityChart'); if (e) eqCtx = e.getContext('2d');
@@ -3184,9 +3053,6 @@ function drawEquity() {
 }
 
 /* ---- 12-http-marketdata.js ---- */
-/* ============================================================
-   HTTP / API COMPAT / MARKET DATA
-   ============================================================ */
 var Http = {
   request: function(url, options, timeoutMs) {
     options = options || {};
@@ -3234,7 +3100,7 @@ var ApiCompat = {
       Runtime.capabilities.state = !!(f.state || f.reconcile);
       Runtime.capabilities.riskUpdate = !!f.riskUpdate;
       Runtime.capabilities.kill = !!f.kill;
-      Runtime.capabilities.spot = !!f.spot; // v17.0+ worker
+      Runtime.capabilities.spot = !!f.spot;
       Runtime.apiMode = Runtime.capabilities.snapshot ? 'modern' : 'legacy';
       return;
     }
@@ -3367,14 +3233,10 @@ var MarketData = {
   },
   fetchLive: async function() {
     if (!WORKER) return;
-    // v8.2: SPOT modunda /snapshot futures verisi doner; spot fiyat ve
-    // mumlar /spot/price + /spot/klines'tan gelir.
     if (marketMode === 'SPOT') return SpotEngine.fetchMarket();
     if (Runtime.capabilities.snapshot !== false) {
       try {
         var qs = encodeURIComponent(pairs.join(','));
-        // TARKAN 1m TF'i icin worker'in varsayilan tfs listesine (5m,15m,1h)
-        // 1m ekleniyor; worker eksik/parse edemezse mevcut davranista kalir.
         var snap = await Http.get('/snapshot?symbols=' + qs + '&tfs=' + encodeURIComponent('1m,5m,15m,1h,4h'));
         if (!snap || !snap.success || !snap.market) throw new Error('Invalid snapshot response');
         Runtime.capabilities.snapshot = true;
@@ -3422,7 +3284,6 @@ var MarketData = {
     }
     var request;
     if (marketMode === 'SPOT') {
-      // v8.2: spot icin batch endpoint yok; pair basina /spot/price.
       request = SpotEngine.refreshOpenPrices(symbols)
         .then(function(results) { return results.some(Boolean); });
     } else if (Runtime.capabilities.snapshot !== false) {
@@ -3505,9 +3366,6 @@ ApiCompat.fetchLegacyMarket = async function(symbols) {
 };
 
 /* ---- 13-connect-mainloop.js ---- */
-/* ============================================================
-   CONNECT / DEMO
-   ============================================================ */
 function connectLive() {
   var url = document.getElementById('wUrl').value.trim();
   if (!url) { notify('Enter Worker URL', 'error'); return; }
@@ -3519,8 +3377,6 @@ function connectLive() {
     if (!d || !d.success) throw new Error('Worker not responding');
     ApiCompat.applyPing(d);
     appMode = 'live';
-    // v8.2: SPOT modu secili ama worker spot bilmiyorsa (v17.0 oncesi)
-    // sessiz bozulma yerine FUTURES'a dusuyoruz.
     if (marketMode === 'SPOT' && Runtime.capabilities.spot === false) {
       notify('Worker SPOT desteklemiyor (v17.0+ gerekli) — FUTURES moduna geçildi', 'error');
       marketMode = 'FUTURES';
@@ -3530,13 +3386,6 @@ function connectLive() {
     document.getElementById('bdgConn').textContent = 'LIVE';
     document.getElementById('bdgConn').className = 'bdg live';
     return Execution.reconcile(true).then(function() {
-      // v16.4 FIX: canliya baglanildiginda peakBal'i demo'nun sabit $50
-      // varsayimina degil, GERCEK bakiyeye gore sifirliyoruz. Aksi halde
-      // kullanici futures cuzdanini bilerek dusuk bir limitle (orn. $21)
-      // fonlamissa, uygulama bunu kalici bir "drawdown" saniyor ve DD%
-      // gostergesi hicbir zaman duzelmiyor; hatta gereksiz yere
-      // kill-switch'i tetikleyebiliyor. Gercek sermaye artik yeni baslangic
-      // noktasi.
       if (Number.isFinite(balance) && balance > 0) {
         var oldPeak = peakBal;
         peakBal = balance;
@@ -3581,9 +3430,6 @@ function startDemo() {
   sendTelegram('🔄 DEMO MODE V' + APP_VERSION);
 }
 
-/* ============================================================
-   MAIN LOOP
-   ============================================================ */
 async function mainLoop() {
   if (Runtime.scanBusy) { loopTimer = setTimeout(mainLoop, 1000); return; }
   Runtime.scanBusy = true;
@@ -3600,9 +3446,6 @@ async function mainLoop() {
 }
 
 /* ---- 14-settings-helpers.js ---- */
-/* ============================================================
-   SETTINGS / UI HELPERS
-   ============================================================ */
 function readSettings() {
   targetMult = parseFloat(document.getElementById('selTargetMult').value);
   riskMult = parseFloat(document.getElementById('selRiskMult').value);
@@ -3691,8 +3534,6 @@ function fetchTopCoins() {
   if (!WORKER) { document.getElementById('fetchStatus').textContent = '⚠️ Live required.'; return; }
   var btn = document.getElementById('btnFetch'), status = document.getElementById('fetchStatus');
   btn.disabled = true; status.textContent = 'Loading...';
-  // v8.2: spot modunda hacim listesi spot piyasasindan gelir (worker
-  // her ikisini de ayni alan adlariyla normalize ediyor).
   var tickerEP = marketMode === 'SPOT' ? '/spot/tickers' : '/gateio_tickers';
   Http.get(tickerEP).then(function(d) {
     btn.disabled = false;
@@ -3831,9 +3672,6 @@ function bindSafeUI() {
 }
 
 /* ---- 15-backtest-testsuite.js ---- */
-/* ============================================================
-   BACKTEST & TEST SUITE
-   ============================================================ */
 var Backtester = {
   run: function(sym) {
     var pd = pData[sym]; if (!pd || !pd.masterKlines || pd.masterKlines.length < 100) throw new Error('Not enough history');
@@ -3893,9 +3731,6 @@ var TestSuite = {
 };
 
 /* ---- 16-init.js ---- */
-/* ============================================================
-   INIT
-   ============================================================ */
 window.__apexReady = function(fn) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, {once: true});
   else setTimeout(fn, 0);
@@ -3905,13 +3740,13 @@ window.__apexReady(function() {
   Store.load();
   TelegramStore.load();
   loadFocusState();
-  loadMarketMode(); // v8.2: FUTURES/SPOT modu + SPOT_CFG
+  loadMarketMode();
   initChart();
   renderCoinList();
   readSettings();
   bindSafeUI();
-  bindSpotUI(); // v8.2: mod anahtari + spot EMA ayarlari
-  bindTarkanUI(); // TARKAN: DVF pine port scalp modu
+  bindSpotUI();
+  bindTarkanUI();
   updateTelegramUI();
   updateFocusUI();
   
@@ -3951,56 +3786,6 @@ window.__apexReady(function() {
 });
 
 /* ---- 17-spot-mode.js ---- */
-/* ============================================================
-   SPOT MODE — v8.2
-   ─────────────────────────────────────────────────────────────
-   FUTURES/SPOT piyasa modu anahtari + kullanicinin Pine Script'i
-   "Trend & Swing Signal Suite w/ Auto-Fib" (v5) sinyal mantiginin
-   birebir portu.
-
-   Pine kaynagi (ilgili bolum):
-     sLen = max(1, round(shortLen * lenMult))   // 9  × mult
-     mLen = max(1, round(midLen   * lenMult))   // 21 × mult
-     lLen = max(1, round(longLen  * lenMult))   // 55 × mult
-     emaS = ta.ema(close, sLen)
-     emaM = ta.ema(close, mLen)
-     emaL = ta.ema(close, lLen)
-     trendUp   = emaS > emaM and emaM > emaL
-     trendDown = emaS < emaM and emaM < emaL
-     buyCond   = ta.crossover(emaS, emaM)  and trendUp
-     sellCond  = ta.crossunder(emaS, emaM) and trendDown
-
-   Pine semantigi korunuyor:
-   - ta.crossover(a,b)  => a[1] <= b[1] AND a[0] > b[0]
-   - ta.crossunder(a,b) => a[1] >= b[1] AND a[0] < b[0]
-   - trendUp/trendDown SINYAL BARININ kendi degerleriyle olculur
-     (Pine'daki gibi: cross ani + tam yigin hizasi ayni barda).
-   - Sinyaller yalnizca KAPANMIS mumlarda degerlendirilir (repaint
-     yok; codebase'in closedCandles() konvansiyonuyla ayni).
-   - Ayni bar'da sinyal bir kez islenir (barState kilidi) — Pine'in
-     "bar close'da bir kez tetiklenir" davranisinin karsiligi.
-
-   Porta ALINMAYANLAR (grafik gorseli / canli emre uygun degil):
-   - Swing AL/SAT: ta.pivothigh/low(swingLen) pivotlari ancak
-     swingLen bar SONRA kesinlesir; gercek zamanli emir tetiklemek
-     icin kullanilamaz (gecmise bakan etiket/backtest ogesidir).
-   - Auto-Fib seviyeleri ve backtest tablosu: overlay gorselleri.
-
-   SPOT'ta SHORT yoktur: buyCond = AL (USDT -> coin), sellCond /
-   SL / TP = SAT (coin -> USDT; worker /spot/close tum eldeki
-   miktari satar). Kaldirac her zaman 1x.
-   ============================================================ */
-
-/* v8.2 FIX: spotAnalyze WAIT durumlarinda failReason/rrActual hic
-   set etmiyordu. updateSignalUI()'daki meta satiri
-   "an.rrActual != null" kosuluna bagli oldugu icin sinyal GERCEKTEN
-   ateslense bile alt yazi hep "Awaiting signal..." gosteriyordu —
-   kullaniciya "sinyal yok gibi" hissi veren asil sebep buydu.
-   Ayrica coin skor tablosundaki "reason" alani her zaman sabit
-   'EMA_STACK' gosteriyordu, WAIT sebebini (veri yetersiz mi, cross
-   var ama trend filtresi mi tutmadi) hic ayirt etmiyordu. */
-
-/* ── Pine port: crossover / crossunder ── */
 function pineCrossover(fastArr, slowArr) {
   var n = fastArr.length - 1;
   if (n < 1) return false;
@@ -4018,7 +3803,6 @@ function pineCrossunder(fastArr, slowArr) {
   return f1 >= s1 && f0 < s0;
 }
 
-/* Pine: sLen = math.max(1, int(math.round(shortLen * lenMult))) */
 function spotEffLengths() {
   var m = num(SPOT_CFG.lenMult, 1) || 1;
   return {
@@ -4038,9 +3822,6 @@ function renderModeBanner() {
   }
 }
 
-/* ── SPOT sinyal analizi (futures analyze()'in spot karsiligi) ──
-   pData[sym].an ile ayni sekle sahip bir obje doner ki mevcut UI
-   (sinyal karti, skor tablosu, engine) degisiklik olmadan calissin. */
 function spotAnalyze(sym) {
   var pd = pData[sym];
   var L = spotEffLengths();
@@ -4062,7 +3843,6 @@ function spotAnalyze(sym) {
     return base;
   }
 
-  // Pine: sigSource varsayilani close
   var closes = kl.map(function(k) { return k.c; });
   var emaS = calcEMA(closes, L.s);
   var emaM = calcEMA(closes, L.m);
@@ -4089,7 +3869,6 @@ function spotAnalyze(sym) {
     return base;
   }
 
-  // Pine: trendUp / trendDown (sinyal barinin degerleri)
   var trendUp   = base.emaS > base.emaM && base.emaM > base.emaL;
   var trendDown = base.emaS < base.emaM && base.emaM < base.emaL;
   base.trendUp = trendUp; base.trendDown = trendDown;
@@ -4097,7 +3876,6 @@ function spotAnalyze(sym) {
   var crossUp = pineCrossover(emaS, emaM);
   var crossDn = pineCrossunder(emaS, emaM);
 
-  // Pine: buyCond / sellCond
   var buyCond  = crossUp && trendUp;
   var sellCond = crossDn && trendDown;
 
@@ -4105,19 +3883,17 @@ function spotAnalyze(sym) {
     base.exitNow = true;
     base.reasons.push('S↓M+STACK↓ (' + L.s + '/' + L.m + '/' + L.l + ')');
   } else if (crossDn && !trendDown) {
-    // Bilgi amacli: cross var ama yigin hizasi yok -> Pine'da sinyal YOK
     base.reasons.push('S↓M ama L filtresi tutmadı');
   }
 
   if (buyCond) {
-    base.signal = 'LONG'; // spot'ta LONG == BUY
+    base.signal = 'LONG';
     base.reasons.push('S↑M+STACK↑ (' + L.s + '/' + L.m + '/' + L.l + ')');
-    // Skor: buyCond kesinligi taban + trend gucu (ADX) + hacim katkisi.
-    var score = 60; // yigin filtresi jenerik cross'tan daha secici -> taban yuksek
+    var score = 60;
     if (base.adx >= 25) { score += 12; base.reasons.push('ADX' + Math.round(base.adx)); }
     else if (base.adx >= 20) { score += 6; }
     if (base.vr >= 1.2) { score += 10; base.reasons.push('VOL×' + base.vr.toFixed(1)); }
-    var slopeVal = emaSlope(emaL, 4); // uzun EMA egimi yukariysa ekstra guven
+    var slopeVal = emaSlope(emaL, 4);
     if (slopeVal > 0) { score += 8; base.reasons.push('L-SLOPE+'); }
     base.score = Math.min(95, Math.round(score));
     base.tier = tierOf(base.score);
@@ -4125,15 +3901,11 @@ function spotAnalyze(sym) {
     base.posVal = maxPosSize > 0 ? maxPosSize : Math.max(MIN_POS_VAL, num(SPOT_CFG.buyUsd, 10));
     base.sl = price * (1 - num(SPOT_CFG.slPct, 1.5) / 100);
     base.tp = price * (1 + num(SPOT_CFG.tpPct, 3.0) / 100);
-    // v8.2 FIX: rrActual artik her zaman set ediliyor ki updateSignalUI()
-    // meta satirini dogru dalda gostersin (asil bug buradaydi).
     base.rrActual = num(SPOT_CFG.tpPct, 3) / Math.max(0.0001, num(SPOT_CFG.slPct, 1.5));
   } else if (crossUp && !trendUp) {
     base.reasons.push('S↑M ama L filtresi tutmadı');
   }
 
-  // v8.2 FIX: WAIT durumunda da anlamli bir failReason birak (skor
-  // tablosunda "EMA_STACK" yerine gercek durum gorunsun).
   if (base.signal === 'WAIT' && !base.failReason) {
     base.failReason = base.reasons.length ? base.reasons[base.reasons.length - 1]
       : (trendUp ? 'TREND_UP_NO_CROSS' : trendDown ? 'TREND_DOWN_NO_CROSS' : 'NO_TREND');
@@ -4141,21 +3913,16 @@ function spotAnalyze(sym) {
   return base;
 }
 
-/* ── SpotEngine: veri, bakiye, emir ve engine dongusu ── */
 var SpotEngine = {
-  barState: {},    // 'buy:PAIR' / 'exit:PAIR' -> son islenen bar timestamp'i
+  barState: {},
   holdings: [],
   _lastBalSync: 0,
 
-  /* Canli spot piyasa verisi: /spot/price + /spot/klines.
-     Futures /snapshot'in spot karsiligi worker'da yok; pair basina
-     paralel cekiyoruz. Worker /spot/klines'i zaten [t,o,h,l,c,v]
-     sirasina normalize edip t'yi ms'e cevirmis durumda. */
   fetchMarket: async function() {
     if (!WORKER) return;
     var okCount = 0;
     var specs = [
-      {tf: '1m',  limit: 200, key: 'kl1m'}, // TARKAN 1m TF icin
+      {tf: '1m',  limit: 200, key: 'kl1m'},
       {tf: '5m',  limit: 200, key: 'kl5m'},
       {tf: '15m', limit: 120, key: 'kl15m'},
       {tf: '1h',  limit: 80,  key: 'kl1h'}
@@ -4196,7 +3963,6 @@ var SpotEngine = {
     return {success: true, spot: true, count: okCount};
   },
 
-  /* Acik spot pozisyonlarin fiyatini hizli tazele (tracker icin). */
   refreshOpenPrices: function(symbols) {
     return Promise.all(symbols.map(function(sym) {
       return Http.request(WORKER + '/spot/price?symbol=' + encodeURIComponent(sym), {}, 1800)
@@ -4216,11 +3982,6 @@ var SpotEngine = {
     }));
   },
 
-  /* /spot/balance: USDT bakiyesi + eldeki coin'ler.
-     Ayrica dis mudahale senkronu: yerelde OPEN gorunen bir spot
-     pozisyonun base coin'i cuzdanda artik yoksa (kullanici borsadan
-     elle satmistir), pozisyonu mevcut fiyattan kapali sayariz —
-     futures'taki EXCHANGE_CLOSED auto-resolve'un spot karsiligi. */
   syncBalance: async function(force) {
     if (appMode !== 'live' || !WORKER) return;
     var now = Date.now();
@@ -4241,7 +4002,7 @@ var SpotEngine = {
         var baseCoin = p.pair.split('_')[0];
         var h = SpotEngine.holdings.find(function(x) { return x.currency === baseCoin; });
         var have = h ? Number(h.available) + Number(h.locked || 0) : 0;
-        if (have < p.qty * 0.05) { // %95'i gitmis: dis satis varsay
+        if (have < p.qty * 0.05) {
           var exitGuess = Number(pData[p.pair] && pData[p.pair].price) || p.entry;
           logPos('[SPOT-SYNC] ' + baseCoin + ' cüzdanda yok — pozisyon dışarıda satılmış, senkronize ediliyor', 'info');
           Execution.finalizeClose(p, exitGuess, 'EXTERNAL_SELL', null);
@@ -4268,8 +4029,6 @@ var SpotEngine = {
       if (tracked) {
         label += ' ✓';
       } else if (pairs.indexOf(sym) !== -1 && h.currency !== 'USDT') {
-        // v8.3: bu coin cuzdanda var ama uygulama izlemiyor (elle
-        // alinmis ya da eski bir pozisyon). Tikla-izle butonu ekle.
         label += ' <span style="text-decoration:underline;cursor:pointer;color:var(--acc)" onclick="adoptSpotHoldingPrompt(\'' + sym + '\')">[izle]</span>';
       }
       return label;
@@ -4277,19 +4036,13 @@ var SpotEngine = {
     box.innerHTML = '💰 ' + parts.join('&nbsp;&nbsp;');
   },
 
-  /* Engine tick'i (runEngine'in spot dali):
-     1) Eldeki her spot pozisyonun pair'inde sellCond varsa SAT
-        (Pine: crossunder(S,M) AND trendDown).
-     2) Focus/limitler uygunsa en iyi buyCond'da AL
-        (Pine: crossover(S,M) AND trendUp). */
   engineTick: function() {
-    // 1) EXIT taramasi — focus modundan BAGIMSIZ (cikislar her zaman calisir)
     positions.filter(function(p) { return p.market === 'SPOT' && p.state === POSITION_STATE.OPEN; })
       .forEach(function(p) {
         var an = pData[p.pair] && pData[p.pair].an;
         if (!an || !an.exitNow || !an.barT) return;
         var key = 'exit:' + p.pair;
-        if (SpotEngine.barState[key] === an.barT) return; // bu barda islendi
+        if (SpotEngine.barState[key] === an.barT) return;
         SpotEngine.barState[key] = an.barT;
         logPos('[SELL] ' + p.pair.replace('_USDT','') + ' sellCond (S↓M + stack↓) — satılıyor', 'info');
         Execution.close(p.id, 'SELL_SIGNAL');
@@ -4297,7 +4050,6 @@ var SpotEngine = {
 
     var sigEl = document.getElementById('eSig');
 
-    // 2) ENTRY taramasi
     if (focusModeOn && positions.length > 0) {
       if (sigEl) {
         sigEl.textContent = '🔒 FOCUS: ' + positions.map(function(p) { return p.pair.replace('_USDT',''); }).join(',');
@@ -4310,7 +4062,7 @@ var SpotEngine = {
       var s = pairs[i];
       var an = pData[s] && pData[s].an;
       if (!an || an.signal !== 'LONG' || an.score < minScore) continue;
-      if (SpotEngine.barState['buy:' + s] === an.barT) continue; // ayni barda tekrar alma
+      if (SpotEngine.barState['buy:' + s] === an.barT) continue;
       if (positions.some(function(p) { return p.pair === s && p.state !== POSITION_STATE.CLOSED; })) continue;
       if (an.score > bestScore) { bestScore = an.score; best = {sym: s, an: an}; }
     }
@@ -4331,8 +4083,6 @@ var SpotEngine = {
     updateAutoStats();
   },
 
-  /* Manuel SELL: currentPair icin yerel pozisyon varsa kapat;
-     yoksa (canlida) cuzdandaki coin'i dogrudan /spot/close ile sat. */
   sellCurrent: async function() {
     var pos = positions.find(function(p) { return p.pair === currentPair && p.state !== POSITION_STATE.CLOSED; });
     if (pos) { Execution.close(pos.id, 'MANUAL_SELL'); return; }
@@ -4350,7 +4100,6 @@ var SpotEngine = {
   }
 };
 
-/* ── Mod anahtari (FUTURES/SPOT) ── */
 function setMarketMode(mode) {
   mode = mode === 'SPOT' ? 'SPOT' : 'FUTURES';
   if (mode === marketMode) { applyMarketModeUI(); return; }
@@ -4401,7 +4150,6 @@ function readSpotSettings() {
     var e = document.getElementById(id); if (!e) return fb;
     var n = num(e.value, fb); return clampNum(n, lo, hi);
   }
-  // Pine input siniri yok ama mantiksal sira: short < mid < long
   var s = Math.round(gv('spotEmaShort', 9,  1, 200));
   var m = Math.round(gv('spotEmaMid',  21,  2, 400));
   var l = Math.round(gv('spotEmaLong', 55,  3, 600));
@@ -4461,20 +4209,12 @@ function bindSpotUI() {
   applyMarketModeUI();
 }
 
-/* ── Mevcut (uygulama dışında alınmış) coin'i izlemeye alma ──
-   Worker /spot/balance'ta gorunen ama positions[]'ta karsiligi
-   olmayan bir bakiyeyi, normal bir SPOT pozisyonu gibi sisteme
-   dahil eder. Bundan sonra sellCond (S↓M + trend dönüşü) ve
-   SL/TP onu da normal pozisyon gibi izler/kapatir. Gercek alis
-   fiyatini bilmiyoruz — kullanicidan sorulur, bos birakilirsa
-   güncel fiyat entry olarak kullanilir (PnL o zaman sifirdan baslar,
-   ama cikis mantigi ayni sekilde calisir). */
 async function adoptSpotHoldingPrompt(sym) {
   var label = sym.replace('_USDT', '');
   var input = window.prompt(
     label + ' için gerçek alış fiyatınızı girin (bilmiyorsanız boş bırakın, güncel fiyat kullanılır):', ''
   );
-  if (input === null) return; // iptal
+  if (input === null) return;
   var entryOverride = input.trim() ? parseFloat(input.trim()) : 0;
   await adoptSpotHolding(sym, entryOverride);
 }
@@ -4505,7 +4245,7 @@ async function adoptSpotHolding(sym, entryOverride) {
   var pos = Execution.makePosition(sym, 'LONG', entry, amount * entry, amount, sl, tp,
     false, orderId('adopt', sym), 0, 0, 1);
   pos.market = 'SPOT';
-  pos.entryFee = 0; // zaten daha once alinmis, tekrar komisyon dusmuyoruz
+  pos.entryFee = 0;
   try { StateMachine.transition(pos, POSITION_STATE.OPEN); } catch(e) { pos.state = POSITION_STATE.OPEN; }
   positions.push(pos);
   Store.save();
@@ -4516,9 +4256,6 @@ async function adoptSpotHolding(sym, entryOverride) {
   sendTelegram('👁 İZLEMEYE ALINDI\n' + sym + '\nMiktar: ' + amount.toFixed(6) + '\nGiriş: $' + fp(entry) + '\nSL: $' + fp(sl) + '  TP: $' + fp(tp));
 }
 
-/* Tek coin icin hizli fiyat/mum cekimi — adoptSpotHolding fiyati
-   bulamadiginda kullanilan yedek yol (SpotEngine.fetchMarket tum
-   pairs'i birden ceker, burada sadece tek sembol gerekiyor). */
 async function spotFetchLiveSingle(sym) {
   if (!WORKER) return;
   if (!pData[sym]) pData[sym] = {};
@@ -4538,14 +4275,12 @@ var TarkanEngine = {
     return tf === '1m' ? 'kl1m' : tf === '15m' ? 'kl15m' : 'kl5m'; 
   },
 
-  // Pozisyon açma - manual TP/SL ile
   openTarkanPos: async function(sym, side) {
     if (Runtime.openingLocks[sym]) {
       logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' açılıyor zaten, bekle', 'info');
       return;
     }
     
-    // Aynı yönde açık pozisyon var mı kontrol et
     var existing = positions.find(function(p) { 
       return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && p.tarkan; 
     });
@@ -4554,24 +4289,20 @@ var TarkanEngine = {
       return;
     }
 
-    // Ters yönde pozisyon varsa önce kapat (flip)
     var opposite = positions.find(function(p) { 
       return p.pair === sym && p.side !== side && p.state !== POSITION_STATE.CLOSED && p.tarkan; 
     });
     if (opposite) {
       logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ters pozisyon kapatılıyor (' + opposite.side + ' → ' + side + ')', 'info');
       await Execution.close(opposite.id, 'TARKAN FLIP');
-      // Kapanma işlemi tamamlansın diye bekle
       await new Promise(function(resolve) { setTimeout(resolve, 300); });
     }
 
-    // Yeni pozisyon aç
     logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ' + side + ' açılıyor (TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd + ')', 'ok');
     
     try {
       await Execution.open(sym, side, true, TARKAN_CFG.tpUsd, TARKAN_CFG.slUsd);
       
-      // Açılan pozisyonu TARKAN olarak işaretle
       var mine = positions.filter(function(p) {
         return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && !p.tarkan;
       }).sort(function(a, b) { return b.openTime - a.openTime; })[0];
@@ -4586,21 +4317,18 @@ var TarkanEngine = {
     }
   },
 
-  // Pozisyon kapatma
   closeTarkanPos: function(pos, reason) {
     if (!pos || closingNow[pos.id]) return;
     logPos('[TARKAN] Kapatılıyor: ' + pos.pair.replace('_USDT', '') + ' ' + pos.side + ' — ' + reason, 'info');
     Execution.close(pos.id, reason || 'TARKAN CLOSE');
   },
 
-  // TARKAN pozisyonu bul
   findOpenPos: function(sym) {
     return positions.find(function(p) { 
       return p.pair === sym && p.tarkan && p.state === POSITION_STATE.OPEN; 
     }) || null;
   },
 
-  // Ana tick fonksiyonu - her scan döngüsünde çağrılır
   tick: function() {
     if (!tarkanMode) return;
     
@@ -4621,14 +4349,12 @@ var TarkanEngine = {
       return;
     }
 
-    // DVF hesapla
     var dvf = calcDVF(kl, TARKAN_CFG.noiseMult, TARKAN_CFG.lookback, TARKAN_CFG.snapSpeed);
     if (!dvf) return;
 
     var lockKey = sym + ':' + TARKAN_CFG.tf;
     var alreadyProcessed = tarkanBarState[lockKey] === dvf.barT;
 
-    // UI'da durumu göster
     var sigEl3 = document.getElementById('eSig');
     if (sigEl3) {
       var dirTxt = dvf.trend === 1 ? '📈 BULLISH' : dvf.trend === -1 ? '📉 BEARISH' : '➖ FLAT';
@@ -4638,80 +4364,55 @@ var TarkanEngine = {
       sigEl3.style.color = dvf.trend === 1 ? 'var(--long)' : dvf.trend === -1 ? 'var(--short)' : 'var(--dim2)';
     }
 
-    // Aynı bar zaten işlendiyse tekrarlama
     if (alreadyProcessed) return;
-    
-    // Bu bar işlendi olarak işaretle
     tarkanBarState[lockKey] = dvf.barT;
 
     var pos = TarkanEngine.findOpenPos(sym);
     
-    // v8.3 FIX: Anlık trend yönüne göre işlem yap
-    // BULLISH -> LONG aç (SHORT varsa kapat)
     if (dvf.trend === 1) {
       if (pos && pos.side === 'SHORT') {
-        // SHORT'u kapat, LONG aç
         TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → LONG');
-        // Kapanma sonrası açmak için kısa gecikme
         setTimeout(function() { 
           TarkanEngine.openTarkanPos(sym, 'LONG'); 
         }, 500);
       } else if (!pos) {
-        // Hiç pozisyon yoksa LONG aç
         TarkanEngine.openTarkanPos(sym, 'LONG');
       }
-      // Zaten LONG varsa bir şey yapma
     }
-    // BEARISH -> SHORT aç (LONG varsa kapat) - SPOT'ta sadece LONG'dan çık
     else if (dvf.trend === -1) {
       if (marketMode === 'SPOT') {
-        // SPOT: sadece LONG'dan çık, SHORT açma
         if (pos && pos.side === 'LONG') {
           TarkanEngine.closeTarkanPos(pos, 'TARKAN TREND DOWN → EXIT (SPOT)');
         }
       } else {
-        // FUTURES: SHORT aç / LONG'dan dön
         if (pos && pos.side === 'LONG') {
-          // LONG'u kapat, SHORT aç
           TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → SHORT');
           setTimeout(function() { 
             TarkanEngine.openTarkanPos(sym, 'SHORT'); 
           }, 500);
         } else if (!pos) {
-          // Hiç pozisyon yoksa SHORT aç
           TarkanEngine.openTarkanPos(sym, 'SHORT');
         }
-        // Zaten SHORT varsa bir şey yapma
       }
     }
-    // FLAT/NEUTRAL -> eğer pozisyon varsa kapat (isteğe bağlı)
-    else if (dvf.trend === 0 && pos) {
-      // İsteğe bağlı: trend nötre dönerse pozisyonu kapat
-      // Not: Bazı stratejilerde bu istenmez, yorum satırı olarak bırakıyorum
-      // TarkanEngine.closeTarkanPos(pos, 'TARKAN NEUTRAL → EXIT');
-    }
-    
     updateAutoStats();
   }
 };
 
-/* ── TARKAN toggle ── */
 function toggleTarkan() {
   tarkanMode = !tarkanMode;
   
   if (tarkanMode) {
     readTarkanSettings();
-    tarkanBarState = {}; // Bar kilidini sıfırla
+    tarkanBarState = {};
     logPos('[TARKAN] 🎯 Aktif — ' + currentPair.replace('_USDT', '') + ' / ' + TARKAN_CFG.tf + ' | TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd, 'ok');
     notify('🎯 TARKAN AKTİF (' + currentPair.replace('_USDT', '') + ', ' + TARKAN_CFG.tf + ')', 'success');
     sendTelegram('🎯 TARKAN AKTİF\n' + currentPair + ' ' + TARKAN_CFG.tf + '\nTP: $' + TARKAN_CFG.tpUsd + ' SL: $' + TARKAN_CFG.slUsd);
     
-    // Engine zaten çalışmıyorsa başlat
     if (!engineOn) {
       toggleEng();
     }
   } else {
-    // TARKAN kapatılırken açık pozisyonları kapat (opsiyonel)
     var openTarkan = positions.filter(function(p) { return p.tarkan && p.state !== POSITION_STATE.CLOSED; });
     if (openTarkan.length > 0) {
       logPos('[TARKAN] ' + openTarkan.length + ' pozisyon kapatılıyor...', 'info');
@@ -4728,13 +4429,12 @@ function toggleTarkan() {
   updateSignalUI();
 }
 
-/* ── TARKAN ayarlarını oku ── */
 function readTarkanSettings() {
   var tfEl = document.getElementById('tarkanTf');
   if (tfEl && ['1m', '5m', '15m'].indexOf(tfEl.value) !== -1) {
     if (tfEl.value !== TARKAN_CFG.tf) {
       TARKAN_CFG.tf = tfEl.value;
-      tarkanBarState = {}; // TF değişti -> bar kilidini sıfırla
+      tarkanBarState = {};
     }
   }
   
@@ -4747,7 +4447,6 @@ function readTarkanSettings() {
   if (Number.isFinite(tp) && tp > 0) TARKAN_CFG.tpUsd = tp;
   if (Number.isFinite(sl) && sl > 0) TARKAN_CFG.slUsd = sl;
   
-  // TP ve SL kontrolü
   if (TARKAN_CFG.tpUsd <= TARKAN_CFG.slUsd) {
     logPos('[TARKAN] ⚠️ TP ($' + TARKAN_CFG.tpUsd + ') SL ($' + TARKAN_CFG.slUsd + ')' + ' — TP SL'den büyük olmalı!', 'warn');
   }
@@ -4755,7 +4454,6 @@ function readTarkanSettings() {
   applyTarkanUI();
 }
 
-/* ── TARKAN UI güncelleme ── */
 function applyTarkanUI() {
   var btn = document.getElementById('btnTarkan');
   if (btn) {
@@ -4778,7 +4476,6 @@ function applyTarkanUI() {
   }
 }
 
-/* ── TARKAN UI bağlama ── */
 function bindTarkanUI() {
   var tfEl = document.getElementById('tarkanTf');
   if (tfEl) { 
@@ -4803,15 +4500,6 @@ function bindTarkanUI() {
   
   applyTarkanUI();
 }
-
-/* ── runEngine içinde TARKAN kontrolü (05-demo-engine.js içine eklenecek) ── */
-// NOT: Bu fonksiyon runEngine içinde çağrılmalıdır.
-// Mevcut runEngine'deki şu satırın üstüne ekleyin:
-// if (tarkanMode) { TarkanEngine.tick(); return; }
-
-/* ── TARKAN için pozisyon kapatma yardımcısı (Execution içine) ── */
-// NOT: TarkanEngine.closeTarkanPos zaten Execution.close'u kullanıyor.
-// Ek bir işleme gerek yok.
 
 </script>
 </body>
