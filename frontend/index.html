@@ -4532,6 +4532,133 @@ function bindTarkanUI() {
   
   applyTarkanUI();
 }
+
+// ============================================================
+// ACİL DÜZELTME: TÜM BUTONLAR İÇİN EVENT LISTENER
+// ============================================================
+(function() {
+  // Sayfa tamamen yüklendiğinde çalıştır
+  function initButtons() {
+    console.log('[BUTTON INIT] Başlatılıyor...');
+    
+    // 1. NAV BUTONLARI
+    var navBtns = document.querySelectorAll('.nb');
+    console.log('[BUTTON INIT] Nav buton bulundu:', navBtns.length);
+    navBtns.forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var page = this.getAttribute('data-page');
+        console.log('[NAV CLICK] Sayfa:', page);
+        if (page && typeof swPage === 'function') {
+          swPage(page);
+        } else {
+          console.error('[NAV CLICK] swPage fonksiyonu bulunamadı!');
+        }
+      });
+    });
+    
+    // 2. AUTO BUTONU
+    var autoBtn = document.getElementById('autoBtn');
+    if (autoBtn) {
+      autoBtn.addEventListener('click', function(e) {
+        console.log('[AUTO CLICK]');
+        if (typeof toggleAutonomous === 'function') {
+          toggleAutonomous();
+        }
+      });
+    }
+    
+    // 3. QA AUTO
+    var qaAuto = document.getElementById('qaAuto');
+    if (qaAuto) {
+      qaAuto.addEventListener('click', function(e) {
+        console.log('[QA AUTO CLICK]');
+        if (typeof toggleAutonomous === 'function') {
+          toggleAutonomous();
+        }
+      });
+    }
+    
+    // 4. TELEGRAM BUTONLARI
+    var tgBtns = document.querySelectorAll('#bdgTelegram, #tgToggleBtn, #tgToggleBtn2');
+    tgBtns.forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        console.log('[TELEGRAM CLICK]');
+        if (typeof toggleTelegram === 'function') {
+          toggleTelegram();
+        }
+      });
+    });
+    
+    // 5. POS BUTONU
+    var qaPos = document.getElementById('qaPos');
+    if (qaPos) {
+      qaPos.addEventListener('click', function(e) {
+        console.log('[POS CLICK]');
+        if (typeof swPage === 'function') {
+          swPage('pos');
+        }
+      });
+    }
+    
+    // 6. ENGINE BUTONU
+    var btnEng = document.getElementById('btnEng');
+    if (btnEng) {
+      btnEng.addEventListener('click', function(e) {
+        console.log('[ENGINE CLICK]');
+        if (typeof toggleEng === 'function') {
+          toggleEng();
+        }
+      });
+    }
+    
+    // 7. TARKAN BUTONU
+    var btnTarkan = document.getElementById('btnTarkan');
+    if (btnTarkan) {
+      btnTarkan.addEventListener('click', function(e) {
+        console.log('[TARKAN CLICK]');
+        if (typeof toggleTarkan === 'function') {
+          toggleTarkan();
+        }
+      });
+    }
+    
+    // 8. LIVE / DEMO BUTONLARI
+    var btnLive = document.getElementById('btnConnectLive');
+    if (btnLive) {
+      btnLive.addEventListener('click', function(e) {
+        console.log('[LIVE CLICK]');
+        if (typeof connectLive === 'function') {
+          connectLive();
+        }
+      });
+    }
+    
+    var btnDemo = document.getElementById('btnStartDemo');
+    if (btnDemo) {
+      btnDemo.addEventListener('click', function(e) {
+        console.log('[DEMO CLICK]');
+        if (typeof startDemo === 'function') {
+          startDemo();
+        }
+      });
+    }
+    
+    console.log('[BUTTON INIT] Tüm butonlar bağlandı!');
+  }
+  
+  // Sayfa yüklendiğinde çalıştır
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initButtons);
+  } else {
+    // Zaten yüklendiyse hemen çalıştır
+    setTimeout(initButtons, 100);
+  }
+  
+  // DOMContentLoaded olmazsa diye yedek
+  setTimeout(initButtons, 500);
+})();
+
+
 </script>
 </body>
 </html>
