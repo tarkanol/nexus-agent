@@ -4610,22 +4610,38 @@ var TarkanEngine = {
     if (alreadyProcessed) return;
     tarkanBarState[lockKey] = dvf.barT;
 
-    var pos = TarkanEngine.findOpenPos(sym);
-    if (dvf.turnedBullish) {
+var pos = TarkanEngine.findOpenPos(sym);
+    // v8.3 FIX: artık sadece flip anındaki bar'da değil, ANLIK trend
+    // yönüne göre her tick'te kontrol ediyoruz. turnedBullish/turnedBearish
+    // sadece flip'in gerçekleştiği ilk bar'da true olur — TARKAN o bar'ı
+    // kaçırırsa (örn. sonradan açılırsa, trend zaten kurulmuşsa) hiçbir
+    // zaman pozisyon açılmıyordu. Artık: trend BULLISH ise elde LONG
+    // yoksa aç (SHORT varsa dön); trend BEARISH ise elde SHORT yoksa aç
+    // (SPOT'ta short yok, sadece LONG'dan çık).
+    var lockKey = sym + ':' + TARKAN_CFG.tf + ':flip';
+
+    if (dvf.trend === 1) {
       if (pos && pos.side === 'SHORT') {
-        TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → LONG');
-        setTimeout(function() { TarkanEngine.openTarkanPos(sym, 'LONG'); }, 400);
+        if (tarkanBarState[lockKey] !== dvf.barT) {
+          tarkanBarState[lockKey] = dvf.barT;
+          TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → LONG');
+          setTimeout(function() { TarkanEngine.openTarkanPos(sym, 'LONG'); }, 400);
+        }
       } else if (!pos) {
         TarkanEngine.openTarkanPos(sym, 'LONG');
       }
-    } else if (dvf.turnedBearish) {
+    } else if (dvf.trend === -1) {
       if (marketMode === 'SPOT') {
-        // Spot'ta short yok; sadece elde acik LONG varsa kapat (sat).
-        if (pos && pos.side === 'LONG') TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → EXIT (SPOT)');
+        if (pos && pos.side === 'LONG') {
+          TarkanEngine.closeTarkanPos(pos, 'TARKAN TREND DOWN → EXIT (SPOT)');
+        }
       } else {
         if (pos && pos.side === 'LONG') {
-          TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → SHORT');
-          setTimeout(function() { TarkanEngine.openTarkanPos(sym, 'SHORT'); }, 400);
+          if (tarkanBarState[lockKey] !== dvf.barT) {
+            tarkanBarState[lockKey] = dvf.barT;
+            TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP → SHORT');
+            setTimeout(function() { TarkanEngine.openTarkanPos(sym, 'SHORT'); }, 400);
+          }
         } else if (!pos) {
           TarkanEngine.openTarkanPos(sym, 'SHORT');
         }
