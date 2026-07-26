@@ -2217,12 +2217,20 @@ var Execution = {
     }
     var pd = pData[sym], an = pd && pd.an && pd.an.signal !== 'WAIT' ? pd.an : null;
     var price = an ? Number(an.price) : Number(pd && pd.price);
-    if (!price) { notify('Price unavailable', 'error'); return; }
+    if (!price) {
+      logPos('[OPEN BLOCK] ' + sym.replace('_USDT','') + ' ' + side + ' — price unavailable', 'err');
+      notify('Price unavailable', 'error');
+      return;
+    }
     
     var posVal, qty, sl, tp, lev = 1;
     if (manualTargetUsd && manualRiskUsd) {
       posVal = maxPosSize > 0 ? maxPosSize : Math.max(MIN_POS_VAL, balance * 0.1);
-      if (posVal < MIN_POS_VAL) { notify('Position too small ($' + posVal.toFixed(2) + ')', 'error'); return; }
+      if (posVal < MIN_POS_VAL) {
+        logPos('[OPEN BLOCK] ' + sym.replace('_USDT','') + ' ' + side + ' — pos too small ($' + posVal.toFixed(2) + ')', 'err');
+        notify('Position too small ($' + posVal.toFixed(2) + ')', 'error');
+        return;
+      }
       qty = posVal / price;
       var slDist = Accounting.pnlTargetToDistance(manualRiskUsd, qty);
       var tpDist = Accounting.pnlTargetToDistance(manualTargetUsd, qty);
@@ -2248,14 +2256,14 @@ var Execution = {
     
     var gate = RiskManager.gate(sym, posVal);
     if (!gate.ok) {
-      if (!auto) {
-        var gateMsgs = {
-          KILL: 'Kill-switch aktif', DD: 'Max drawdown aşıldı', STALE: 'Veri güncel değil',
-          LOCK: 'Bu coin için işlem zaten açılıyor', MARGIN: 'Yetersiz teminat',
-          DEAD_HOUR: 'Ölü saat aralığı (UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ') — işlem kapalı'
-        };
-        notify(gateMsgs[gate.reason] || gate.reason, 'error');
-      }
+      var gateMsgs = {
+        KILL: 'Kill-switch aktif', DD: 'Max drawdown aşıldı', STALE: 'Veri güncel değil',
+        LOCK: 'Bu coin için işlem zaten açılıyor', MARGIN: 'Yetersiz teminat',
+        DEAD_HOUR: 'Ölü saat aralığı (UTC ' + CFG.deadHourStart + '-' + CFG.deadHourEnd + ') — işlem kapalı'
+      };
+      var gateMsg = gateMsgs[gate.reason] || gate.reason;
+      logPos('[GATE BLOCK] ' + sym.replace('_USDT','') + ' ' + side + ' — ' + gateMsg, 'err');
+      if (!auto) notify(gateMsg, 'error');
       return;
     }
     
@@ -4480,8 +4488,13 @@ var TarkanEngine = {
     }
 
     // Yeni pozisyon aç
+    // Yeni pozisyon aç
+    var gate = RiskManager.gate(sym, 0);
+    if (!gate.ok) {
+      logPos('[TARKAN] ' + sym.replace('_USDT','') + ' ' + side + ' engellendi: ' + gate.reason, 'err');
+      return;
+    }
     logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ' + side + ' açılıyor (TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd + ')', 'ok');
-    
     try {
       await Execution.open(sym, side, true, TARKAN_CFG.tpUsd, TARKAN_CFG.slUsd);
       
