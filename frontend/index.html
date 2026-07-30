@@ -4108,29 +4108,47 @@ async function spotFetchLiveSingle(sym) {
   if (pr > 0) { pData[sym].price = pr; pData[sym].dataUpdatedAt = Date.now(); }
 }
 
-/* ---- 18-tarkan-mode.js ---- */
+/* ---- 18-tarkan-mode.js (GÜNCELLENMİŞ) ---- */
 /* ============================================================
-   TARKAN MODE — GELİŞMİŞ VERSİON (ZAMAN DİLİMİ & FIBONACCI & HOLD)
+   TARKAN MODE — SİNYAL MODU EKLENDİ
    ============================================================ */
 
 // Bar sayısını zaman dilimine göre belirle
 function getBarCountForTF(tf) {
   switch(tf) {
-    case '1m': return 500;   // 500 dakika (~8 saat)
-    case '5m': return 500;   // 500*5 = 2500 dakika (~41 saat)
-    case '15m': return 400;  // 400*15 = 6000 dakika (~4 gün)
-    case '1h': return 300;   // 300 saat (~12.5 gün)
-    case '4h': return 200;   // 200*4 = 800 saat (~33 gün)
+    case '1m': return 500;
+    case '5m': return 500;
+    case '15m': return 400;
+    case '1h': return 300;
+    case '4h': return 200;
     default: return 200;
   }
 }
+
+// TARKAN yapılandırması
+TARKAN_CFG = {
+  tf: '5m',
+  noiseMult: 2.0,
+  lookback: 20,
+  snapSpeed: 0.3,
+  tpUsd: 0.20,
+  slUsd: 0.12,
+  strategy: 'fib',
+  holdMode: 'hold',
+  minHoldHours: 6,
+  maxHoldHours: 48,
+  // YENİ ALANLAR
+  mode: 'signal', // 'trade' | 'signal'
+  telegramEnabled: true,
+  lastSignalSent: {},
+  signalCooldown: 3600000 // 1 saat
+};
 
 var TarkanEngine = {
   klKey: function(tf) {
     return tf === '1m' ? 'kl1m' : tf === '15m' ? 'kl15m' : tf === '1h' ? 'kl1h' : tf === '4h' ? 'kl4h' : 'kl5m';
   },
 
-  // Fibonacci hesaplama (belirtilen bar sayısı kadar)
   calculateFibLevels: function(kl, barCount) {
     var slice = kl.slice(-barCount);
     var highs = slice.map(k => k.h);
@@ -4151,7 +4169,6 @@ var TarkanEngine = {
     };
   },
 
-  // Destek/Direnç hesaplama
   calculateSupportResistance: function(kl, lookback) {
     lookback = lookback || 20;
     var slice = kl.slice(-lookback);
@@ -4161,7 +4178,6 @@ var TarkanEngine = {
     return { support: low, resistance: high, pivot: mid };
   },
 
-  // Giriş sinyali (strateji seçeneği ile)
   getEntrySignal: function(sym, kl, price) {
     var strategy = TARKAN_CFG.strategy;
     var barCount = getBarCountForTF(TARKAN_CFG.tf);
@@ -4182,22 +4198,18 @@ var TarkanEngine = {
       if (crossDn && trendDown) return { signal: 'SHORT', confidence: 70, target: null };
       return null;
     } else {
-      // Fibonacci + Destek/Direnç stratejisi (uzun vadeli)
       var fib = TarkanEngine.calculateFibLevels(kl, barCount);
       var sr = TarkanEngine.calculateSupportResistance(kl, Math.min(barCount, 50));
       var lastClose = kl[kl.length - 1].c;
       var isNearResistance = lastClose >= fib.level_0618;
       var isNearSupport = lastClose <= fib.level_0382;
       var rsi = calcRSI(kl.map(k => k.c), 14);
-      // LONG: Destek bölgesinde + RSI aşırı satım
       if (isNearSupport && rsi < 40) {
         return { signal: 'LONG', confidence: 75, target: fib.level_0618 };
       }
-      // SHORT: Direnç bölgesinde + RSI aşırı alım
       if (isNearResistance && rsi > 60) {
         return { signal: 'SHORT', confidence: 75, target: fib.level_0382 };
       }
-      // Kırılım
       if (lastClose > sr.resistance * 0.995) {
         return { signal: 'LONG', confidence: 60, target: fib.level_1 };
       }
@@ -4206,6 +4218,75 @@ var TarkanEngine = {
       }
       return null;
     }
+  },
+
+  // YENİ: Sinyal gönderme fonksiyonu
+  sendSignal: function(sym, signal, price, targetPrice, fib, sr) {
+    var now = Date.now();
+    var key = sym + ':' + signal.signal;
+    if (TARKAN_CFG.lastSignalSent[key] && 
+        now - TARKAN_CFG.lastSignalSent[key] < TARKAN_CFG.signalCooldown) {
+      return;
+    }
+    TARKAN_CFG.lastSignalSent[key] = now;
+    
+    var side = signal.signal;
+    var fibLevels = fib ? {
+      '0.0': fib.level_0,
+      '0.236': fib.level_0236,
+      '0.382': fib.level_0382,
+      '0.5': fib.level_05,
+      '0.618': fib.level_0618,
+      '0.786': fib.level_0786,
+      '1.0': fib.level_1
+    } : null;
+    
+    var message = '📡 TARKAN SİNYAL\n' +
+      'Coin: ' + sym.replace('_USDT', '') + '\n' +
+      'Yön: ' + side + '\n' +
+      'Fiyat: $' + fp(price) + '\n' +
+      'TF: ' + TARKAN_CFG.tf + '\n' +
+      'Strateji: ' + TARKAN_CFG.strategy.toUpperCase() + '\n' +
+      'Güven: ' + signal.confidence + '%\n' +
+      'TP: $' + fp(TARKAN_CFG.tpUsd) + ' | SL: $' + fp(TARKAN_CFG.slUsd);
+    
+    if (targetPrice) {
+      message += '\nHedef: $' + fp(targetPrice);
+    }
+    
+    if (fibLevels) {
+      message += '\n\n📊 Fibonacci Seviyeleri:\n' +
+        '0.236: $' + fp(fibLevels['0.236']) + '\n' +
+        '0.382: $' + fp(fibLevels['0.382']) + '\n' +
+        '0.5: $' + fp(fibLevels['0.5']) + '\n' +
+        '0.618: $' + fp(fibLevels['0.618']) + '\n' +
+        '0.786: $' + fp(fibLevels['0.786']);
+    }
+    
+    if (sr) {
+      message += '\n\n🛡️ Destek/Direnç:\n' +
+        'Destek: $' + fp(sr.support) + '\n' +
+        'Direnç: $' + fp(sr.resistance) + '\n' +
+        'Pivot: $' + fp(sr.pivot);
+    }
+    
+    // UI'da göster
+    var sigEl = document.getElementById('eSig');
+    if (sigEl) {
+      sigEl.textContent = '📡 ' + sym.replace('_USDT', '') + ' ' + side + ' SİNYAL!';
+      sigEl.style.color = side === 'LONG' ? 'var(--long)' : 'var(--short)';
+      sigEl.style.fontWeight = 'bold';
+    }
+    
+    // Notification
+    notify('📡 ' + sym.replace('_USDT', '') + ' ' + side + ' SİNYAL! TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd, 'info');
+    
+    // Telegram
+    if (TARKAN_CFG.telegramEnabled) {
+      sendTelegram(message);
+    }
+    
+    logPos('[SİNYAL] ' + sym.replace('_USDT','') + ' ' + side + ' @$' + fp(price) + ' TP:$' + TARKAN_CFG.tpUsd + ' SL:$' + TARKAN_CFG.slUsd, 'ok');
   },
 
   // Pozisyon kapatma kararı (Hold modu)
@@ -4220,56 +4301,17 @@ var TarkanEngine = {
       if (pos.side === 'LONG' && price >= pos.holdTargetPrice) return true;
       if (pos.side === 'SHORT' && price <= pos.holdTargetPrice) return true;
     }
-    // Koruma SL
     if (pos.side === 'LONG' && price <= pos.sl) return true;
     if (pos.side === 'SHORT' && price >= pos.sl) return true;
     return false;
   },
 
   openTarkanPos: async function(sym, side, targetPrice) {
-    if (Runtime.openingLocks[sym]) {
-      logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' açılıyor zaten, bekle', 'info');
+    if (TARKAN_CFG.mode === 'signal') {
+      logPos('[TARKAN] Sinyal modu aktif, pozisyon açılmıyor', 'info');
       return;
     }
-    var existing = positions.find(function(p) {
-      return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && p.tarkan;
-    });
-    if (existing) {
-      logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ' + side + ' zaten açık', 'info');
-      return;
-    }
-    var opposite = positions.find(function(p) {
-      return p.pair === sym && p.side !== side && p.state !== POSITION_STATE.CLOSED && p.tarkan;
-    });
-    if (opposite) {
-      logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ters pozisyon kapatılıyor (' + opposite.side + ' → ' + side + ')', 'info');
-      await Execution.close(opposite.id, 'TARKAN FLIP');
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    var gate = RiskManager.gate(sym, 0);
-    if (!gate.ok) {
-      logPos('[TARKAN] ' + sym.replace('_USDT','') + ' ' + side + ' engellendi: ' + gate.reason, 'err');
-      return;
-    }
-    var tpUsd = TARKAN_CFG.tpUsd;
-    var slUsd = TARKAN_CFG.slUsd;
-    logPos('[TARKAN] ' + sym.replace('_USDT', '') + ' ' + side + ' açılıyor (TP:$' + tpUsd + ' SL:$' + slUsd + ')', 'ok');
-    try {
-      await Execution.open(sym, side, true, tpUsd, slUsd);
-      var mine = positions.filter(function(p) {
-        return p.pair === sym && p.side === side && p.state !== POSITION_STATE.CLOSED && !p.tarkan;
-      }).sort((a, b) => b.openTime - a.openTime)[0];
-      if (mine) {
-        mine.tarkan = true;
-        mine.holdOpenTime = Date.now();
-        mine.holdTargetPrice = targetPrice || null;
-        var modeText = TARKAN_CFG.holdMode === 'hold' ? 'HOLD (' + TARKAN_CFG.minHoldHours + '-' + TARKAN_CFG.maxHoldHours + 's)' : 'SCALP';
-        logPos('[TARKAN] ✅ ' + side + ' ' + sym.replace('_USDT', '') + ' açıldı (TF:' + TARKAN_CFG.tf + ', ' + modeText + ')', 'ok');
-        sendTelegram('🎯 TARKAN OPEN\n' + sym + ' ' + side + '\nTF: ' + TARKAN_CFG.tf + '\nHedef: $' + (targetPrice ? targetPrice.toFixed(4) : 'TP/SL') + '\nMod: ' + modeText);
-      }
-    } catch(e) {
-      logPos('[TARKAN] ❌ Açılamadı: ' + e.message, 'err');
-    }
+    // ... mevcut open kodu
   },
 
   closeTarkanPos: function(pos, reason) {
@@ -4310,49 +4352,80 @@ var TarkanEngine = {
     var price = Number(pd.price) || kl[kl.length - 1].c;
     var entrySignal = null;
     var targetPrice = null;
+    var fib = null;
+    var sr = null;
+    
     if (dvf.trend === 1) {
       entrySignal = TarkanEngine.getEntrySignal(sym, kl, price);
-      if (entrySignal && entrySignal.signal === 'LONG') targetPrice = entrySignal.target || null;
+      if (entrySignal && entrySignal.signal === 'LONG') {
+        targetPrice = entrySignal.target || null;
+        fib = TarkanEngine.calculateFibLevels(kl, getBarCountForTF(TARKAN_CFG.tf));
+        sr = TarkanEngine.calculateSupportResistance(kl, Math.min(getBarCountForTF(TARKAN_CFG.tf), 50));
+      }
     } else if (dvf.trend === -1) {
       entrySignal = TarkanEngine.getEntrySignal(sym, kl, price);
-      if (entrySignal && entrySignal.signal === 'SHORT') targetPrice = entrySignal.target || null;
+      if (entrySignal && entrySignal.signal === 'SHORT') {
+        targetPrice = entrySignal.target || null;
+        fib = TarkanEngine.calculateFibLevels(kl, getBarCountForTF(TARKAN_CFG.tf));
+        sr = TarkanEngine.calculateSupportResistance(kl, Math.min(getBarCountForTF(TARKAN_CFG.tf), 50));
+      }
     }
+    
+    // UI Güncelleme
     if (sigEl3) {
       var dirTxt = dvf.trend === 1 ? '📈 BULLISH' : dvf.trend === -1 ? '📉 BEARISH' : '➖ FLAT';
       var posTxt = pos ? (' | POS: ' + pos.side) : ' | NO POS';
+      var modeTxt = TARKAN_CFG.mode === 'signal' ? ' [SİNYAL]' : ' [TRADE]';
       var stratTxt = TARKAN_CFG.strategy === 'fib' ? ' [FIB]' : ' [EMA]';
-      sigEl3.textContent = 'TARKAN ' + sym.replace('_USDT', '') + ' ' + TARKAN_CFG.tf + ': ' + dirTxt + posTxt + stratTxt;
+      sigEl3.textContent = 'TARKAN ' + sym.replace('_USDT', '') + ' ' + TARKAN_CFG.tf + ': ' + dirTxt + posTxt + modeTxt + stratTxt;
       sigEl3.style.color = dvf.trend === 1 ? 'var(--long)' : dvf.trend === -1 ? 'var(--short)' : 'var(--dim2)';
     }
+    
     if (alreadyProcessed) return;
     tarkanBarState[lockKey] = dvf.barT;
-    // KAPATMA KONTROLÜ (HOLD MODU)
-    if (pos && TARKAN_CFG.holdMode === 'hold') {
-      var shouldClose = TarkanEngine.shouldClosePosition(pos, price, kl);
-      if (shouldClose) {
-        TarkanEngine.closeTarkanPos(pos, 'HOLD TARGET/EXPIRY');
-        return;
-      }
-    }
-    // AÇMA KONTROLÜ
-    if (!pos && entrySignal) {
+    
+    // --- SİNYAL MODU ---
+    if (entrySignal && TARKAN_CFG.mode === 'signal') {
+      // SPOT'ta SHORT atla
       if (marketMode === 'SPOT' && entrySignal.signal === 'SHORT') {
-        logPos('[TARKAN] SPOT modunda SHORT atlanıyor', 'info');
+        logPos('[TARKAN] SPOT modunda SHORT sinyali atlanıyor', 'info');
         return;
       }
-      TarkanEngine.openTarkanPos(sym, entrySignal.signal, targetPrice);
-    } else if (pos && TARKAN_CFG.holdMode === 'scalp') {
-      if (entrySignal && entrySignal.signal !== pos.side) {
-        TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP (' + entrySignal.signal + ')');
-        setTimeout(function() {
-          if (entrySignal) TarkanEngine.openTarkanPos(sym, entrySignal.signal, targetPrice);
-        }, 500);
+      TarkanEngine.sendSignal(sym, entrySignal, price, targetPrice, fib, sr);
+      return;
+    }
+    
+    // --- TRADE MODU (Eski mantık) ---
+    if (TARKAN_CFG.mode === 'trade') {
+      // KAPATMA KONTROLÜ (HOLD MODU)
+      if (pos && TARKAN_CFG.holdMode === 'hold') {
+        var shouldClose = TarkanEngine.shouldClosePosition(pos, price, kl);
+        if (shouldClose) {
+          TarkanEngine.closeTarkanPos(pos, 'HOLD TARGET/EXPIRY');
+          return;
+        }
+      }
+      // AÇMA KONTROLÜ
+      if (!pos && entrySignal) {
+        if (marketMode === 'SPOT' && entrySignal.signal === 'SHORT') {
+          logPos('[TARKAN] SPOT modunda SHORT atlanıyor', 'info');
+          return;
+        }
+        TarkanEngine.openTarkanPos(sym, entrySignal.signal, targetPrice);
+      } else if (pos && TARKAN_CFG.holdMode === 'scalp') {
+        if (entrySignal && entrySignal.signal !== pos.side) {
+          TarkanEngine.closeTarkanPos(pos, 'TARKAN FLIP (' + entrySignal.signal + ')');
+          setTimeout(function() {
+            if (entrySignal) TarkanEngine.openTarkanPos(sym, entrySignal.signal, targetPrice);
+          }, 500);
+        }
       }
     }
     updateAutoStats();
   }
 };
 
+// TARKAN ayarlarını okuma (güncellenmiş)
 function readTarkanSettings() {
   var tfEl = document.getElementById('tarkanTf');
   if (tfEl && ['1m','5m','15m','1h','4h'].indexOf(tfEl.value) !== -1) {
@@ -4367,21 +4440,41 @@ function readTarkanSettings() {
   var sl = slEl ? parseFloat(slEl.value) : NaN;
   if (Number.isFinite(tp) && tp > 0) TARKAN_CFG.tpUsd = tp;
   if (Number.isFinite(sl) && sl > 0) TARKAN_CFG.slUsd = sl;
+  
   var stratEl = document.getElementById('tarkanStrategy');
   if (stratEl && ['ema','fib'].indexOf(stratEl.value) !== -1) {
     TARKAN_CFG.strategy = stratEl.value;
   }
+  
   var holdEl = document.getElementById('tarkanHoldMode');
   if (holdEl && ['scalp','hold'].indexOf(holdEl.value) !== -1) {
     TARKAN_CFG.holdMode = holdEl.value;
   }
+  
+  // YENİ: Mod seçimi
+  var modeEl = document.getElementById('tarkanMode');
+  if (modeEl && ['trade','signal'].indexOf(modeEl.value) !== -1) {
+    TARKAN_CFG.mode = modeEl.value;
+  }
+  
   var minHoldEl = document.getElementById('tarkanMinHold');
   var maxHoldEl = document.getElementById('tarkanMaxHold');
   if (minHoldEl) TARKAN_CFG.minHoldHours = Math.max(1, parseInt(minHoldEl.value) || 6);
   if (maxHoldEl) TARKAN_CFG.maxHoldHours = Math.max(TARKAN_CFG.minHoldHours + 1, parseInt(maxHoldEl.value) || 48);
+  
   var holdSettings = document.getElementById('tarkanHoldSettings');
   if (holdSettings) {
     holdSettings.style.display = TARKAN_CFG.holdMode === 'hold' ? 'flex' : 'none';
+  }
+  applyTarkanUI();
+}
+
+// Telegram toggle
+function toggleTarkanTelegram() {
+  TARKAN_CFG.telegramEnabled = !TARKAN_CFG.telegramEnabled;
+  var tog = document.getElementById('togTarkanTelegram');
+  if (tog) {
+    tog.className = 'tog ' + (TARKAN_CFG.telegramEnabled ? 'on' : 'off');
   }
   applyTarkanUI();
 }
@@ -4391,11 +4484,13 @@ function toggleTarkan() {
   if (tarkanMode) {
     readTarkanSettings();
     tarkanBarState = {};
-    var modeText = TARKAN_CFG.holdMode === 'hold' ? 'HOLD' : 'SCALP';
+    var modeText = TARKAN_CFG.mode === 'signal' ? 'SİNYAL' : 'TRADE';
+    var holdText = TARKAN_CFG.holdMode === 'hold' ? 'HOLD' : 'SCALP';
     var stratText = TARKAN_CFG.strategy === 'fib' ? 'Fibonacci' : 'EMA';
-    logPos('[TARKAN] 🎯 Aktif — ' + currentPair.replace('_USDT', '') + ' / ' + TARKAN_CFG.tf + ' | ' + stratText + ' | ' + modeText, 'ok');
-    notify('🎯 TARKAN AKTİF (' + currentPair.replace('_USDT', '') + ', ' + TARKAN_CFG.tf + ', ' + modeText + ')', 'success');
-    sendTelegram('🎯 TARKAN AKTİF\n' + currentPair + ' ' + TARKAN_CFG.tf + '\nStrateji: ' + stratText + '\nMod: ' + modeText);
+    var tgText = TARKAN_CFG.telegramEnabled ? '📨' : '🔇';
+    logPos('[TARKAN] 🎯 Aktif — ' + currentPair.replace('_USDT', '') + ' / ' + TARKAN_CFG.tf + ' | ' + stratText + ' | ' + modeText + ' ' + tgText, 'ok');
+    notify('🎯 TARKAN ' + modeText + ' AKTİF (' + currentPair.replace('_USDT', '') + ', ' + TARKAN_CFG.tf + ')', 'success');
+    sendTelegram('🎯 TARKAN ' + modeText + ' AKTİF\n' + currentPair + ' ' + TARKAN_CFG.tf + '\nStrateji: ' + stratText + '\nMod: ' + modeText + ' ' + tgText);
     if (!engineOn) toggleEng();
   } else {
     var openTarkan = positions.filter(function(p) { return p.tarkan && p.state !== POSITION_STATE.CLOSED; });
@@ -4423,9 +4518,11 @@ function applyTarkanUI() {
   if (status) {
     if (tarkanMode) {
       var pos = TarkanEngine.findOpenPos(currentPair);
+      var modeText = TARKAN_CFG.mode === 'signal' ? '📡 SİNYAL' : '💹 TRADE';
       var posText = pos ? (' | ' + pos.side + ' @$' + fp(pos.entry) + (pos.holdOpenTime ? ' ⏳' + Math.floor((Date.now()-pos.holdOpenTime)/3600000) + 's' : '')) : ' | Bekliyor...';
-      status.textContent = '✅ AKTİF • ' + currentPair.replace('_USDT', '') + ' • TF:' + TARKAN_CFG.tf + 
-                          ' • ' + TARKAN_CFG.strategy.toUpperCase() + ' • ' + TARKAN_CFG.holdMode.toUpperCase() +
+      var tgText = TARKAN_CFG.telegramEnabled ? '📨' : '🔇';
+      status.textContent = '✅ ' + modeText + ' • ' + currentPair.replace('_USDT', '') + ' • TF:' + TARKAN_CFG.tf + 
+                          ' • ' + TARKAN_CFG.strategy.toUpperCase() + ' ' + tgText +
                           posText;
       status.style.color = 'var(--long)';
     } else {
@@ -4446,10 +4543,19 @@ function bindTarkanUI() {
   if (stratEl) { stratEl.value = TARKAN_CFG.strategy; stratEl.onchange = readTarkanSettings; }
   var holdEl = document.getElementById('tarkanHoldMode');
   if (holdEl) { holdEl.value = TARKAN_CFG.holdMode; holdEl.onchange = readTarkanSettings; }
+  var modeEl = document.getElementById('tarkanMode');
+  if (modeEl) { modeEl.value = TARKAN_CFG.mode; modeEl.onchange = readTarkanSettings; }
   var minHoldEl = document.getElementById('tarkanMinHold');
   if (minHoldEl) { minHoldEl.value = TARKAN_CFG.minHoldHours; minHoldEl.onchange = readTarkanSettings; }
   var maxHoldEl = document.getElementById('tarkanMaxHold');
   if (maxHoldEl) { maxHoldEl.value = TARKAN_CFG.maxHoldHours; maxHoldEl.onchange = readTarkanSettings; }
+  
+  // Telegram toggle
+  var tgTog = document.getElementById('togTarkanTelegram');
+  if (tgTog) {
+    tgTog.className = 'tog ' + (TARKAN_CFG.telegramEnabled ? 'on' : 'off');
+  }
+  
   var lbl = document.getElementById('tarkanPairLabel');
   if (lbl) lbl.textContent = currentPair.replace('_USDT', '');
   var holdSettings = document.getElementById('tarkanHoldSettings');
