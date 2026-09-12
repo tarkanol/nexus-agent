@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>APEX SCALP V6.4.1</title>
+<title>APEX SCALP V6.5.0 — BTC PRO</title>
 <style>
 
 :root {
@@ -210,7 +210,7 @@ select option{background:#041018}
 <div id="notif"></div>
 
 <header class="hdr">
-  <div class="logo">APEX<span> // SCALP V6.4.1</span></div>
+  <div class="logo">APEX<span> // SCALP V6.5.0 · BTC PRO</span></div>
   <div class="badges">
     <span class="bdg" id="bdgConn">DEMO</span>
     <span class="bdg" id="bdgEng">OFF</span>
@@ -539,6 +539,73 @@ select option{background:#041018}
   </div>
 </div>
 
+
+<!-- BTC PRO PAGE -->
+<div class="page" id="pg-btcpro">
+  <div class="scroll">
+    <div class="card" style="border-color:rgba(255,204,68,.35)">
+      <div class="sec-title" style="color:var(--gold)">BTC PRO // FIXED 2X FUTURES</div>
+      <div style="font:9px var(--mono);color:var(--dim2);line-height:1.6;margin-bottom:8px">
+        Dedicated BTC_USDT setup. Margin is the collateral you commit; nominal exposure = margin × 2. Auto entry is OFF by default.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div class="fr" style="margin:0">
+          <span class="inp-label">MARGIN / COLLATERAL (USDT)</span>
+          <input id="btcProMargin" type="number" min="5" step="25" value="500" inputmode="decimal">
+        </div>
+        <div class="fr" style="margin:0">
+          <span class="inp-label">LEVERAGE</span>
+          <input value="2x · LOCKED" disabled>
+        </div>
+      </div>
+      <div style="margin-top:7px;background:rgba(2,10,16,.85);border:1px solid var(--brd);border-radius:4px;padding:8px;font:9px var(--mono);line-height:1.8">
+        Margin <strong id="btcProMarginShow" style="color:var(--gold)">$500.00</strong>
+        · Nominal <strong id="btcProNotional" style="color:var(--acc)">$1,000.00</strong>
+        · Leverage <strong style="color:var(--text2)">2x</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title">BTC PRO SIGNAL</div>
+      <div class="sig-display" style="padding:8px 0 6px">
+        <div class="sig-badge WAIT" id="btcProSig">WAIT</div>
+        <div class="sig-meta" id="btcProMeta">Waiting for BTC data...</div>
+        <div class="conf-tier C" id="btcProTier">SCORE 0</div>
+      </div>
+      <div class="qbar-wrap">
+        <div class="qbar-hd"><span>CONFLUENCE</span><span id="btcProScore">0 / 100</span></div>
+        <div class="qbar-track"><div class="qbar-fill" id="btcProScoreBar" style="width:0%;background:var(--dim2)"></div></div>
+      </div>
+      <div class="ind-grid" style="margin-top:8px">
+        <div class="ind-cell"><div class="ind-label">1H REGIME</div><div class="ind-val" id="bp1h">--</div></div>
+        <div class="ind-cell"><div class="ind-label">15M ADX</div><div class="ind-val" id="bpAdx">--</div></div>
+        <div class="ind-cell"><div class="ind-label">VWAP</div><div class="ind-val" id="bpVwap">--</div></div>
+        <div class="ind-cell"><div class="ind-label">RSI 5M</div><div class="ind-val" id="bpRsi">--</div></div>
+        <div class="ind-cell"><div class="ind-label">ATR 5M</div><div class="ind-val" id="bpAtr">--</div></div>
+        <div class="ind-cell"><div class="ind-label">VOLUME</div><div class="ind-val" id="bpVol">--</div></div>
+      </div>
+      <div class="reason-row" id="btcProReasons"></div>
+    </div>
+
+    <div id="btcProPlan"></div>
+
+    <div class="card">
+      <div class="sec-title">EXECUTION</div>
+      <div class="btn-row" style="margin-bottom:6px">
+        <button class="btn btn-gold" id="btcProExec" onclick="btcProExecute()" disabled>EXECUTE SIGNAL</button>
+        <button class="btn btn-danger" id="btcProClose" onclick="btcProClose()" disabled>CLOSE BTC</button>
+      </div>
+      <div class="tog-row" style="border:none;padding-bottom:0">
+        <div class="tog off" id="togBtcProAuto" onclick="toggleBtcProAuto()"></div>
+        <div><div class="tog-title">BTC PRO AUTO ENTRY</div><div class="tog-desc" id="togBtcProAutoD">Off — manual confirmation required</div></div>
+      </div>
+      <div style="font:8px var(--mono);color:var(--warn);line-height:1.6;margin-top:8px">
+        AUTO never arms itself after reload. In LIVE mode, arming it requires an explicit confirmation. Exchange-side TP/SL is still sent with each entry.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS PAGE -->
 <div class="page" id="pg-settings">
   <div class="scroll">
@@ -584,6 +651,7 @@ select option{background:#041018}
 
 <nav class="nav">
   <button class="nb active" data-page="signal"><span class="ni">📡</span>Signal</button>
+  <button class="nb" data-page="btcpro"><span class="ni">₿</span>BTC Pro</button>
   <button class="nb" data-page="pos"><span class="ni">📁</span>Position</button>
   <button class="nb" data-page="engine"><span class="ni">⚙</span>Engine</button>
   <button class="nb" data-page="settings"><span class="ni">🔧</span>Settings</button>
@@ -594,7 +662,7 @@ select option{background:#041018}
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   APEX SCALP V6.4.1 — FULL INTEGRATION
+   APEX SCALP V6.5.0 — BTC PRO INTEGRATION
    Includes: Kelly/Volatility/Loss-streak sizing, Weakness detector
    v6.4.1 FIXES vs v6.4.0:
    1. ApiCompat.applyPing() / apiMode logic no longer requires BOTH
@@ -658,7 +726,7 @@ select option{background:#041018}
 /* ═══════════════════════════════════════════════
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
-var APP_VERSION = '6.4.1';
+var APP_VERSION = '6.5.0';
 var START_BAL = 50, MAX_P = 1;
 var DEMO_BASE = {BTC_USDT:74000,ETH_USDT:2050,SOL_USDT:83,BNB_USDT:588,XRP_USDT:0.605,DOGE_USDT:0.12,ADA_USDT:0.45,AVAX_USDT:35,LINK_USDT:14,DOT_USDT:7.2};
 var balance = START_BAL, dailyPnL = 0, peakBal = START_BAL;
@@ -699,7 +767,7 @@ var CFG = {
   trackerMs: 500,
   livePriceMs: 1000,
   killSwitch: false,
-  persistKey: 'apex-scalp-v641',
+  persistKey: 'apex-scalp-v650',
   dayKey: new Date().toISOString().slice(0, 10)
 };
 
@@ -710,8 +778,52 @@ var V62 = {
   aTierBoost: 2.0,
   bTierBoost: 1.5,
   eliteFilter: false,
-  storageKey: 'apex-scalp-v641-sizing'
+  storageKey: 'apex-scalp-v650-sizing'
 };
+
+
+var BTC_PRO = {
+  symbol: 'BTC_USDT',
+  leverage: 2,
+  marginUsd: 500,
+  minScore: 75,
+  minAdx: 18,
+  minVol: 0.90,
+  minRR: 1.90,
+  atrMinPct: 0.08,
+  atrMaxPct: 1.25,
+  stopMinPct: 0.35,
+  stopMaxPct: 1.20,
+  maxVwapAtr: 2.20,
+  autoArm: false,
+  lastAutoBar: 0,
+  storageKey: 'apex-btc-pro-v1'
+};
+var btcProAnalysis = null;
+
+var BTCProStore = {
+  load: function () {
+    try {
+      var raw = window.__apexStorage.getItem(BTC_PRO.storageKey);
+      if (raw) {
+        var x = JSON.parse(raw);
+        BTC_PRO.marginUsd = clampNum(num(x.marginUsd, BTC_PRO.marginUsd), 5, 1000000);
+        BTC_PRO.minScore = clampNum(num(x.minScore, BTC_PRO.minScore), 60, 95);
+      }
+    } catch (e) {}
+    // Deliberately never restore AUTO=ON from storage.
+    BTC_PRO.autoArm = false;
+  },
+  save: function () {
+    try { window.__apexStorage.setItem(BTC_PRO.storageKey, JSON.stringify({marginUsd:BTC_PRO.marginUsd,minScore:BTC_PRO.minScore})); } catch (e) {}
+  }
+};
+
+function marketSymbols() {
+  var out = pairs.slice();
+  if (out.indexOf(BTC_PRO.symbol) === -1) out.push(BTC_PRO.symbol);
+  return out;
+}
 
 var Runtime = {
   openingLocks: {},
@@ -1088,7 +1200,7 @@ function ensureSwingHistory(sym) {
 }
 
 function demoRefresh() {
-  pairs.forEach(function (s) { tickFull(s); });
+  marketSymbols().forEach(function (s) { tickFull(s); });
   analyzeAll();
 }
 
@@ -1140,6 +1252,49 @@ function calcATR(kl, p) {
   }
   for (i=trs.length-p; i<trs.length; i++) sum+=trs[i];
   return sum/p;
+}
+
+
+function calcADX(kl, p) {
+  p = p || 14;
+  if (!kl || kl.length < p * 2 + 2) return 0;
+  var tr = [], plusDM = [], minusDM = [];
+  for (var i = 1; i < kl.length; i++) {
+    var up = Number(kl[i].h) - Number(kl[i-1].h);
+    var dn = Number(kl[i-1].l) - Number(kl[i].l);
+    plusDM.push(up > dn && up > 0 ? up : 0);
+    minusDM.push(dn > up && dn > 0 ? dn : 0);
+    var pc = Number(kl[i-1].c);
+    tr.push(Math.max(Number(kl[i].h)-Number(kl[i].l), Math.abs(Number(kl[i].h)-pc), Math.abs(Number(kl[i].l)-pc)));
+  }
+  var atr = 0, pDM = 0, mDM = 0;
+  for (i = 0; i < p; i++) { atr += tr[i]; pDM += plusDM[i]; mDM += minusDM[i]; }
+  var dx = [];
+  for (i = p; i < tr.length; i++) {
+    atr = atr - atr / p + tr[i];
+    pDM = pDM - pDM / p + plusDM[i];
+    mDM = mDM - mDM / p + minusDM[i];
+    var pDI = atr ? 100 * pDM / atr : 0;
+    var mDI = atr ? 100 * mDM / atr : 0;
+    var den = pDI + mDI;
+    dx.push(den ? 100 * Math.abs(pDI - mDI) / den : 0);
+  }
+  if (!dx.length) return 0;
+  var tail = dx.slice(-p), sum = 0;
+  for (i = 0; i < tail.length; i++) sum += tail[i];
+  return sum / tail.length;
+}
+
+function calcSessionVWAP(kl, count) {
+  if (!kl || !kl.length) return 0;
+  var slice = kl.slice(-Math.max(1, count || 96));
+  var pv = 0, vv = 0;
+  for (var i = 0; i < slice.length; i++) {
+    var v = Math.max(0, Number(slice[i].v) || 0);
+    var typical = (Number(slice[i].h) + Number(slice[i].l) + Number(slice[i].c)) / 3;
+    pv += typical * v; vv += v;
+  }
+  return vv > 0 ? pv / vv : Number(slice[slice.length - 1].c || 0);
 }
 
 function calcVolRatio(kl) {
@@ -1901,6 +2056,120 @@ function analyze(sym) {
   return out;
 }
 
+
+/* ═══════════════════════════════════════════════
+   BTC PRO — fixed 2x, multi-timeframe confluence
+   1H regime + 15M trend strength + 5M trigger,
+   VWAP/MACD/RSI/volume/ATR filters, structural SL.
+   ═══════════════════════════════════════════════ */
+function analyzeBtcPro() {
+  var sym = BTC_PRO.symbol;
+  var pd = pData[sym];
+  if (!pd) return {signal:'WAIT',score:0,failReason:'NO_BTC_DATA'};
+  var kl5 = pd.kl5m || [], kl15 = pd.kl15m || [], kl1h = pd.kl1h || [];
+  var price = Number(pd.price || (kl5.length ? kl5[kl5.length-1].c : 0));
+  if (!price || kl5.length < 60 || kl15.length < 60 || kl1h.length < 55) {
+    return {signal:'WAIT',score:0,price:price||0,failReason:'WARMUP 5m:'+kl5.length+' 15m:'+kl15.length+' 1h:'+kl1h.length};
+  }
+
+  var c5 = kl5.map(function(k){return Number(k.c);});
+  var c15 = kl15.map(function(k){return Number(k.c);});
+  var c1h = kl1h.map(function(k){return Number(k.c);});
+  var e9_5 = calcEMA(c5,9), e21_5 = calcEMA(c5,21);
+  var e20_15 = calcEMA(c15,20), e50_15 = calcEMA(c15,50);
+  var e20_1h = calcEMA(c1h,20), e50_1h = calcEMA(c1h,50);
+  var l9 = e9_5[e9_5.length-1], l21 = e21_5[e21_5.length-1];
+  var l20_15 = e20_15[e20_15.length-1], l50_15 = e50_15[e50_15.length-1];
+  var l20h = e20_1h[e20_1h.length-1], l50h = e50_1h[e50_1h.length-1];
+  var sl5 = emaSlope(e9_5,4), sl15 = emaSlope(e20_15,4), sl1h = emaSlope(e20_1h,5);
+  var regime1h = l20h > l50h && sl1h > 0 ? 'LONG' : l20h < l50h && sl1h < 0 ? 'SHORT' : 'WAIT';
+  var trend15 = l20_15 > l50_15 && sl15 > 0 ? 'LONG' : l20_15 < l50_15 && sl15 < 0 ? 'SHORT' : 'WAIT';
+  var micro5 = l9 > l21 && sl5 > 0 ? 'LONG' : l9 < l21 && sl5 < 0 ? 'SHORT' : 'WAIT';
+
+  var atr = calcATR(kl5,14), atrPct = atr / price * 100;
+  var adx = calcADX(kl15,14);
+  var vwap = calcSessionVWAP(kl5,96);
+  var vr = calcVolRatio(kl5);
+  var rsi = calcRSI(c5,14), rsi15 = calcRSI(c15,14);
+  var macd5 = calcMACD(c5), macd15 = calcMACD(c15);
+  var last = kl5[kl5.length-1], prev = kl5[kl5.length-2];
+  var breakoutLong = Number(last.c) > maxHighOf(kl5,1,6);
+  var breakoutShort = Number(last.c) < minLowOf(kl5,1,6);
+  var pullbackLong = Number(prev.c) <= Number(e9_5[e9_5.length-2]) * 1.0015 && Number(last.c) > l9 && Number(last.c) > Number(last.o);
+  var pullbackShort = Number(prev.c) >= Number(e9_5[e9_5.length-2]) * 0.9985 && Number(last.c) < l9 && Number(last.c) < Number(last.o);
+
+  var side = regime1h !== 'WAIT' && regime1h === trend15 && regime1h === micro5 ? regime1h : 'WAIT';
+  var reasons = [], score = 0;
+  function add(points, text, cls) { score += points; reasons.push({t:text,cls:cls||'neut'}); }
+
+  if (side !== 'WAIT') {
+    add(20,'1H_REGIME',side.toLowerCase());
+    add(15,'15M_TREND',side.toLowerCase());
+    add(10,'5M_STRUCTURE',side.toLowerCase());
+    var vwapOK = side === 'LONG' ? price > vwap : price < vwap;
+    if (vwapOK) add(10,'VWAP_SIDE',side.toLowerCase()); else reasons.push({t:'VWAP_OPPOSE',cls:'warn'});
+    if (adx >= 25) add(15,'ADX:'+adx.toFixed(0),'long');
+    else if (adx >= BTC_PRO.minAdx) add(10,'ADX:'+adx.toFixed(0),'neut');
+    else reasons.push({t:'ADX_WEAK:'+adx.toFixed(0),cls:'warn'});
+    var m5ok = side === 'LONG' ? macd5.hist > 0 : macd5.hist < 0;
+    var m15ok = side === 'LONG' ? macd15.hist > 0 : macd15.hist < 0;
+    if (m5ok) add(macd5.aligned?10:7,'MACD_5M',side.toLowerCase()); else reasons.push({t:'MACD5_OPPOSE',cls:'warn'});
+    if (m15ok) add(macd15.aligned?8:5,'MACD_15M',side.toLowerCase()); else reasons.push({t:'MACD15_OPPOSE',cls:'warn'});
+    var rsiOK = side === 'LONG' ? (rsi >= 48 && rsi <= 68 && rsi15 >= 48) : (rsi >= 32 && rsi <= 52 && rsi15 <= 52);
+    if (rsiOK) add(7,'RSI:'+rsi.toFixed(0),side.toLowerCase()); else reasons.push({t:'RSI_ZONE:'+rsi.toFixed(0),cls:'warn'});
+    if (vr >= 1.20) add(5,'VOL:'+vr.toFixed(2)+'x','long');
+    else if (vr >= BTC_PRO.minVol) add(3,'VOL:'+vr.toFixed(2)+'x','neut');
+    else reasons.push({t:'VOL_LOW:'+vr.toFixed(2)+'x',cls:'warn'});
+  }
+  score = clampNum(Math.round(score),0,100);
+
+  var base = {
+    signal:'WAIT', score:score, price:price, failReason:'', reasons:reasons,
+    atr:atr, atrPct:atrPct, adx:adx, vwap:vwap, vr:vr, rsi:rsi,
+    regime1h:regime1h, trend15:trend15, micro5:micro5,
+    marginUsd:BTC_PRO.marginUsd, posVal:BTC_PRO.marginUsd * BTC_PRO.leverage,
+    leverage:BTC_PRO.leverage, rrActual:BTC_PRO.minRR,
+    lastBar:Number(last.t||0)
+  };
+
+  if (side === 'WAIT') { base.failReason='MTF_NOT_ALIGNED'; return base; }
+  if (atrPct < BTC_PRO.atrMinPct || atrPct > BTC_PRO.atrMaxPct) { base.failReason='ATR_FILTER:'+atrPct.toFixed(2)+'%'; return base; }
+  if (adx < BTC_PRO.minAdx) { base.failReason='ADX<'+BTC_PRO.minAdx; return base; }
+  if (vr < BTC_PRO.minVol) { base.failReason='VOLUME<'+BTC_PRO.minVol.toFixed(2)+'x'; return base; }
+  if (side === 'LONG' && !(price > vwap && rsi >= 48 && rsi <= 68 && macd5.hist > 0 && macd15.hist > 0)) { base.failReason='LONG_CONFIRMATION'; return base; }
+  if (side === 'SHORT' && !(price < vwap && rsi >= 32 && rsi <= 52 && macd5.hist < 0 && macd15.hist < 0)) { base.failReason='SHORT_CONFIRMATION'; return base; }
+  var vwapAtr = atr > 0 ? Math.abs(price - vwap) / atr : 99;
+  if (vwapAtr > BTC_PRO.maxVwapAtr) { base.failReason='NO_CHASE:'+vwapAtr.toFixed(1)+'ATR'; return base; }
+  var trigger = side === 'LONG' ? (Number(last.c)>Number(last.o) && (breakoutLong || pullbackLong || macd5.aligned)) : (Number(last.c)<Number(last.o) && (breakoutShort || pullbackShort || macd5.aligned));
+  if (!trigger) { base.failReason='WAIT_5M_TRIGGER'; return base; }
+  if (score < BTC_PRO.minScore) { base.failReason='SCORE:'+score+'<'+BTC_PRO.minScore; return base; }
+
+  var swing = side === 'LONG' ? minLowOf(kl5,0,8) : maxHighOf(kl5,0,8);
+  var structuralStop = side === 'LONG' ? swing - atr*0.15 : swing + atr*0.15;
+  var structuralDist = Math.abs(price - structuralStop);
+  var minStop = price * BTC_PRO.stopMinPct / 100;
+  var maxStop = price * BTC_PRO.stopMaxPct / 100;
+  var slDist = clampNum(Math.max(atr*1.35, structuralDist, minStop), minStop, maxStop);
+  var tpDist = slDist * BTC_PRO.minRR;
+  var sl = side === 'LONG' ? price - slDist : price + slDist;
+  var tp = side === 'LONG' ? price + tpDist : price - tpDist;
+  var notional = BTC_PRO.marginUsd * BTC_PRO.leverage;
+  var qty = notional / price;
+  var costs = notional * costRate();
+  var grossRisk = slDist * qty;
+  var grossProfit = tpDist * qty;
+
+  base.signal = side;
+  base.sl = sl; base.tp = tp; base.slDist = slDist; base.tpDist = tpDist;
+  base.qty = qty; base.posVal = notional; base.marginUsed = BTC_PRO.marginUsd;
+  base.estRisk = grossRisk + costs;
+  base.estProfit = grossProfit - costs;
+  base.estimatedCosts = costs;
+  base.rrActual = tpDist / slDist;
+  base.failReason = '';
+  return base;
+}
+
 function analyzeAll() {
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (!pData[s]) continue;
@@ -2141,7 +2410,7 @@ var RiskManager = {
     var pd = pData[sym];
     return !pd || !pd.dataUpdatedAt || Date.now() - pd.dataUpdatedAt > CFG.staleDataMs;
   },
-  gate: function (sym, notional) {
+  gate: function (sym, notional, leverageOverride) {
     if (CFG.killSwitch) return {ok:false, reason:'KILL SWITCH'};
     if (dailyPnL <= -Math.abs(CFG.maxDailyLoss)) return {ok:false, reason:'DAILY LOSS LIMIT'};
     if (RiskManager.drawdownPct() >= CFG.maxDrawdownPct) return {ok:false, reason:'MAX DRAWDOWN'};
@@ -2152,7 +2421,8 @@ var RiskManager = {
     if (positions.filter(function (p) { return p.state !== POSITION_STATE.CLOSED; }).length >= MAX_P) return {ok:false, reason:'MAX POSITIONS'};
     if (positions.some(function (p) { return p.pair === sym && p.state !== POSITION_STATE.CLOSED; })) return {ok:false, reason:'PAIR ALREADY OPEN'};
     if (Runtime.openingLocks[sym]) return {ok:false, reason:'OPEN REQUEST PENDING'};
-    var margin = Accounting.marginRequired(notional, leverage);
+    var gateLeverage = Math.max(1, num(leverageOverride, leverage));
+    var margin = Accounting.marginRequired(notional, gateLeverage);
     if (appMode === 'demo' && margin > balance * 0.95) return {ok:false, reason:'INSUFFICIENT MARGIN'};
     return {ok:true};
   },
@@ -2258,7 +2528,7 @@ var MarketData = {
     // though the worker fully supports it.
     if (Runtime.capabilities.snapshot !== false) {
       try {
-        var qs = encodeURIComponent(pairs.join(','));
+        var qs = encodeURIComponent(marketSymbols().join(','));
         var snap = await Http.get('/snapshot?symbols=' + qs);
         if (!snap || !snap.success || !snap.market) throw new Error('Invalid snapshot response');
         Runtime.capabilities.snapshot = true;
@@ -2273,7 +2543,7 @@ var MarketData = {
         }
       }
     }
-    return ApiCompat.fetchLegacyMarket(pairs.slice());
+    return ApiCompat.fetchLegacyMarket(marketSymbols());
   },
   refreshOpenPrices: function () {
     if (appMode !== 'live' || !WORKER || !positions.length) return Promise.resolve(false);
@@ -2415,6 +2685,63 @@ var Execution = {
     } finally {
       delete Runtime.openingLocks[sym];
       updatePosUI(); updateSignalUI();
+    }
+  },
+
+
+  openBtcPro: async function (auto) {
+    var sym = BTC_PRO.symbol;
+    if (Runtime.openingLocks[sym]) return;
+    var an = analyzeBtcPro();
+    btcProAnalysis = an;
+    updateBtcProUI();
+    if (!an || an.signal === 'WAIT') { if (!auto) notify('BTC PRO: ' + ((an && an.failReason) || 'no qualified setup'), 'info'); return; }
+    if (Number(BTC_PRO.marginUsd) <= 0) { notify('BTC PRO margin is invalid', 'error'); return; }
+
+    var gate = RiskManager.gate(sym, an.posVal, BTC_PRO.leverage);
+    if (!gate.ok) { if (!auto) notify('BTC PRO: ' + gate.reason, 'error'); return; }
+
+    var cOrderId = orderId('btcpro', sym);
+    var pos = Execution.makePosition(sym, an.signal, an.price, an.posVal, an.qty, an.sl, an.tp, auto, cOrderId, an.score, an.atrPct);
+    pos.profile = 'BTC_PRO';
+    pos.leverageUsed = BTC_PRO.leverage;
+    pos.marginUsed = BTC_PRO.marginUsd;
+    pos.targetProfitUsd = Math.max(0.01, num(an.estProfit, 0.01));
+    pos.initialRiskUsd = num(an.estRisk, 0);
+
+    Runtime.openingLocks[sym] = true;
+    updateBtcProUI();
+    try {
+      if (appMode === 'live') {
+        var r = await Http.post('/btc-pro/order', {
+          symbol: sym, side: an.signal, marginUsd: BTC_PRO.marginUsd,
+          tp: an.tp, sl: an.sl, clientOrderId: cOrderId
+        });
+        if (!r || !(r.success || r.ok)) throw new Error((r && r.error) || 'BTC PRO order rejected');
+        pos.exchangeOrderId = r.orderId || (r.order && r.order.id) || null;
+        if (r.fillPrice) pos.entry = Number(r.fillPrice);
+        if (r.usdNominal) pos.posVal = Number(r.usdNominal);
+        pos.qty = pos.posVal / pos.entry;
+        pos.entryFee = Accounting.entryFee(pos.posVal, CFG.feeRate);
+        StateMachine.transition(pos, POSITION_STATE.OPEN);
+        positions.push(pos); Store.save();
+        await Execution.reconcile(true);
+      } else {
+        balance -= pos.entryFee; dailyPnL -= pos.entryFee;
+        StateMachine.transition(pos, POSITION_STATE.OPEN);
+        positions.push(pos); peakBal = Math.max(peakBal,balance); Store.save();
+        logPos('[BTC PRO] OPEN '+pos.side+' BTC @'+fp(pos.entry)+' nominal:$'+pos.posVal.toFixed(2)+' margin:$'+BTC_PRO.marginUsd.toFixed(2)+' 2x SL:'+fp(pos.sl)+' TP:'+fp(pos.tp),'ok');
+      }
+      notify((auto?'BTC PRO AUTO ':'BTC PRO ') + an.signal + ' opened', 'success');
+      startTracker();
+    } catch (e) {
+      try { StateMachine.transition(pos, POSITION_STATE.ERROR, e.message); } catch (_) {}
+      notify('BTC PRO open failed: '+e.message, 'error');
+      log('[BTC PRO OPEN ERROR] '+e.message,'err');
+      if (auto) BTC_PRO.autoArm = false;
+    } finally {
+      delete Runtime.openingLocks[sym];
+      updatePosUI(); updateSignalUI(); updateBtcProUI();
     }
   },
 
@@ -2625,7 +2952,7 @@ var Execution = {
     positions = positions.filter(function (p) { return p.id !== pos.id; });
     delete closingNow[pos.id];
 
-    balance = Number(balance) + Number(pos.posVal || 0) + net;
+    balance = Number(balance) + net; // Equity model: notional was never deducted at entry; only realized net PnL is added on close.
     if (!isFinite(balance)) balance = START_BAL;
     dailyPnL += net;
     peakBal = Math.max(peakBal, balance);
@@ -2759,7 +3086,7 @@ var TrailService = {
     var high = pos.highPnl || 0;
 
     var roundTrip = Accounting.roundTripCost(pos.posVal, pos.feeRate);
-    var refTarget = pos.dcaMode ? num(pos.targetProfit, DCA_CFG.targetProfit) : Number(targetUSD);
+    var refTarget = pos.dcaMode ? num(pos.targetProfit, DCA_CFG.targetProfit) : (pos.profile === 'BTC_PRO' ? num(pos.targetProfitUsd, targetUSD) : Number(targetUSD));
     var activation = Math.max(refTarget * 0.40, roundTrip * 1.5);
     if (high < activation) return;
 
@@ -2788,28 +3115,32 @@ var TrailService = {
       else { ext = price - (pos.entry - price) * 0.4; if (ext < pos.tp) pos.tp = ext; }
     }
 
-    if (appMode === 'live' && WORKER && Runtime.capabilities.riskUpdate !== false &&
-        (!pos.lastRiskSync || Date.now() - pos.lastRiskSync > 1200)) {
+    if (appMode === 'live' && WORKER && (!pos.lastRiskSync || Date.now() - pos.lastRiskSync > 1200)) {
       pos.lastRiskSync = Date.now();
-      Http.post('/risk/update', {symbol: pos.pair, side: pos.side, sl: pos.sl, tp: pos.tp, clientOrderId: orderId('risk', pos.pair)})
-        .then(function (r) {
-          if (r && (r.success || r.ok)) { Runtime.capabilities.riskUpdate = true; pos.lastRiskAckSL = pos.sl; }
-          else throw new Error((r && r.error) || 'rejected');
-        })
-        .catch(function (e) {
-          if (isNotFound(e)) {
-            Runtime.capabilities.riskUpdate = false;
-            // This worker doesn't implement /risk/update — fall back to
-            // /update_tpsl, which it does implement, so the trail still
-            // reaches the exchange instead of staying purely local.
-            Http.post('/update_tpsl', {symbol: pos.pair, side: pos.side, sl: pos.sl, tp: pos.tp})
-              .then(function (r2) {
-                if (r2 && r2.errors && r2.errors.length) logPos('[TRAIL SYNC WARN] ' + pos.pair + ': ' + r2.errors.join('; '), 'err');
-                else pos.lastRiskAckSL = pos.sl;
-              })
-              .catch(function (e2) { logPos('[TRAIL SYNC ERROR] ' + e2.message, 'err'); });
-          } else { pos.lastError = 'Risk sync: ' + e.message; logPos('[RISK SYNC ERROR] ' + e.message, 'err'); }
-        });
+      var syncLegacyTpSl = function () {
+        return Http.post('/update_tpsl', {symbol: pos.pair, side: pos.side, sl: pos.sl, tp: pos.tp})
+          .then(function (r2) {
+            if (r2 && r2.errors && r2.errors.length) logPos('[TRAIL SYNC WARN] ' + pos.pair + ': ' + r2.errors.join('; '), 'err');
+            else pos.lastRiskAckSL = pos.sl;
+          })
+          .catch(function (e2) { pos.lastError = 'TP/SL sync: ' + e2.message; logPos('[TRAIL SYNC ERROR] ' + e2.message, 'err'); });
+      };
+
+      // This project's worker advertises riskUpdate:false but DOES implement /update_tpsl.
+      // Sync there directly so a trailing-stop improvement is not browser-local only.
+      if (Runtime.capabilities.riskUpdate === false) {
+        syncLegacyTpSl();
+      } else {
+        Http.post('/risk/update', {symbol: pos.pair, side: pos.side, sl: pos.sl, tp: pos.tp, clientOrderId: orderId('risk', pos.pair)})
+          .then(function (r) {
+            if (r && (r.success || r.ok)) { Runtime.capabilities.riskUpdate = true; pos.lastRiskAckSL = pos.sl; }
+            else throw new Error((r && r.error) || 'rejected');
+          })
+          .catch(function (e) {
+            if (isNotFound(e)) { Runtime.capabilities.riskUpdate = false; syncLegacyTpSl(); }
+            else { pos.lastError = 'Risk sync: ' + e.message; logPos('[RISK SYNC ERROR] ' + e.message, 'err'); }
+          });
+      }
     }
   }
 };
@@ -2992,6 +3323,7 @@ function runEngine() {
   var best = null, bestScore = -1;
   for (var i = 0; i < pairs.length; i++) {
     var s = pairs[i]; if (inCD(s)) continue;
+    if (BTC_PRO.autoArm && s === BTC_PRO.symbol) continue;
     var an = pData[s] && pData[s].an;
     if (!an || an.signal === 'WAIT') continue;
     if (an.score > bestScore) { bestScore = an.score; best = {sym: s, an: an}; }
@@ -3019,6 +3351,9 @@ async function mainLoop() {
     if (appMode === 'demo') demoRefresh();
     else await MarketData.fetchLive();
     Runtime.lastScanAt = Date.now();
+    btcProAnalysis = analyzeBtcPro();
+    updateBtcProUI();
+    if (BTC_PRO.autoArm) maybeRunBtcProAuto();
     if (engineOn) runEngine();
     updateSignalUI(); updatePairRow(); updateTicker(); updateCoinScoreTable();
     updateWRStrip(); drawChart(); drawEquity(); renderRiskStatus();
@@ -3692,6 +4027,123 @@ function renderCoinList() {
   });
 }
 
+
+function btcProSetText(id, text, cls) {
+  var el = document.getElementById(id); if (!el) return;
+  el.textContent = text;
+  if (cls) el.className = cls;
+}
+
+function updateBtcProUI() {
+  var marginEl = document.getElementById('btcProMargin');
+  if (!marginEl) return;
+  BTC_PRO.marginUsd = clampNum(num(marginEl.value, BTC_PRO.marginUsd), 5, 1000000);
+  var nominal = BTC_PRO.marginUsd * BTC_PRO.leverage;
+  btcProSetText('btcProMarginShow', '$'+BTC_PRO.marginUsd.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+  btcProSetText('btcProNotional', '$'+nominal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+
+  var an = btcProAnalysis || analyzeBtcPro();
+  btcProAnalysis = an;
+  var sig = an && an.signal ? an.signal : 'WAIT';
+  var sigEl = document.getElementById('btcProSig');
+  if (sigEl) { sigEl.textContent = sig; sigEl.className = 'sig-badge '+sig; }
+  var score = an ? num(an.score,0) : 0;
+  btcProSetText('btcProScore', score+' / 100');
+  var sb = document.getElementById('btcProScoreBar');
+  if (sb) { sb.style.width=score+'%'; sb.style.background = score>=BTC_PRO.minScore?'var(--long)':score>=60?'var(--gold)':'var(--short)'; }
+  var tier = score>=85?'A':score>=BTC_PRO.minScore?'B':'C';
+  var te = document.getElementById('btcProTier'); if (te) { te.textContent='SCORE '+score+' · '+tier; te.className='conf-tier '+tier; }
+  var fundsBlocked = appMode === 'demo' ? (BTC_PRO.marginUsd > balance * 0.95) : (Number.isFinite(futBal) && BTC_PRO.marginUsd * 1.02 > futBal);
+  var metaText = sig==='WAIT' ? ((an&&an.failReason)||'No qualified setup') : ('ENTRY '+fp(an.price)+' · RR '+num(an.rrActual,0).toFixed(2)+'R');
+  if (fundsBlocked) metaText += ' · INSUFFICIENT AVAILABLE MARGIN';
+  btcProSetText('btcProMeta', metaText);
+
+  function ind(id, txt, good, bad) {
+    var el=document.getElementById(id); if(!el)return; el.textContent=txt; el.className='ind-val '+(good?'bull':bad?'bear':'neut');
+  }
+  if (an) {
+    ind('bp1h', an.regime1h||'--', an.regime1h==='LONG', an.regime1h==='SHORT');
+    ind('bpAdx', Number.isFinite(an.adx)?an.adx.toFixed(1):'--', an.adx>=25, an.adx<BTC_PRO.minAdx);
+    ind('bpVwap', an.vwap?fp(an.vwap):'--', sig!=='WAIT' && ((sig==='LONG'&&an.price>an.vwap)||(sig==='SHORT'&&an.price<an.vwap)), false);
+    ind('bpRsi', Number.isFinite(an.rsi)?an.rsi.toFixed(1):'--', an.rsi>=45&&an.rsi<=65, an.rsi>72||an.rsi<28);
+    ind('bpAtr', Number.isFinite(an.atrPct)?an.atrPct.toFixed(2)+'%':'--', an.atrPct>=BTC_PRO.atrMinPct&&an.atrPct<=BTC_PRO.atrMaxPct, false);
+    ind('bpVol', Number.isFinite(an.vr)?an.vr.toFixed(2)+'x':'--', an.vr>=1.2, an.vr<BTC_PRO.minVol);
+  }
+
+  var rr = document.getElementById('btcProReasons');
+  if (rr) {
+    rr.innerHTML='';
+    (an&&an.reasons||[]).slice(0,8).forEach(function(r){var x=document.createElement('span');x.className='rtag '+(r.cls||'neut');x.textContent=r.t;rr.appendChild(x);});
+  }
+
+  var plan = document.getElementById('btcProPlan');
+  if (plan) {
+    if (an && sig!=='WAIT') {
+      plan.innerHTML = '<div class="plan-box"><div class="plan-hd '+sig.toLowerCase()+'"><span>BTC PRO '+sig+'</span><span>'+score+'/100</span></div><div class="plan-body">'+
+        '<div class="plan-row"><span class="pk">ENTRY</span><span>'+fp(an.price)+'</span></div>'+
+        '<div class="plan-row"><span class="pk">STOP · structure + ATR</span><span class="pv sl">'+fp(an.sl)+'</span></div>'+
+        '<div class="plan-row"><span class="pk">TARGET · '+an.rrActual.toFixed(2)+'R</span><span class="pv tp">'+fp(an.tp)+'</span></div>'+
+        '<div class="plan-row"><span class="pk">MARGIN / NOMINAL</span><span>$'+BTC_PRO.marginUsd.toFixed(2)+' / $'+an.posVal.toFixed(2)+'</span></div>'+
+        '<div class="plan-row"><span class="pk">EST. RISK incl. costs</span><span class="pv sl">$'+an.estRisk.toFixed(2)+'</span></div>'+
+        '<div class="plan-row"><span class="pk">EST. NET TARGET</span><span class="pv tp">$'+an.estProfit.toFixed(2)+'</span></div>'+
+        '</div></div>';
+    } else {
+      plan.innerHTML='<div class="card"><div class="sec-title">TRADE PLAN</div><div style="font:9px var(--mono);color:var(--dim2);line-height:1.7">No entry until 1H/15M/5M direction, ADX, VWAP, MACD, RSI, volume, ATR and 5M trigger filters align.</div></div>';
+    }
+  }
+
+  var btcOpen = positions.find(function(p){return p.pair===BTC_PRO.symbol && p.state!==POSITION_STATE.CLOSED;});
+  var btcProOpen = positions.find(function(p){return p.pair===BTC_PRO.symbol && p.profile==='BTC_PRO' && p.state!==POSITION_STATE.CLOSED;});
+  var exec = document.getElementById('btcProExec'); if (exec) exec.disabled = sig==='WAIT' || fundsBlocked || !!btcOpen || !!Runtime.openingLocks[BTC_PRO.symbol];
+  var close = document.getElementById('btcProClose'); if (close) close.disabled = !btcProOpen;
+  var autoT = document.getElementById('togBtcProAuto'); if (autoT) autoT.className='tog '+(BTC_PRO.autoArm?'on':'off');
+  btcProSetText('togBtcProAutoD', BTC_PRO.autoArm ? 'ON — one qualified entry per closed 5m bar' : 'Off — manual confirmation required');
+}
+
+function bindBtcProUI() {
+  BTCProStore.load();
+  var m=document.getElementById('btcProMargin');
+  if (m) {
+    m.value=String(BTC_PRO.marginUsd);
+    m.onchange=function(){BTC_PRO.marginUsd=clampNum(num(this.value,500),5,1000000);this.value=String(BTC_PRO.marginUsd);BTCProStore.save();btcProAnalysis=analyzeBtcPro();updateBtcProUI();};
+  }
+  updateBtcProUI();
+}
+
+function toggleBtcProAuto() {
+  if (!BTC_PRO.autoArm) {
+    if (appMode === 'live') {
+      var msg='Arm BTC PRO AUTO for REAL Gate.io BTC_USDT futures orders?\n\nFixed leverage: 2x\nMargin per trade: $'+BTC_PRO.marginUsd.toFixed(2)+'\nNominal: $'+(BTC_PRO.marginUsd*2).toFixed(2)+'\n\nAUTO will only enter when all BTC PRO filters pass.';
+      if (!confirm(msg)) return;
+    }
+    BTC_PRO.autoArm=true; BTC_PRO.lastAutoBar=0;
+    notify('BTC PRO AUTO armed','info');
+  } else {
+    BTC_PRO.autoArm=false;
+    notify('BTC PRO AUTO disarmed','info');
+  }
+  updateBtcProUI();
+}
+
+function btcProExecute() { Execution.openBtcPro(false); }
+function btcProClose() {
+  var pos=positions.find(function(p){return p.pair===BTC_PRO.symbol && p.profile==='BTC_PRO' && p.state===POSITION_STATE.OPEN;});
+  if (!pos) { notify('No open BTC PRO position','info'); return; }
+  Execution.close(pos.id,'BTC_PRO_MANUAL');
+}
+
+function maybeRunBtcProAuto() {
+  if (!BTC_PRO.autoArm || appMode === 'live' && !WORKER) return;
+  if (positions.some(function(p){return p.pair===BTC_PRO.symbol && p.state!==POSITION_STATE.CLOSED;})) return;
+  if (Runtime.openingLocks[BTC_PRO.symbol]) return;
+  var an=btcProAnalysis||analyzeBtcPro();
+  if (!an || an.signal==='WAIT') return;
+  var bar=num(an.lastBar,0);
+  if (!bar || bar===BTC_PRO.lastAutoBar) return;
+  BTC_PRO.lastAutoBar=bar;
+  Execution.openBtcPro(true);
+}
+
 function doReset() {
   if (!confirm('Reset demo ledger? Live exchange positions will not be hidden or deleted.')) return;
   if (appMode === 'live' && positions.length) { notify('Live positions exist; close them first', 'error'); return; }
@@ -3704,10 +4156,11 @@ function doReset() {
 }
 
 function swPage(name) {
-  ['signal', 'pos', 'engine', 'settings'].forEach(function (p) { document.getElementById('pg-' + p).classList.toggle('active', p === name); });
+  ['signal', 'btcpro', 'pos', 'engine', 'settings'].forEach(function (p) { document.getElementById('pg-' + p).classList.toggle('active', p === name); });
   document.querySelectorAll('.nb').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-page') === name); });
   if (name === 'signal') setTimeout(drawChart, 80);
   if (name === 'pos') { updatePosUI(); setTimeout(drawEquity, 80); }
+  if (name === 'btcpro') updateBtcProUI();
 }
 
 function setTF(tf) {
@@ -3948,6 +4401,7 @@ window.__apexReady(function () {
   bindSafeUI();
   bindV62UI();
   bindDcaUI();
+  bindBtcProUI();
 
   document.querySelectorAll('.nb').forEach(function (b) { b.onclick = function () { swPage(b.getAttribute('data-page')); }; });
   document.querySelectorAll('.tf-btn').forEach(function (b) { b.onclick = function () { setTF(b.getAttribute('data-tf')); }; });
@@ -3970,6 +4424,7 @@ window.__apexReady(function () {
     log('Risk: Dynamic Kelly/Volatility/Loss-streak sizing active', 'ok');
     log('Exit: Weakness detector (partial/full close) active every 5min', 'ok');
     log('DCA: ladder mode available (Engine tab) — off by default; legs only add on adverse price movement', 'ok');
+    log('BTC PRO: BTC_USDT-only · fixed 2x · configurable margin · MTF/ADX/VWAP/ATR strategy · AUTO off by default', 'ok');
     if (failed.length) { notify('Self-test failure — review log', 'error'); }
   }, 150);
 });
